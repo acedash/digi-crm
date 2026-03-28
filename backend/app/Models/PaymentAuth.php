@@ -21,15 +21,21 @@ class PaymentAuth extends Model
         'total_amount',
         'currency',
         'approved_at',
+        'approved_email',
+        'masked_card',
+        'declaration_version',
+        'declaration_text',
         'ip_address',
         'user_agent',
         'digital_signature',
         'metadata',
+        'consent_snapshot',
     ];
 
     protected $casts = [
         'approved_at' => 'datetime',
         'metadata' => 'array',
+        'consent_snapshot' => 'array',
     ];
 
     protected static function boot()

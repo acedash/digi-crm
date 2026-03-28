@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Traits\ApiResponseTrait;
 use App\Domains\Booking\Services\PaymentAuthService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PaymentAuthController extends Controller
 {
@@ -41,8 +42,14 @@ class PaymentAuthController extends Controller
                 'approval_url' => config('app.frontend_url') . '/authorize/' . $auth->token,
                 'total_amount' => $auth->total_amount,
                 'currency' => $auth->currency,
+                'email' => $auth->client?->email,
             ], 'Authorization link created successfully', 201);
         } catch (\Exception $e) {
+            Log::error('Payment authorization send failed', [
+                'client_id' => $request->client_id,
+                'booking_ids' => $request->booking_ids,
+                'error' => $e->getMessage(),
+            ]);
             return $this->errorResponse($e->getMessage());
         }
     }
@@ -59,6 +66,17 @@ class PaymentAuthController extends Controller
         }
 
         return $this->successResponse($auth, 'Authorization details retrieved');
+    }
+
+    public function proofByBooking(int $bookingId)
+    {
+        $auth = $this->paymentAuthService->getLatestByBookingId($bookingId);
+
+        if (!$auth) {
+            return $this->errorResponse('Consent proof not found', 404);
+        }
+
+        return $this->successResponse($auth, 'Consent proof retrieved');
     }
 
     /**
@@ -78,6 +96,25 @@ class PaymentAuthController extends Controller
             ]);
 
             return $this->successResponse($auth, 'Payment authorization approved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
+        }
+    }
+
+    public function reject(Request $request, string $token)
+    {
+        $request->validate([
+            'signature' => 'nullable|string',
+        ]);
+
+        try {
+            $auth = $this->paymentAuthService->reject($token, [
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'signature' => $request->signature,
+            ]);
+
+            return $this->successResponse($auth, 'Payment authorization rejected successfully');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

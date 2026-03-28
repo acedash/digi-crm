@@ -1,29 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import BookingList from './BookingList';
 import BookingForm from './BookingForm';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 
 const BookingsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id: urlId } = useParams();
-  const [view, setView] = useState('list'); // 'list', 'form'
-  const [editingId, setEditingId] = useState(null);
-
   const basePath = '/' + location.pathname.split('/')[1];
-
-  useEffect(() => {
-    if (location.pathname.endsWith('/new')) {
-      setView('form');
-      setEditingId(null);
-    } else if (urlId && location.pathname.endsWith('/edit')) {
-      setView('form');
-    } else {
-      setView('list');
-      setEditingId(null);
-    }
-  }, [location.pathname, urlId]);
+  const isCreateRoute = location.pathname.endsWith('/new');
+  const isEditRoute = Boolean(urlId && location.pathname.endsWith('/edit'));
+  const view = isCreateRoute || isEditRoute ? 'form' : 'list';
+  const editingId = isEditRoute ? urlId : null;
 
   const handleCreate = () => {
     navigate(`${basePath}/bookings/new`);
@@ -41,28 +30,16 @@ const BookingsPage = () => {
     <div style={{ position: 'relative', minHeight: '100vh' }}>
       <AnimatePresence mode="wait">
         {view === 'list' && (
-          <motion.div
-            key="list"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-          >
+          <div key="list">
             <BookingList 
               onCreate={handleCreate} 
               onEdit={handleEdit} 
             />
-          </motion.div>
+          </div>
         )}
 
         {view === 'form' && (
-          <motion.div
-            key="form"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            transition={{ duration: 0.3 }}
-          >
+          <div key="form">
             <div style={{ padding: '24px' }}>
               <div style={{ marginBottom: '24px', maxWidth: '900px', margin: '0 auto 24px' }}>
                 <button 
@@ -87,7 +64,7 @@ const BookingsPage = () => {
                 onCancel={() => navigate(`${basePath}/bookings`)} 
               />
             </div>
-          </motion.div>
+          </div>
         )}
 
       </AnimatePresence>

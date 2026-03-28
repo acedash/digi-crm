@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Clock, Box, ArrowRight, Activity, Download, Search, Globe, Monitor } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import api from '../../services/api';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import Button from '../../components/ui/Button';
 
 const AuditTrailPage = () => {
@@ -53,11 +53,26 @@ const AuditTrailPage = () => {
     }).format(d);
   };
 
+  const formatFieldLabel = (key) => {
+    return key
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  };
+
+  const formatFieldValue = (value) => {
+    if (value === null || value === undefined || value === '') return 'Empty';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (value === 1 || value === '1') return 'Yes';
+    if (value === 0 || value === '0') return 'No';
+    return String(value);
+  };
+
   const renderChanges = (log) => {
     if (log.source === 'temporal') {
       return (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          <span style={{ background: 'var(--bg-input)', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', border: '1px solid var(--border-color)' }}>
+        <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '8px' }}>
+          <span style={{ background: 'var(--bg-input)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', border: '1px solid var(--border-color)' }}>
             {log.event_type.replace('Agent Status: ', '')}
           </span>
         </div>
@@ -69,29 +84,58 @@ const AuditTrailPage = () => {
     }
 
     if (log.details.old) {
+      const changedKeys = Object.keys(log.details)
+        .filter(key => key !== 'old')
+        .filter(key => String(log.details.old[key] ?? '') !== String(log.details[key] ?? ''));
+
+      if (changedKeys.length === 0) {
+        return <span style={{ color: 'var(--text-muted)' }}>No field changes recorded.</span>;
+      }
+
       // It's an update with old & new values
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {Object.keys(log.details).filter(k => k !== 'old').map(key => {
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {changedKeys.map(key => {
             const oldVal = log.details.old[key];
             const newVal = log.details[key];
             return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-muted)', textTransform: 'capitalize', minWidth: '80px' }}>
-                  {key.replace('_', ' ')}:
+              <div
+                key={key}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '140px 1fr auto 1fr',
+                  gap: '10px',
+                  alignItems: 'center',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '13px'
+                }}
+              >
+                <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                  {formatFieldLabel(key)}
                 </span>
-                <span style={{ 
-                  color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)',
-                  padding: '4px 8px', borderRadius: '6px', textDecoration: 'line-through', fontWeight: 600
+                <span style={{
+                  color: '#ef4444',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  wordBreak: 'break-word'
                 }}>
-                  {String(oldVal || 'empty')}
+                  {formatFieldValue(oldVal)}
                 </span>
                 <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
-                <span style={{ 
-                  color: '#10b981', background: 'rgba(16, 185, 129, 0.1)',
-                  padding: '4px 8px', borderRadius: '6px', fontWeight: 600
+                <span style={{
+                  color: '#10b981',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  wordBreak: 'break-word'
                 }}>
-                  {String(newVal || 'empty')}
+                  {formatFieldValue(newVal)}
                 </span>
               </div>
             );
@@ -102,17 +146,17 @@ const AuditTrailPage = () => {
 
     // It's a creation event or flat attributes
     return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {Object.keys(log.details)
           .filter(key => log.details[key] !== null && log.details[key] !== '') // Filter out null/empty metrics
           .map(key => (
           <div key={key} style={{ 
             background: 'var(--bg-input)', border: '1px solid var(--border-color)', 
-            padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: 'var(--text-main)',
-            display: 'flex', gap: '6px', alignItems: 'center'
+            padding: '8px 10px', borderRadius: '8px', fontSize: '12px', color: 'var(--text-main)',
+            display: 'grid', gridTemplateColumns: '140px 1fr', gap: '10px', alignItems: 'center'
           }}>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 600, textTransform: 'capitalize' }}>{key.replace('_', ' ')}:</span> 
-            <span style={{ fontWeight: 600 }}>{String(log.details[key])}</span>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>{formatFieldLabel(key)}</span> 
+            <span style={{ fontWeight: 600 }}>{formatFieldValue(log.details[key])}</span>
           </div>
         ))}
       </div>
@@ -171,78 +215,86 @@ const AuditTrailPage = () => {
           </select>
         </div>
 
-        <div style={{ overflowX: 'auto', maxHeight: '65vh' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-            <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 10 }}>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Timestamp</th>
-                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actor Network Context</th>
-                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Action Taken</th>
-                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Details / Changes</th>
-              </tr>
-            </thead>
-            <tbody>
-              <AnimatePresence>
-                {loading && logs.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      Extracting global telemetry...
-                    </td>
-                  </tr>
-                ) : filteredLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No audit logs match your specific criteria.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredLogs.map((log, idx) => (
-                    <motion.tr 
-                      key={log.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx > 15 ? 0 : idx * 0.02 }}
-                      style={{ borderBottom: '1px solid var(--border-color)' }}
-                      className="hover-brighten"
-                    >
-                      <td style={{ padding: '16px 24px', fontFamily: 'monospace', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+        <div style={{ maxHeight: '65vh', overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <AnimatePresence>
+            {loading && logs.length === 0 ? (
+              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Extracting global telemetry...
+              </div>
+            ) : filteredLogs.length === 0 ? (
+              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                No audit logs match your specific criteria.
+              </div>
+            ) : (
+              filteredLogs.map((log) => (
+                <div
+                  key={log.id}
+                  style={{
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '16px',
+                    background: 'var(--bg-card)',
+                    padding: '18px 20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}
+                  className="hover-brighten"
+                >
+                  <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1.4fr', gap: '20px', alignItems: 'start' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px' }}>
+                        Timestamp
+                      </div>
+                      <div style={{ fontFamily: 'monospace', color: 'var(--text-main)', fontWeight: 600, lineHeight: 1.5 }}>
                         {formatDate(log.timestamp)}
-                      </td>
-                      <td style={{ padding: '16px 24px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ minWidth: '28px', height: '28px', borderRadius: '50%', background: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', fontWeight: 800, fontSize: '11px' }}>
-                              {log.causer_name.charAt(0)}
-                            </div>
-                            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{log.causer_name}</span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Globe size={11} /> <span style={{ fontFamily: 'monospace' }}>{log.ip_address}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} title={log.user_agent}>
-                              <Monitor size={11} /> <span>{log.user_agent.length > 30 ? log.user_agent.substring(0, 30) + '...' : log.user_agent}</span>
-                            </div>
-                          </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px' }}>
+                        Actor Context
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <div style={{ minWidth: '30px', height: '30px', borderRadius: '50%', background: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', fontWeight: 800, fontSize: '11px' }}>
+                          {log.causer_name.charAt(0)}
                         </div>
-                      </td>
-                      <td style={{ padding: '16px 24px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '14px' }}>{log.event_type}</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: log.source === 'system' ? '#8b5cf6' : '#10b981' }}>
-                            {getSourceIcon(log.source)} {log.source === 'temporal' ? 'Time Tracker' : 'Database Event'}
-                          </div>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{log.causer_name}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Globe size={12} />
+                          <span style={{ fontFamily: 'monospace', wordBreak: 'break-word' }}>{log.ip_address}</span>
                         </div>
-                      </td>
-                      <td style={{ padding: '16px 24px', width: '45%' }}>
-                        {renderChanges(log)}
-                      </td>
-                    </motion.tr>
-                  ))
-                )}
-              </AnimatePresence>
-            </tbody>
-          </table>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                          <Monitor size={12} style={{ marginTop: '3px', flexShrink: 0 }} />
+                          <span style={{ wordBreak: 'break-word', lineHeight: 1.5 }}>{log.user_agent}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px' }}>
+                        Action
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '15px' }}>{log.event_type}</span>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: log.source === 'system' ? '#8b5cf6' : '#10b981' }}>
+                          {getSourceIcon(log.source)} {log.source === 'temporal' ? 'Time Tracker' : 'Database Event'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '10px' }}>
+                      Details / Changes
+                    </div>
+                    {renderChanges(log)}
+                  </div>
+                </div>
+              ))
+            )}
+          </AnimatePresence>
         </div>
       </Card>
     </div>

@@ -5,6 +5,7 @@ use App\Http\Controllers\Bookings\BookingController;
 use App\Http\Controllers\Bookings\PaymentAuthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ClientController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\UserActivityController;
 use App\Http\Controllers\CallLogController;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Route;
 // Public: Client approval page (no auth needed)
 Route::get('/authorize/{token}', [PaymentAuthController::class, 'show']);
 Route::post('/authorize/{token}/approve', [PaymentAuthController::class, 'approve']);
+Route::post('/authorize/{token}/reject', [PaymentAuthController::class, 'reject']);
 
 Route::post('/auth/login', [AuthController::class, 'login']);
 
@@ -37,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Payment Authorizations
     Route::post('/payment-authorizations', [PaymentAuthController::class, 'store']);
+    Route::get('/bookings/{booking}/consent-proof', [PaymentAuthController::class, 'proofByBooking']);
 
     // Bookings
     Route::get('/bookings', [BookingController::class, 'index']);
@@ -52,7 +55,9 @@ Route::middleware('auth:sanctum')->group(function () {
         
         Route::get('/admin/users', [\App\Http\Controllers\Admin\UserController::class, 'index']);
         Route::get('/admin/supervisors', [\App\Http\Controllers\Admin\UserController::class, 'getSupervisors']);
+        Route::get('/admin/settings/mail', [SettingsController::class, 'showMailSettings']);
         Route::post('/admin/users', [\App\Http\Controllers\Admin\UserController::class, 'store']);
+        Route::put('/admin/settings/mail', [SettingsController::class, 'updateMailSettings']);
         Route::put('/admin/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'update']);
         Route::patch('/admin/users/{user}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus']);
     });

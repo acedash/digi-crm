@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   CheckCircle2,
   Clock,
@@ -20,24 +19,26 @@ const AuthApprovalPage = () => {
   const [auth, setAuth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [approved, setApproved] = useState(false);
+  const [rejected, setRejected] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [error, setError] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
+    const loadAuth = async () => {
+      try {
+        const response = await paymentAuthService.getByToken(token);
+        setAuth(response.data.data);
+      } catch {
+        setError('This authorization link is invalid or has expired.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadAuth();
   }, [token]);
-
-  const loadAuth = async () => {
-    try {
-      const response = await paymentAuthService.getByToken(token);
-      setAuth(response.data.data);
-    } catch (err) {
-      setError('This authorization link is invalid or has expired.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const startDrawing = (e) => {
     const canvas = canvasRef.current;
@@ -95,6 +96,22 @@ const AuthApprovalPage = () => {
     }
   };
 
+  const handleReject = async () => {
+    const canvas = canvasRef.current;
+    const signatureData = canvas?.toDataURL('image/png');
+
+    setRejecting(true);
+    try {
+      await paymentAuthService.reject(token, { signature: signatureData });
+      setRejected(true);
+      setAuth(prev => ({ ...prev, status: 'Rejected' }));
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Rejection failed. Please try again.');
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', background: '#F2F2F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -120,6 +137,7 @@ const AuthApprovalPage = () => {
   }
 
   const isAlreadyApproved = auth?.status === 'Approved' || approved;
+  const isAlreadyRejected = auth?.status === 'Rejected' || rejected;
 
   return (
     <div style={{
@@ -180,11 +198,11 @@ const AuthApprovalPage = () => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#016040', flexShrink: 0
               }}>
-                {booking.type === 'Flight' ? <Plane size={24} /> : <Package size={24} />}
+                {(booking.services?.some(service => service.serviceable_type?.includes('Flight'))) ? <Plane size={24} /> : <Package size={24} />}
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
-                  {booking.description || `${booking.type} Booking`}
+                  {booking.booking_reference || 'Booking Authorization'}
                 </p>
                 <div style={{ display: 'flex', gap: 16 }}>
                   <span style={{ fontSize: 13, color: '#8e8e93', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -201,7 +219,7 @@ const AuthApprovalPage = () => {
                 {new Intl.NumberFormat('en-US', {
                   style: 'currency',
                   currency: booking.currency || 'USD'
-                }).format(booking.total_price)}
+                }).format(booking.total_amount || 0)}
               </div>
             </div>
           ))}
@@ -231,9 +249,7 @@ const AuthApprovalPage = () => {
 
         {/* Consent Section */}
         {isAlreadyApproved ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+          <div
             style={{
               textAlign: 'center',
               padding: 60,
@@ -255,7 +271,31 @@ const AuthApprovalPage = () => {
             <p style={{ color: '#636366', fontSize: 16, maxWidth: 400, margin: '0 auto' }}>
               Your digital consent has been securely recorded. You may close this window.
             </p>
-          </motion.div>
+          </div>
+        ) : isAlreadyRejected ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: 60,
+              background: 'white',
+              borderRadius: '40px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
+              border: '2px solid #ef4444'
+            }}
+          >
+            <div style={{
+                width: 80, height: 80, borderRadius: '50%', background: '#ef444422',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px'
+            }}>
+                <XCircle size={48} style={{ color: '#ef4444' }} />
+            </div>
+            <h3 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12, color: '#1c1c1e' }}>
+              Authorization Rejected
+            </h3>
+            <p style={{ color: '#636366', fontSize: 16, maxWidth: 420, margin: '0 auto' }}>
+              Your response has been securely recorded. The booking has been marked as rejected in the CRM.
+            </p>
+          </div>
         ) : (
           <div style={{
             background: 'white',
@@ -309,30 +349,51 @@ const AuthApprovalPage = () => {
                </p>
             </div>
 
-            <button
-              onClick={handleApprove}
-              disabled={approving}
-              className="pill-button"
-              style={{
-                width: '100%',
-                padding: '20px',
-                borderRadius: '9999px',
-                background: '#016040',
-                color: 'white',
-                border: 'none',
-                fontSize: 18,
-                fontWeight: 800,
-                cursor: approving ? 'not-allowed' : 'pointer',
-                boxShadow: '0 10px 20px rgba(1, 96, 64, 0.2)',
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 12
-              }}
-            >
-              {approving ? 'Securing Consent...' : 'Approve & Authorize Payment'}
-            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <button
+                onClick={handleReject}
+                disabled={approving || rejecting}
+                style={{
+                  width: '100%',
+                  padding: '20px',
+                  borderRadius: '9999px',
+                  background: 'white',
+                  color: '#ef4444',
+                  border: '2px solid #ef4444',
+                  fontSize: 18,
+                  fontWeight: 800,
+                  cursor: approving || rejecting ? 'not-allowed' : 'pointer',
+                  opacity: approving || rejecting ? 0.7 : 1
+                }}
+              >
+                {rejecting ? 'Rejecting...' : 'Reject'}
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={approving || rejecting}
+                className="pill-button"
+                style={{
+                  width: '100%',
+                  padding: '20px',
+                  borderRadius: '9999px',
+                  background: '#016040',
+                  color: 'white',
+                  border: 'none',
+                  fontSize: 18,
+                  fontWeight: 800,
+                  cursor: approving || rejecting ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 10px 20px rgba(1, 96, 64, 0.2)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 12,
+                  opacity: approving || rejecting ? 0.7 : 1
+                }}
+              >
+                {approving ? 'Approving...' : 'Approve & Authorize Payment'}
+              </button>
+            </div>
           </div>
         )}
 

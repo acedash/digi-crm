@@ -3,7 +3,7 @@
 namespace App\Domains\Booking\Repositories;
 
 use App\Models\PaymentAuth;
-use App\Repositories\BaseRepository;
+use App\Domains\Core\Repositories\BaseRepository;
 
 class PaymentAuthRepository extends BaseRepository
 {
@@ -14,7 +14,7 @@ class PaymentAuthRepository extends BaseRepository
 
     public function findByToken(string $token)
     {
-        return $this->model->where('token', $token)->with(['client', 'bookings.passengers'])->first();
+        return $this->model->where('token', $token)->with(['client', 'bookings.passengers', 'bookings.services.serviceable'])->first();
     }
 
     public function getPendingForClient(int $clientId)
@@ -22,5 +22,14 @@ class PaymentAuthRepository extends BaseRepository
         return $this->model->where('client_id', $clientId)
             ->where('status', 'Pending')
             ->get();
+    }
+
+    public function findLatestByBookingId(int $bookingId)
+    {
+        return $this->model
+            ->whereHas('bookings', fn ($query) => $query->where('bookings.id', $bookingId))
+            ->with(['client', 'bookings.passengers', 'bookings.services.serviceable'])
+            ->latest('id')
+            ->first();
     }
 }

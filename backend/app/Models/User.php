@@ -21,7 +21,9 @@ class User extends Authenticatable
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'email', 'is_active', 'supervisor_id', 'user_custom_id', 'phone', 'shift', 'week_off']);
+            ->logOnly(['name', 'email', 'is_active', 'supervisor_id', 'user_custom_id', 'phone', 'shift', 'week_off'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     public function tapActivity(\Spatie\Activitylog\Contracts\Activity $activity, string $eventName)

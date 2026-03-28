@@ -31,7 +31,9 @@ class Client extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'first_name', 'last_name', 'email', 'phone', 'type', 'agent_id', 'created_by', 'is_active']);
+            ->logOnly(['name', 'first_name', 'last_name', 'email', 'phone', 'type', 'agent_id', 'created_by', 'is_active'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     public function tapActivity(\Spatie\Activitylog\Contracts\Activity $activity, string $eventName)

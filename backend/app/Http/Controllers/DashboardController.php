@@ -27,15 +27,31 @@ class DashboardController extends Controller
 
     private function getAdminStats()
     {
+        $currentMonthRevenue = (float) Booking::whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->sum('total_amount');
+        $previousMonthRevenue = (float) Booking::whereMonth('created_at', now()->subMonth()->month)
+            ->whereYear('created_at', now()->subMonth()->year)
+            ->sum('total_amount');
+        $revenueGrowth = $previousMonthRevenue > 0
+            ? round((($currentMonthRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100, 1)
+            : ($currentMonthRevenue > 0 ? 100.0 : 0.0);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'total_staff' => User::count(),
-                'monthly_revenue' => (float) Booking::whereMonth('created_at', now()->month)->sum('total_amount'),
+                'active_staff' => User::whereIn('status', ['Active', 'On Call', 'active', 'on call'])->count(),
+                'total_clients' => Client::count(),
+                'total_bookings' => Booking::count(),
+                'total_calls' => CallLog::count(),
+                'monthly_revenue' => $currentMonthRevenue,
                 'pending_approvals' => Booking::where('status', 'Pending')->count(),
-                'revenue_growth' => 14,
-                'quarterly_revenue' => $this->getQuarterlyRevenue(),
-                'recent_activity' => Booking::with('client', 'agent')->latest()->take(5)->get()
+                'revenue_growth' => $revenueGrowth,
+                'recent_bookings' => Booking::with(['client', 'agent'])
+                    ->latest()
+                    ->take(5)
+                    ->get(),
             ]
         ]);
     }
@@ -44,16 +60,67 @@ class DashboardController extends Controller
     {
         $agentIds = $user->agents()->pluck('id')->toArray();
         $teamIds = array_merge([$user->id], $agentIds);
+        $weeklyThreshold = now()->subDays(7);
+        $agents = User::role('agent')
+            ->where('supervisor_id', $user->id)
+            ->withCount([
+                'bookings',
+                'bookings as weekly_bookings_count' => function ($query) use ($weeklyThreshold) {
+                    $query->where('created_at', '>=', $weeklyThreshold);
+                },
+            ])
+            ->get();
+
+        $callCounts = CallLog::select('agent_id', DB::raw('COUNT(*) as total_calls'))
+            ->whereIn('agent_id', $agentIds)
+            ->groupBy('agent_id')
+            ->pluck('total_calls', 'agent_id');
+
+        $airlineInquiryCounts = CallLog::select('agent_id', DB::raw('COUNT(*) as airline_inquiries'))
+            ->whereIn('agent_id', $agentIds)
+            ->whereNotNull('airline_inquiry')
+            ->where('airline_inquiry', '!=', '')
+            ->groupBy('agent_id')
+            ->pluck('airline_inquiries', 'agent_id');
+
+        $recentInquiries = CallLog::with(['agent:id,name', 'client:id,name,first_name,last_name'])
+            ->whereIn('agent_id', $agentIds)
+            ->latest()
+            ->take(5)
+            ->get();
 
         return response()->json([
             'success' => true,
             'data' => [
-                'total_clients' => Client::count(), // Optional: scope this if needed
-                'weekly_bookings' => Booking::whereIn('agent_id', $teamIds)->where('created_at', '>=', now()->subDays(7))->count(),
-                'team_calls' => CallLog::whereIn('agent_id', $teamIds)->where('created_at', '>=', now()->subDays(7))->count(),
+                'total_clients' => Client::whereIn('agent_id', $teamIds)
+                    ->whereHas('bookings')
+                    ->count(),
+                'weekly_bookings' => Booking::whereIn('agent_id', $teamIds)->where('created_at', '>=', $weeklyThreshold)->count(),
+                'team_calls' => CallLog::whereIn('agent_id', $teamIds)->where('created_at', '>=', $weeklyThreshold)->count(),
+                'team_airline_inquiries' => CallLog::whereIn('agent_id', $teamIds)
+                    ->where('created_at', '>=', $weeklyThreshold)
+                    ->whereNotNull('airline_inquiry')
+                    ->where('airline_inquiry', '!=', '')
+                    ->count(),
                 'pending_tasks' => Booking::whereIn('agent_id', $teamIds)->where('status', 'Pending')->count(),
-                'agent_performance' => User::role('agent')->where('supervisor_id', $user->id)->withCount('bookings')->get(),
-                'recent_bookings' => Booking::with('client')->whereIn('agent_id', $teamIds)->latest()->take(5)->get()
+                'agent_performance' => $agents->map(function ($agent) use ($callCounts, $airlineInquiryCounts) {
+                    return [
+                        'id' => $agent->id,
+                        'name' => $agent->name,
+                        'email' => $agent->email,
+                        'status' => $agent->status,
+                        'bookings_count' => $agent->bookings_count,
+                        'weekly_bookings_count' => $agent->weekly_bookings_count,
+                        'calls_count' => (int) ($callCounts[$agent->id] ?? 0),
+                        'airline_inquiries_count' => (int) ($airlineInquiryCounts[$agent->id] ?? 0),
+                    ];
+                })->values(),
+                'recent_bookings' => Booking::with(['client', 'agent:id,name'])
+                    ->whereIn('agent_id', $teamIds)
+                    ->latest()
+                    ->take(5)
+                    ->get(),
+                'recent_inquiries' => $recentInquiries,
             ]
         ]);
     }

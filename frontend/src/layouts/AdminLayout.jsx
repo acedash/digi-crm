@@ -6,6 +6,7 @@ import {
   Users, 
   Briefcase, 
   Settings, 
+  Mail,
   LogOut, 
   User, 
   Menu,
@@ -53,19 +54,20 @@ const AdminLayout = () => {
   };
   
   const basePath = getBasePath();
+  const activeRole = typeof user?.roles[0] === 'object' ? user?.roles[0].name : user?.roles[0];
+  const isAdmin = activeRole === 'admin';
+  const activityLabel = isAdmin ? 'Activity Center' : activeRole === 'supervisor' ? 'Team Activity' : 'My Activity';
 
   const navItems = [
     { label: 'Dashboard', path: `${basePath}/dashboard`, icon: LayoutDashboard, roles: ['admin', 'supervisor', 'agent'] },
-    { label: 'My Activity', path: `${basePath}/activity`, icon: Clock, roles: ['admin', 'supervisor', 'agent'] },
-    { label: 'Team Monitor', path: `${basePath}/team-monitor`, icon: Activity, roles: ['admin', 'supervisor'] },
-    { label: 'System Audit', path: '/admin/system-audit', icon: Shield, roles: ['admin'] },
     { label: 'Bookings', path: `${basePath}/bookings`, icon: ClipboardList, roles: ['admin', 'supervisor', 'agent'] },
     { label: 'Call Logs', path: `${basePath}/call-logs`, icon: PhoneCall, roles: ['admin', 'supervisor', 'agent'] },
+    { label: 'Team Monitor', path: `${basePath}/team-monitor`, icon: Activity, roles: ['admin', 'supervisor'] },
+    { label: activityLabel, path: `${basePath}/activity`, icon: Clock, roles: ['admin', 'supervisor', 'agent'] },
     { label: 'System Users', path: '/admin/users', icon: Settings, roles: ['admin'] },
+    { label: 'System Audit', path: '/admin/system-audit', icon: Shield, roles: ['admin'] },
+    { label: 'Settings', path: '/admin/settings', icon: Mail, roles: ['admin'] },
   ];
-
-  const activeRole = typeof user?.roles[0] === 'object' ? user?.roles[0].name : user?.roles[0];
-
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       {/* Sidebar */}
@@ -237,4 +239,3 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
-

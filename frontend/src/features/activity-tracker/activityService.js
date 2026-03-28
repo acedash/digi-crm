@@ -5,7 +5,7 @@ const activityService = {
   getStatus: () => api.get('/activities/status'),
   logActivity: (data) => api.post('/activities', data),
   getDailySummary: () => api.get('/activities/daily-summary'),
-  getDailyDetails: (date) => api.get(`/activities/daily-details/${date}`)
+  getDailyDetails: (date, params = {}) => api.get(`/activities/daily-details/${date}`, { params })
 };
 
 export default activityService;

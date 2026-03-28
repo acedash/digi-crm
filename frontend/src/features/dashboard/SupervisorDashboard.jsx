@@ -1,26 +1,30 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, 
-  ClipboardCheck, 
   Activity, 
-  Shield, 
-  Mail,
-  ChevronRight,
   TrendingUp,
   Award,
-  Clock,
-  UserX
+  Phone,
+  Plane,
+  ArrowRightLeft,
+  X
 } from 'lucide-react';
 import userService from '../users/userService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import dashboardService from './dashboardService';
+import bookingService from '../bookings/bookingService';
+import Toast from '../../components/ui/Toast';
+import { useAuthStore } from '../auth/useAuthStore';
 
 const SupervisorDashboard = () => {
+  const { user } = useAuthStore();
   const [agents, setAgents] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reassignModal, setReassignModal] = useState({ open: false, bookingId: null, currentAgentId: null });
+  const [reassigning, setReassigning] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'error' });
 
   useEffect(() => {
     fetchData();
@@ -35,21 +39,119 @@ const SupervisorDashboard = () => {
       ]);
       setAgents(agentsRes.data.data || agentsRes.data);
       setStats(statsRes.data.data);
-    } catch (err) {
+    } catch {
       console.error('Failed to load supervisor data');
     } finally {
       setLoading(false);
     }
   };
 
+  const openReassignModal = (booking) => {
+    setReassignModal({
+      open: true,
+      bookingId: booking.id,
+      currentAgentId: booking.agent_id,
+    });
+  };
+
+  const closeReassignModal = () => {
+    if (reassigning) return;
+    setReassignModal({ open: false, bookingId: null, currentAgentId: null });
+  };
+
+  const handleReassign = async (event) => {
+    const nextAgentId = event.target.value;
+    if (!nextAgentId) return;
+
+    try {
+      setReassigning(true);
+      await bookingService.reassignBooking(reassignModal.bookingId, nextAgentId);
+      setToast({ message: 'Booking reassigned successfully', type: 'success' });
+      setReassignModal({ open: false, bookingId: null, currentAgentId: null });
+      await fetchData();
+    } catch {
+      setToast({ message: 'Failed to reassign booking', type: 'error' });
+    } finally {
+      setReassigning(false);
+    }
+  };
+
+  const performance = stats?.agent_performance || [];
+  const recentBookings = stats?.recent_bookings || [];
+  const recentInquiries = stats?.recent_inquiries || [];
+
+  const ReassignModal = () => {
+    if (!reassignModal.open) return null;
+
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(2, 6, 23, 0.85)',
+        backdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1200,
+        padding: '24px'
+      }}>
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '420px',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '24px',
+            padding: '24px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>Reassign Booking</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                Move this booking to another agent on your team.
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" icon={X} onClick={closeReassignModal} disabled={reassigning} />
+          </div>
+
+          <select
+            defaultValue=""
+            onChange={handleReassign}
+            disabled={reassigning}
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              borderRadius: '14px',
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-main)',
+              fontSize: '14px',
+              outline: 'none',
+              cursor: reassigning ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <option value="" disabled>{reassigning ? 'Reassigning...' : '-- Select Agent --'}</option>
+            {user?.id !== reassignModal.currentAgentId && (
+              <option value={user?.id}>Assign to myself ({user?.name})</option>
+            )}
+            {agents
+              .filter((agent) => agent.id !== reassignModal.currentAgentId && agent.id !== user?.id)
+              .map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+          </select>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ 
             fontSize: '32px', 
@@ -62,122 +164,177 @@ const SupervisorDashboard = () => {
           <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
             Monitor agent performance and oversee operational excellence.
           </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '6px' }}>
+            Supervisor: <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{user?.name || 'Unknown'}</span>
+          </p>
         </div>
         <Button variant="outline" icon={Activity} size="sm" onClick={fetchData}>Refresh Sync</Button>
-      </motion.div>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
-        <Card title="Total Clients" subtitle="In your jurisdiction" icon={Users}>
+        <Card title="Clients with Bookings" subtitle="Handled by your team" icon={Users}>
           <p style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.total_clients || 0}</p>
         </Card>
-        <Card title="Weekly Bookings" subtitle="Team velocity" icon={TrendingUp}>
+        <Card title="Bookings Created by Team" subtitle="Last 7 days" icon={TrendingUp}>
           <p style={{ fontSize: '28px', fontWeight: 800, color: '#60a5fa' }}>
             {stats?.weekly_bookings || 0}
           </p>
         </Card>
-        <Card title="Team Calls" subtitle="Last 7 days" icon={Activity}>
+        <Card title="Calls Handled by Team" subtitle="Last 7 days" icon={Activity}>
           <p style={{ fontSize: '28px', fontWeight: 800, color: '#4ade80' }}>
             {stats?.team_calls || 0}
           </p>
         </Card>
-        <Card title="Pending Tasks" subtitle="Requires oversight" icon={ClipboardCheck}>
-          <p style={{ fontSize: '28px', fontWeight: 800, color: '#f87171' }}>
-            {stats?.pending_tasks || 0}
+        <Card title="Airline Inquiry from Team" subtitle="Last 7 days" icon={Phone}>
+          <p style={{ fontSize: '28px', fontWeight: 800, color: '#f59e0b' }}>
+            {stats?.team_airline_inquiries || 0}
           </p>
         </Card>
       </div>
 
-      {/* Team Roster Section */}
-      <div style={{ marginTop: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Team Roster</h2>
-          <Button variant="ghost" size="sm" icon={Award}>Performance Leaderboard</Button>
-        </div>
-
-        <div className="glass-panel" style={{ borderRadius: '24px', overflow: 'hidden' }}>
-          <div style={{ 
-            padding: '20px 24px', 
-            background: 'var(--bg-input)', 
-            borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Member Details</span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Status</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px' }}>
+        <Card title="Agent Performance" subtitle="Calls handled, bookings created, airline inquiries" icon={Award}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {loading ? (
+              <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>Loading performance data...</div>
+            ) : performance.length === 0 ? (
+              <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>No agent performance data yet.</div>
+            ) : (
+              performance.map((agent) => (
+                <div
+                  key={agent.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.4fr repeat(3, 0.7fr)',
+                    gap: '12px',
+                    alignItems: 'center',
+                    padding: '14px 16px',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '16px',
+                    background: 'var(--bg-input)'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{agent.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{agent.email}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bookings Created</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>{agent.bookings_count}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Calls Handled</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#4ade80' }}>{agent.calls_count}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Airline Inquiries</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#60a5fa' }}>{agent.airline_inquiries_count}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
+        </Card>
 
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <AnimatePresence>
-              {loading ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(255, 255, 255, 0.3)' }}>Syncing team data...</div>
-              ) : agents.length === 0 ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(255, 255, 255, 0.2)' }}>No agents are currently under your supervision.</div>
-              ) : (
-                agents.map((agent, idx) => (
-                  <motion.div 
-                    key={agent.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    style={{ 
-                      padding: '20px 24px', 
-                      borderBottom: '1px solid var(--border-color)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      transition: 'var(--transition-smooth)'
-                    }}
-                    className="hover-brighten"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <div style={{ 
-                        width: '40px', height: '40px', borderRadius: '12px', 
-                        background: 'rgba(255, 255, 255, 0.05)', display: 'flex', 
-                        alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'white'
-                      }}>
-                        {agent.name.charAt(0)}
+        <Card title="Recent Inquiries" subtitle="Latest team inquiry activity" icon={Phone}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {loading ? (
+              <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>Loading inquiries...</div>
+            ) : recentInquiries.length === 0 ? (
+              <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>No recent inquiries found.</div>
+            ) : (
+              recentInquiries.map((inquiry) => (
+                <div
+                  key={inquiry.id}
+                  style={{
+                    padding: '14px 16px',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '16px',
+                    background: 'var(--bg-input)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                        {inquiry.agent?.name || 'Unknown Agent'}
                       </div>
-                      <div>
-                        <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '14px' }}>{agent.name}</p>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Mail size={12} /> {agent.email}
-                        </p>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        {inquiry.call_type || 'Inquiry'}{inquiry.airline_inquiry ? ` • ${inquiry.airline_inquiry}` : ''}
                       </div>
                     </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                        <span style={{ 
-                          padding: '4px 10px', borderRadius: '100px', fontSize: '11px', fontWeight: 700,
-                          background: agent.status === 'Active' ? 'rgba(34, 197, 94, 0.1)' : 
-                                      agent.status === 'On Call' ? 'rgba(250, 204, 21, 0.1)' :
-                                      agent.status === 'Break' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                          color: agent.status === 'Active' ? '#4ade80' : 
-                                 agent.status === 'On Call' ? '#facc15' :
-                                 agent.status === 'Break' ? '#f87171' : 'var(--text-muted)',
-                          border: `1px solid ${agent.status === 'Active' ? 'rgba(34, 197, 94, 0.2)' : 
-                                                agent.status === 'On Call' ? 'rgba(250, 204, 21, 0.2)' :
-                                                agent.status === 'Break' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)'}`
-                        }}>
-                          {agent.status || 'Offline'}
-                        </span>
-                      </div>
-                      <Button variant="ghost" size="sm" icon={UserX} onClick={() => alert('Reassignment interface...')}>
-                        Reassign
-                      </Button>
-                      <ChevronRight size={18} style={{ color: 'rgba(255, 255, 255, 0.1)' }} />
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {new Date(inquiry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
-                  </motion.div>
-                ))
-              )}
-            </AnimatePresence>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                    Client: {inquiry.client?.name || `${inquiry.client?.first_name || ''} ${inquiry.client?.last_name || ''}`.trim() || 'N/A'}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        </div>
+        </Card>
       </div>
+
+      <Card title="Recent Team Bookings" subtitle="Latest bookings created by your team" icon={Plane}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {loading ? (
+            <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>Loading recent bookings...</div>
+          ) : recentBookings.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>No recent team bookings found.</div>
+          ) : (
+            recentBookings.map((booking) => (
+              <div
+                key={booking.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.1fr 0.9fr 0.8fr auto',
+                  gap: '16px',
+                  alignItems: 'center',
+                  padding: '16px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '18px',
+                  background: 'var(--bg-input)'
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{booking.booking_reference}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    {booking.client?.name || `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim() || 'Unknown Client'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Assigned Agent</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
+                    {booking.agent?.name || 'Self/System'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
+                  <div style={{ fontWeight: 700, color: '#60a5fa', marginTop: '4px' }}>{booking.status}</div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={ArrowRightLeft}
+                  onClick={() => openReassignModal(booking)}
+                >
+                  Reassign
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+
+      <ReassignModal />
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ message: '', type: 'error' })}
+      />
     </div>
   );
 };
 
 export default SupervisorDashboard;
-

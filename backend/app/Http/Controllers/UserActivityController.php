@@ -11,6 +11,21 @@ class UserActivityController extends Controller
 {
     use ApiResponseTrait;
 
+    private function getManagedUserIds($user)
+    {
+        if ($user->hasRole('admin')) {
+            return null;
+        }
+
+        if ($user->hasRole('supervisor')) {
+            $teamIds = $user->agents()->pluck('id')->toArray();
+            $teamIds[] = $user->id;
+            return $teamIds;
+        }
+
+        return [$user->id];
+    }
+
     public function index(Request $request)
     {
         $query = UserActivity::where('user_id', Auth::id());
@@ -179,11 +194,77 @@ class UserActivityController extends Controller
     public function dailyDetails($date)
     {
         $user = Auth::user();
+        $tz = config('app.timezone');
+        $managedUserIds = $this->getManagedUserIds($user);
+
+        if ($user->hasRole('admin') || $user->hasRole('supervisor')) {
+            $targetUserId = request()->query('user_id');
+            $query = UserActivity::with('user:id,name,email,status')
+                ->orderBy('created_at', 'asc')
+                ->when($managedUserIds !== null, function ($builder) use ($managedUserIds) {
+                    $builder->whereIn('user_id', $managedUserIds);
+                });
+
+            $activities = $query
+                ->get()
+                ->filter(function($act) use ($tz, $date) {
+                    return \Carbon\Carbon::parse($act->created_at)->timezone($tz)->format('Y-m-d') === $date;
+                });
+
+            if ($targetUserId) {
+                $userActivities = $activities
+                    ->where('user_id', (int) $targetUserId)
+                    ->values();
+
+                if ($userActivities->isEmpty()) {
+                    return $this->successResponse([
+                        'date' => $date,
+                        'user' => null,
+                        'timeline' => [],
+                        'breakdown' => null,
+                    ]);
+                }
+
+                $breakdown = $this->calculateBreakdown($userActivities, $date);
+                $total = $breakdown['active'] + $breakdown['on_call'] + $breakdown['break'] + $breakdown['idle'];
+
+                return $this->successResponse([
+                    'date' => $date,
+                    'user' => $userActivities->first()->user,
+                    'first_activity' => clone $userActivities->first()->created_at,
+                    'last_activity' => clone $userActivities->last()->created_at,
+                    'total_seconds' => $total,
+                    'breakdown' => $breakdown,
+                    'timeline' => $userActivities,
+                ]);
+            }
+
+            $activities = $activities->groupBy('user_id');
+
+            $userSummaries = $activities->map(function ($dailyActivities) use ($date) {
+                $dailyActivities = $dailyActivities->values();
+                $breakdown = $this->calculateBreakdown($dailyActivities, $date);
+                $total = $breakdown['active'] + $breakdown['on_call'] + $breakdown['break'] + $breakdown['idle'];
+
+                return [
+                    'user' => $dailyActivities->first()->user,
+                    'first_activity' => clone $dailyActivities->first()->created_at,
+                    'last_activity' => clone $dailyActivities->last()->created_at,
+                    'total_seconds' => $total,
+                    'breakdown' => $breakdown,
+                ];
+            })->sortBy(function ($summary) {
+                return $summary['user']['name'] ?? '';
+            })->values();
+
+            return $this->successResponse([
+                'date' => $date,
+                'users' => $userSummaries,
+            ]);
+        }
         
         // Use whereDate logic, timezone handling could mean spanning multiple UTC days.
         // For precision, fetching all and filtering by timezone parsed date is safer.
-        $tz = config('app.timezone');
-        
         $activities = UserActivity::where('user_id', $user->id)
              ->orderBy('created_at', 'asc')
              ->get()

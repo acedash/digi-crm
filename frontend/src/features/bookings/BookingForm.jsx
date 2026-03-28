@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Button from '../../components/ui/Button';
 import bookingService from './bookingService';
+import { BACKEND_BASE_URL } from '../../services/api';
 import Toast from '../../components/ui/Toast';
 import api from '../../services/api';
 import { useAuthStore } from '../auth/useAuthStore';
@@ -112,7 +113,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
             if (type === 'flight') {
               const imgPath = details.ticket_image;
-              const preview = imgPath ? `http://127.0.0.1:8000/storage/${imgPath}` : '';
+              const preview = imgPath ? `${BACKEND_BASE_URL}/storage/${imgPath}` : '';
               setFlight({ active: true, pnr: details.pnr ?? '', airline: details.airline ?? '', origin: details.origin ?? '', destination: details.destination ?? '', ticket_image: imgPath ?? '', ticket_preview: preview, cost, markup, sell });
             } else if (type === 'hotel') {
               setHotel({ active: true, name: details.name ?? '', city: details.city ?? '', checkin: s.details_json?.checkin ?? '', checkout: s.details_json?.checkout ?? '', cost, markup, sell });
@@ -188,7 +189,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     const payload = {
       agent_id: selectedAgentId,
       client_id: selectedClientId,
-      new_client: selectedClientId ? null : newClient,
+      new_client: bookingId ? newClient : (selectedClientId ? null : newClient),
       new_passengers: newPassengers,
       services: servicesPayload,
       payment_cards: paymentCards,
@@ -200,7 +201,12 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
       if (bookingId) await bookingService.updateBooking(bookingId, payload);
       else await bookingService.createBooking(payload);
       onSuccess();
-    } catch (error) { setToast({ message: 'Error saving booking.', type: 'error' }); } finally { setLoading(false); }
+    } catch (error) {
+      setToast({
+        message: error?.response?.data?.message || 'Error saving booking.',
+        type: 'error'
+      });
+    } finally { setLoading(false); }
   };
 
   return (

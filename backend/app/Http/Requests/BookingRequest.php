@@ -16,7 +16,7 @@ class BookingRequest extends FormRequest
         return [
             'client_id' => 'nullable|exists:clients,id',
             'agent_id' => 'nullable|exists:users,id',
-            'status' => 'nullable|string|in:Pending,Confirmed,Cancelled,Completed',
+            'status' => 'nullable|string|in:Pending,Awaiting Approval,Approved,Rejected,Confirmed,Cancelled,Completed',
             'currency' => 'nullable|string|size:3',
             'passengers' => 'nullable|array',
             'passengers.*' => 'exists:passengers,id',

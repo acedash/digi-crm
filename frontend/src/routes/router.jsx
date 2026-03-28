@@ -12,12 +12,14 @@ import ClientProfile from '../features/clients/ClientProfile';
 import ClientEditPage from '../features/clients/ClientEditPage';
 import BookingsPage from '../features/bookings/BookingsPage';
 import AuthApprovalPage from '../features/bookings/AuthApprovalPage';
+import ConsentProofPage from '../features/bookings/ConsentProofPage';
 import MasterList from '../features/suppliers/MasterList';
 import CallLoggingPage from '../features/activity-tracker/CallLoggingPage';
 import ReportsPage from '../features/reports/ReportsPage';
 import ActivityLogs from '../features/activity-tracker/ActivityLogs';
 import AgentMonitorPage from '../features/activity-tracker/AgentMonitorPage';
 import AuditTrailPage from '../features/reports/AuditTrailPage';
+import SettingsPage from '../features/settings/SettingsPage';
 const sharedRoutes = [
   { path: 'clients', element: <ClientList /> },
   { path: 'clients/new', element: <ClientList /> },
@@ -26,6 +28,7 @@ const sharedRoutes = [
   { path: 'bookings', element: <BookingsPage /> },
   { path: 'bookings/new', element: <BookingsPage /> },
   { path: 'bookings/:id/edit', element: <BookingsPage /> },
+  { path: 'bookings/:id/consent-proof', element: <ConsentProofPage /> },
   { path: 'reports', element: <ReportsPage /> },
   { path: 'call-logs', element: <CallLoggingPage /> }
 ];
@@ -71,6 +74,7 @@ const router = createBrowserRouter([
               { path: 'activity', element: <ActivityLogs /> },
               { path: 'team-monitor', element: <AgentMonitorPage /> },
               { path: 'system-audit', element: <AuditTrailPage /> },
+              { path: 'settings', element: <SettingsPage /> },
               { path: 'masters', children: [{ index: true, element: <MasterList /> }] },
               ...sharedRoutes
             ]

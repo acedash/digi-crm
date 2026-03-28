@@ -31,16 +31,18 @@ import {
   EyeOff,
   PhoneCall,
   ClipboardList,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ShieldCheck
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import bookingService from './bookingService';
+import paymentAuthService from './paymentAuthService';
 import Toast from '../../components/ui/Toast';
 import CallLogModal from './components/CallLogModal';
 import { useAuthStore } from '../auth/useAuthStore';
-import api from '../../services/api';
+import api, { BACKEND_BASE_URL } from '../../services/api';
 
 const BookingList = ({ onCreate, onEdit }) => {
   const { user } = useAuthStore();
@@ -60,6 +62,7 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [availableAgents, setAvailableAgents] = useState([]);
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const [showModalCards, setShowModalCards] = useState({});
+  const [sendingApprovalId, setSendingApprovalId] = useState(null);
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
@@ -110,7 +113,7 @@ const BookingList = ({ onCreate, onEdit }) => {
           agents = agents.filter(u => u.roles.some(r => r.name === 'agent' || r.name === 'supervisor'));
         }
         setAvailableAgents(agents);
-      } catch (e) {
+      } catch {
         setToast({ message: 'Failed to fetch agents', type: 'error' });
       }
     }
@@ -122,16 +125,79 @@ const BookingList = ({ onCreate, onEdit }) => {
       setToast({ message: 'Booking reassigned successfully', type: 'success' });
       setReassignModal({ open: false, bookingId: null, currentAgentId: null });
       fetchBookings(pagination.current_page);
-    } catch (e) {
+    } catch {
       setToast({ message: 'Failed to reassign booking', type: 'error' });
     }
   };
 
+  const handleSendApproval = async (booking) => {
+    if (sendingApprovalId === booking.id) return;
+
+    const clientName =
+      booking.client?.name ||
+      (booking.client?.first_name || booking.client?.last_name
+        ? `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim()
+        : 'this client');
+
+    const email = booking.client?.email || 'no email provided';
+    const confirmed = window.confirm(
+      `Send approval email for ${booking.booking_reference} to ${clientName} (${email})?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSendingApprovalId(booking.id);
+      await paymentAuthService.create({
+        client_id: booking.client_id,
+        booking_ids: [booking.id],
+      });
+      setToast({ message: `Approval email sent to ${booking.client?.email || 'client'}`, type: 'success' });
+    } catch (error) {
+      setToast({
+        message: error?.response?.data?.message || 'Failed to send approval email',
+        type: 'error',
+      });
+    } finally {
+      setSendingApprovalId(null);
+    }
+  };
+
   const statusIcons = {
+    'Approved': { icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shadow: 'rgba(16, 185, 129, 0.2)' },
     'Confirmed': { icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shadow: 'rgba(16, 185, 129, 0.2)' },
+    'Awaiting Approval': { icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', shadow: 'rgba(139, 92, 246, 0.2)' },
     'Pending': { icon: Clock, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', shadow: 'rgba(245, 158, 11, 0.2)' },
     'Cancelled': { icon: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
+    'Rejected': { icon: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' }
+  };
+
+  const getStatusGuidance = (status) => {
+    switch (status) {
+      case 'Pending':
+        return 'Booking is saved in CRM and ready for the next step.';
+      case 'Awaiting Approval':
+        return 'Approval email sent. Waiting for the client response.';
+      case 'Approved':
+      case 'Confirmed':
+        return 'Client approved payment. Booking is cleared to process.';
+      case 'Rejected':
+        return 'Client rejected the authorization. Review before proceeding.';
+      case 'Cancelled':
+        return 'Booking has been cancelled and is no longer active.';
+      case 'Completed':
+        return 'Trip workflow has been completed successfully.';
+      default:
+        return 'Review the booking details and continue the workflow.';
+    }
+  };
+
+  const getApprovalActionLabel = (status) => {
+    if (status === 'Awaiting Approval') return 'Resend Approval';
+    if (status === 'Approved' || status === 'Confirmed') return 'Send Again';
+    if (status === 'Rejected') return 'Send New Approval';
+    return 'Send Approval';
   };
 
   const getStatusStyle = (status) => {
@@ -187,12 +253,72 @@ const BookingList = ({ onCreate, onEdit }) => {
     }
   };
 
+  const renderActionButton = ({ icon, label, onClick, tone = 'default', title, compact = false, disabled = false }) => {
+    const palette = {
+      default: {
+        color: 'var(--text-main)',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+      },
+      primary: {
+        color: '#8b5cf6',
+        background: 'rgba(139, 92, 246, 0.08)',
+        border: '1px solid rgba(139, 92, 246, 0.18)',
+      },
+      info: {
+        color: '#2563eb',
+        background: 'rgba(37, 99, 235, 0.08)',
+        border: '1px solid rgba(37, 99, 235, 0.18)',
+      },
+      success: {
+        color: '#059669',
+        background: 'rgba(5, 150, 105, 0.08)',
+        border: '1px solid rgba(5, 150, 105, 0.18)',
+      },
+      warning: {
+        color: '#d97706',
+        background: 'rgba(217, 119, 6, 0.08)',
+        border: '1px solid rgba(217, 119, 6, 0.18)',
+      },
+      danger: {
+        color: '#dc2626',
+        background: 'rgba(220, 38, 38, 0.08)',
+        border: '1px solid rgba(220, 38, 38, 0.18)',
+      },
+    };
+
+    const styles = palette[tone] || palette.default;
+
+    return (
+      <button
+        title={title || label}
+        onClick={onClick}
+        disabled={disabled}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          width: compact ? 'auto' : '100%',
+          padding: compact ? '8px 10px' : '10px 12px',
+          borderRadius: compact ? '999px' : '12px',
+          fontSize: compact ? '11px' : '12px',
+          fontWeight: 700,
+          transition: 'all 0.2s ease',
+          opacity: disabled ? 0.55 : 1,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          ...styles,
+        }}
+      >
+        {React.createElement(icon, { size: compact ? 13 : 14 })}
+        <span>{label}</span>
+      </button>
+    );
+  };
+
   const BookingViewModal = ({ booking, onClose }) => {
     if (!booking) return null;
     
     const clientName = booking.client?.name || `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim() || 'Unknown';
-    const totalAllocated = (booking.details_json?.payment_cards || []).reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
-
     return (
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -292,10 +418,10 @@ const BookingList = ({ onCreate, onEdit }) => {
                               <div style={{ marginTop: '8px' }}>
                                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Ticket Screenshot:</p>
                                 <img 
-                                  src={`http://127.0.0.1:8000/storage/${s.serviceable.ticket_image}`} 
+                                  src={`${BACKEND_BASE_URL}/storage/${s.serviceable.ticket_image}`} 
                                   alt="Ticket" 
                                   style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'zoom-in' }} 
-                                  onClick={() => window.open(`http://127.0.0.1:8000/storage/${s.serviceable.ticket_image}`, '_blank')}
+                                  onClick={() => window.open(`${BACKEND_BASE_URL}/storage/${s.serviceable.ticket_image}`, '_blank')}
                                 />
                               </div>
                             ) : (
@@ -447,9 +573,9 @@ const BookingList = ({ onCreate, onEdit }) => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
         {[
           { label: 'Total Bookings', value: bookings.length, icon: Package, color: 'blue' },
-          { label: 'Confirmed', value: bookings.filter(b => b.status === 'Confirmed').length, icon: CheckCircle2, color: 'green' },
-          { label: 'Pending PNRs', value: bookings.filter(b => b.status === 'Pending').length, icon: Clock, color: 'yellow' },
-          { label: 'Cancelled', value: bookings.filter(b => b.status === 'Cancelled').length, icon: XCircle, color: 'red' }
+          { label: 'Approved', value: bookings.filter(b => b.status === 'Approved' || b.status === 'Confirmed').length, icon: CheckCircle2, color: 'green' },
+          { label: 'Awaiting Approval', value: bookings.filter(b => b.status === 'Awaiting Approval').length, icon: Clock, color: 'yellow' },
+          { label: 'Rejected', value: bookings.filter(b => b.status === 'Rejected' || b.status === 'Cancelled').length, icon: XCircle, color: 'red' }
         ].map((stat, i) => (
           <Card key={i} style={{ padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -482,7 +608,7 @@ const BookingList = ({ onCreate, onEdit }) => {
         
         {/* Status Filter Tabs */}
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {['all', 'Pending', 'Confirmed', 'Completed', 'Cancelled'].map(status => (
+          {['all', 'Pending', 'Awaiting Approval', 'Approved', 'Rejected', 'Completed', 'Cancelled'].map(status => (
             <button 
               key={status}
               onClick={() => setFilterType(status)}
@@ -506,10 +632,41 @@ const BookingList = ({ onCreate, onEdit }) => {
       </div>
 
       {/* Bookings Grid */}
-      <div style={{ display: 'grid', gap: '16px' }}>
+      <div style={{ display: 'grid', gap: '12px' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <div
+            style={{
+              minWidth: '1180px',
+              display: 'grid',
+              gridTemplateColumns: 'minmax(280px, 1.8fr) minmax(150px, 0.9fr) minmax(160px, 1fr) minmax(180px, 1fr) minmax(260px, 1.4fr)',
+              gap: '16px',
+              padding: '0 18px 10px',
+              fontSize: '11px',
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
+            <div>Booking / Client</div>
+            <div>Travel</div>
+            <div>Assigned To</div>
+            <div>Amount / Status</div>
+            <div>Actions</div>
+          </div>
+        </div>
+
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: '1180px', display: 'grid', gap: '12px' }}>
         <AnimatePresence mode="popLayout">
           {filteredBookings.map((booking, index) => {
             const statusColor = statusIcons[booking.status]?.color || (typeof statusIcons[booking.status]?.icon === 'string' ? statusIcons[booking.status]?.icon : '#f59e0b');
+            const clientDisplayName =
+              booking.client?.name ||
+              (booking.client?.first_name || booking.client?.last_name
+                ? `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim()
+                : 'Unknown Client');
+            const isSendingApproval = sendingApprovalId === booking.id;
             
             return (
               <motion.div
@@ -523,18 +680,19 @@ const BookingList = ({ onCreate, onEdit }) => {
                   padding: '0', 
                   overflow: 'hidden', 
                   borderLeft: `6px solid ${statusColor}`,
-                  marginBottom: '16px'
+                  marginBottom: '0'
                 }}>
                   <div style={{ 
-                    display: 'flex', 
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(280px, 1.8fr) minmax(150px, 0.9fr) minmax(160px, 1fr) minmax(180px, 1fr) minmax(260px, 1.4fr)',
                     alignItems: 'center',
-                    padding: '24px',
-                    gap: '32px'
+                    padding: '18px',
+                    gap: '16px'
                   }}>
-                    {/* Identity Block */}
+                    {/* Booking / Client */}
                     <div 
                       onClick={() => navigate(`${basePath}/clients/${booking.client_id}`)}
-                      style={{ cursor: 'pointer', flex: 1.5, minWidth: '0' }}
+                      style={{ cursor: 'pointer', minWidth: '0' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                         <span style={{ 
@@ -561,7 +719,7 @@ const BookingList = ({ onCreate, onEdit }) => {
                       </div>
                       
                       <h3 className="hover-link" style={{ 
-                        fontSize: '18px', 
+                        fontSize: '16px', 
                         fontWeight: 700, 
                         color: 'var(--text-main, white)', 
                         marginBottom: '4px',
@@ -569,43 +727,45 @@ const BookingList = ({ onCreate, onEdit }) => {
                         alignItems: 'center',
                         gap: '8px'
                       }}>
-                        {booking.client?.name || 
-                         (booking.client?.first_name || booking.client?.last_name ? 
-                          `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim() : 
-                          'Unknown Client')}
+                        {clientDisplayName}
                         <ArrowUpRight size={14} style={{ opacity: 0.5 }} className="link-icon" />
                       </h3>
                       
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <UserPlus size={12} style={{ color: '#60a5fa' }} /> {booking.agent?.name || 'Self/System'}
+                          <Phone size={12} style={{ color: '#60a5fa' }} /> {booking.client?.phone || 'No Phone'}
                         </span>
                         <span style={{ opacity: 0.3 }}>|</span>
-                        <span>{booking.client?.phone || 'No Phone'}</span>
+                        <span>{booking.passengers?.length || 0} travelers</span>
                       </div>
                     </div>
 
-                    {/* Logistics Block */}
-                    <div style={{ flex: 1.2, display: 'flex', gap: '24px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-main, white)', fontWeight: 600 }}>
-                          <Calendar size={16} style={{ color: '#60a5fa' }} />
-                          {booking.travel_date ? new Date(booking.travel_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No Date'}
-                        </div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Departure</span>
+                    {/* Travel */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-main, white)', fontWeight: 600 }}>
+                        <Calendar size={16} style={{ color: '#60a5fa' }} />
+                        {booking.travel_date ? new Date(booking.travel_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No Date'}
                       </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-main, white)', fontWeight: 600 }}>
-                          <User size={16} style={{ color: '#60a5fa' }} />
-                          {booking.passengers?.length || 0} Travelers
-                        </div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Occupancy</span>
-                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {booking.services?.map((s) => s.serviceable_type.split('\\').pop()).join(', ') || 'No services'}
+                      </span>
                     </div>
 
-                    {/* Financial Block */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                    {/* Assigned */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-main, white)', fontWeight: 600 }}>
+                        <UserPlus size={14} style={{ color: '#60a5fa' }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {booking.agent?.name || 'Self/System'}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {booking.agent?.user_custom_id || 'No user id'}
+                      </span>
+                    </div>
+
+                    {/* Amount / Status */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '0' }}>
                       <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main, white)', letterSpacing: '-0.5px' }}>
                         {new Intl.NumberFormat('en-US', { 
                           style: 'currency', 
@@ -613,61 +773,82 @@ const BookingList = ({ onCreate, onEdit }) => {
                         }).format(Number(booking.total_amount) || 0)}
                       </div>
                       {getStatusStyle(booking.status)}
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '180px', lineHeight: 1.5 }}>
+                        {getStatusGuidance(booking.status)}
+                      </p>
                     </div>
 
                     {/* Actions Block */}
                     <div style={{ 
-                      paddingLeft: '24px', 
+                      paddingLeft: '16px', 
                       borderLeft: '1px solid var(--border-color)',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px'
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                      flexShrink: 0
                     }}>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <Button 
-                          variant="ghost" 
-                          icon={Eye} 
-                          size="sm" 
-                          onClick={() => setViewBooking(booking)}
-                          style={{ color: '#60a5fa', padding: '8px' }}
-                        />
-                        <Button 
-                          variant="ghost" 
-                          icon={PhoneCall} 
-                          size="sm" 
-                          onClick={() => {
-                            setSelectedBookingForCall(booking);
-                            setShowCallLog(true);
-                          }}
-                          style={{ color: '#10b981', padding: '8px' }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        {canReassign && (
-                          <Button 
-                            variant="ghost" 
-                            icon={ArrowRightLeft} 
-                            size="sm" 
-                            title="Reassign Booking"
-                            onClick={() => handleReassignClick(booking)}
-                            style={{ color: '#8b5cf6', padding: '8px' }}
-                          />
-                        )}
-                        <Button 
-                          variant="ghost" 
-                          icon={Pencil} 
-                          size="sm" 
-                          onClick={() => onEdit(booking.id)}
-                          style={{ color: 'var(--text-muted)', padding: '8px' }}
-                        />
-                        <Button 
-                          variant="ghost" 
-                          icon={Trash2} 
-                          size="sm" 
-                          onClick={() => handleDelete(booking.id)}
-                          style={{ color: '#ef4444', padding: '8px' }}
-                        />
-                      </div>
+                      {renderActionButton({
+                        icon: Mail,
+                        label: isSendingApproval ? 'Sending...' : getApprovalActionLabel(booking.status),
+                        onClick: () => handleSendApproval(booking),
+                        tone: 'primary',
+                        title: 'Email payment approval link to client',
+                        compact: true,
+                        disabled: isSendingApproval,
+                      })}
+                      {renderActionButton({
+                        icon: ShieldCheck,
+                        label: 'Proof',
+                        onClick: () => navigate(`${basePath}/bookings/${booking.id}/consent-proof`),
+                        tone: 'info',
+                        title: 'Open consent proof and approval evidence',
+                        compact: true,
+                      })}
+                      {renderActionButton({
+                        icon: Eye,
+                        label: 'View',
+                        onClick: () => setViewBooking(booking),
+                        tone: 'info',
+                        title: 'Open full booking details',
+                        compact: true,
+                      })}
+                      {renderActionButton({
+                        icon: PhoneCall,
+                        label: 'Call',
+                        onClick: () => {
+                          setSelectedBookingForCall(booking);
+                          setShowCallLog(true);
+                        },
+                        tone: 'success',
+                        title: 'Create a call log for this booking',
+                        compact: true,
+                      })}
+                      {canReassign && (
+                        renderActionButton({
+                          icon: ArrowRightLeft,
+                          label: 'Reassign',
+                          onClick: () => handleReassignClick(booking),
+                          tone: 'warning',
+                          title: 'Transfer this booking to another user',
+                          compact: true,
+                        })
+                      )}
+                      {renderActionButton({
+                        icon: Pencil,
+                        label: 'Edit',
+                        onClick: () => onEdit(booking.id),
+                        tone: 'default',
+                        title: 'Edit booking data',
+                        compact: true,
+                      })}
+                      {renderActionButton({
+                        icon: Trash2,
+                        label: 'Delete',
+                        onClick: () => handleDelete(booking.id),
+                        tone: 'danger',
+                        title: 'Delete this booking permanently',
+                        compact: true,
+                      })}
                     </div>
                   </div>
                 </Card>
@@ -682,6 +863,8 @@ const BookingList = ({ onCreate, onEdit }) => {
             <p>No bookings found. Try adjusting your search or filters.</p>
           </div>
         )}
+      </div>
+      </div>
       </div>
 
       {/* Pagination Controls */}
