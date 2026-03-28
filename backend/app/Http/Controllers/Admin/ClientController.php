@@ -1,0 +1,54 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Domains\Client\Services\ClientService;
+use App\Http\Requests\Domains\Client\CreateClientRequest;
+use App\Http\Requests\Domains\Client\UpdateClientRequest;
+use App\Traits\ApiResponseTrait;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class ClientController extends Controller
+{
+    use ApiResponseTrait;
+
+    protected ClientService $clientService;
+
+    public function __construct(ClientService $clientService)
+    {
+        $this->clientService = $clientService;
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $searchService = app(\App\Services\SearchService::class);
+        $clients = $searchService->unifiedSearch($request->all());
+        return $this->success($clients, 'Clients and bookings retrieved successfully');
+    }
+
+    public function store(CreateClientRequest $request): JsonResponse
+    {
+        $client = $this->clientService->createClient($request->validated());
+        return $this->success($client, 'Client created successfully', 201);
+    }
+
+    public function show($id): JsonResponse
+    {
+        $client = $this->clientService->getClient($id);
+        return $this->success($client, 'Client retrieved successfully');
+    }
+
+    public function update(UpdateClientRequest $request, $id): JsonResponse
+    {
+        $client = $this->clientService->updateClient($id, $request->validated());
+        return $this->success($client, 'Client updated successfully');
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        $this->clientService->deleteClient($id);
+        return $this->success(null, 'Client deleted successfully', 204);
+    }
+}
