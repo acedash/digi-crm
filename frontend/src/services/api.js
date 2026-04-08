@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../features/auth/useAuthStore';
 
-export const BACKEND_BASE_URL = 'https://lightyellow-vulture-726958.hostingersite.com';
-export const API_BASE_URL = import.meta.env.VITE_API_URL || `${BACKEND_BASE_URL}/api`;
+export const BACKEND_BASE_URL = 'https://lightyellow-vulture-726958.hostingersite.com/';
+export const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
