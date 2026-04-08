@@ -11,8 +11,10 @@ import ClientList from '../features/clients/ClientList';
 import ClientProfile from '../features/clients/ClientProfile';
 import ClientEditPage from '../features/clients/ClientEditPage';
 import BookingsPage from '../features/bookings/BookingsPage';
+import BookingDetailsPage from '../features/bookings/BookingDetailsPage';
 import AuthApprovalPage from '../features/bookings/AuthApprovalPage';
 import ConsentProofPage from '../features/bookings/ConsentProofPage';
+import ChargeQueuePage from '../features/bookings/ChargeQueuePage';
 import MasterList from '../features/suppliers/MasterList';
 import CallLoggingPage from '../features/activity-tracker/CallLoggingPage';
 import ReportsPage from '../features/reports/ReportsPage';
@@ -20,13 +22,16 @@ import ActivityLogs from '../features/activity-tracker/ActivityLogs';
 import AgentMonitorPage from '../features/activity-tracker/AgentMonitorPage';
 import AuditTrailPage from '../features/reports/AuditTrailPage';
 import SettingsPage from '../features/settings/SettingsPage';
+import RolePathRedirect from '../components/RolePathRedirect';
+
 const sharedRoutes = [
   { path: 'clients', element: <ClientList /> },
-  { path: 'clients/new', element: <ClientList /> },
+  { path: 'clients/new', element: <RolePathRedirect target="clients" /> },
   { path: 'clients/:id/edit', element: <ClientEditPage /> },
   { path: 'clients/:id', element: <ClientProfile /> },
   { path: 'bookings', element: <BookingsPage /> },
   { path: 'bookings/new', element: <BookingsPage /> },
+  { path: 'bookings/:id', element: <BookingDetailsPage /> },
   { path: 'bookings/:id/edit', element: <BookingsPage /> },
   { path: 'bookings/:id/consent-proof', element: <ConsentProofPage /> },
   { path: 'reports', element: <ReportsPage /> },
@@ -55,6 +60,17 @@ const router = createBrowserRouter([
             index: true,
             element: <Navigate to="/dashboard" replace />
           },
+          { path: 'bookings', element: <RolePathRedirect target="bookings" /> },
+          { path: 'bookings/new', element: <RolePathRedirect target="bookings/new" /> },
+          { path: 'bookings/:id', element: <RolePathRedirect target={({ id }) => `bookings/${id}`} /> },
+          { path: 'bookings/:id/edit', element: <RolePathRedirect target={({ id }) => `bookings/${id}/edit`} /> },
+          { path: 'bookings/:id/consent-proof', element: <RolePathRedirect target={({ id }) => `bookings/${id}/consent-proof`} /> },
+          { path: 'clients', element: <RolePathRedirect target="clients" /> },
+          { path: 'clients/:id', element: <RolePathRedirect target={({ id }) => `clients/${id}`} /> },
+          { path: 'clients/:id/edit', element: <RolePathRedirect target={({ id }) => `clients/${id}/edit`} /> },
+          { path: 'call-logs', element: <RolePathRedirect target="call-logs" /> },
+          { path: 'activity', element: <RolePathRedirect target="activity" /> },
+          { path: 'team-monitor', element: <RolePathRedirect target="team-monitor" /> },
           {
             path: 'dashboard',
             element: <ProtectedRoute allowedRoles={['admin', 'supervisor', 'agent']} />,
@@ -75,6 +91,7 @@ const router = createBrowserRouter([
               { path: 'team-monitor', element: <AgentMonitorPage /> },
               { path: 'system-audit', element: <AuditTrailPage /> },
               { path: 'settings', element: <SettingsPage /> },
+              { path: 'charge-queue', element: <ChargeQueuePage /> },
               { path: 'masters', children: [{ index: true, element: <MasterList /> }] },
               ...sharedRoutes
             ]

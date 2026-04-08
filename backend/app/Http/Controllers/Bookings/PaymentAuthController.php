@@ -28,12 +28,20 @@ class PaymentAuthController extends Controller
             'client_id' => 'required|exists:clients,id',
             'booking_ids' => 'required|array|min:1',
             'booking_ids.*' => 'exists:bookings,id',
+            'authorization_type' => 'nullable|string|in:initial,change_charge',
+            'card_allocations' => 'nullable|array',
+            'card_allocations.*.holder_name' => 'nullable|string|max:255',
+            'card_allocations.*.card_label' => 'nullable|string|max:255',
+            'card_allocations.*.amount' => 'required_with:card_allocations|numeric|min:0.01',
+            'card_allocations.*.remarks' => 'nullable|string|max:1000',
+            'change_entries' => 'nullable|array',
         ]);
 
         try {
             $auth = $this->paymentAuthService->createAuthorization(
                 $request->booking_ids,
-                $request->client_id
+                $request->client_id,
+                $request->only(['authorization_type', 'card_allocations', 'change_entries'])
             );
 
             return $this->successResponse([
@@ -77,6 +85,36 @@ class PaymentAuthController extends Controller
         }
 
         return $this->successResponse($auth, 'Consent proof retrieved');
+    }
+
+    public function chargeQueue()
+    {
+        $view = request()->get('view', 'pending');
+        if (!in_array($view, ['pending', 'charged', 'all'], true)) {
+            $view = 'pending';
+        }
+
+        $records = $this->paymentAuthService->getChargeQueue($view);
+
+        return $this->successResponse($records, 'Charge queue retrieved');
+    }
+
+    public function markCharged(Request $request, int $paymentAuthId)
+    {
+        $validated = $request->validate([
+            'collection_reference' => 'nullable|string|max:255',
+            'collection_notes' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $auth = $this->paymentAuthService->markCharged($paymentAuthId, $validated);
+
+            return $this->successResponse($auth, 'Authorization marked as charged successfully');
+        } catch (\RuntimeException $e) {
+            return $this->errorResponse($e->getMessage(), 422);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
+        }
     }
 
     /**

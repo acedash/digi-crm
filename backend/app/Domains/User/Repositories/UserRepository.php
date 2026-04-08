@@ -15,19 +15,23 @@ class UserRepository extends BaseRepository
 
     public function getAll(): Collection
     {
-        return $this->model->with('roles')->get();
+        return $this->model->with(['roles', 'supervisors:id,name'])->get();
     }
 
     public function find($id): ?User
     {
         /** @var User $user */
-        $user = $this->model->with('roles')->findOrFail($id);
+        $user = $this->model->with(['roles', 'supervisors:id,name'])->findOrFail($id);
         return $user;
     }
 
     public function getBySupervisor($supervisorId): Collection
     {
-        return $this->model->where('supervisor_id', $supervisorId)->get();
+        return $this->model
+            ->whereHas('supervisors', function ($query) use ($supervisorId) {
+                $query->where('users.id', $supervisorId);
+            })
+            ->get();
     }
 
     public function getSupervisors(): Collection

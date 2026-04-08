@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import clientService from './clientService';
 import ClientForm from './ClientForm';
 import { motion } from 'framer-motion';
@@ -8,6 +8,8 @@ import { ArrowLeft, RefreshCw } from 'lucide-react';
 const ClientEditPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+    const basePath = '/' + location.pathname.split('/')[1];
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -18,16 +20,16 @@ const ClientEditPage = () => {
                 setClient(res.data.data);
             } catch (err) {
                 console.error('Failed to load client', err);
-                navigate('/clients');
+                navigate(`${basePath}/clients`);
             } finally {
                 setLoading(false);
             }
         };
         fetchClient();
-    }, [id]);
+    }, [basePath, id]);
 
     const handleSuccess = () => {
-        navigate(`/clients/${id}`);
+        navigate(`${basePath}/clients/${id}`);
     };
 
     if (loading) {
@@ -46,7 +48,7 @@ const ClientEditPage = () => {
         >
             <div style={{ marginBottom: '24px' }}>
                 <button 
-                    onClick={() => navigate(`/clients/${id}`)}
+                    onClick={() => navigate(`${basePath}/clients/${id}`)}
                     style={{ 
                         color: 'var(--text-muted)', 
                         background: 'none', border: 'none', 
@@ -62,7 +64,7 @@ const ClientEditPage = () => {
             <ClientForm 
                 client={client} 
                 isFullPage={true}
-                onClose={() => navigate(`/clients/${id}`)}
+                onClose={() => navigate(`${basePath}/clients/${id}`)}
                 onSuccess={handleSuccess}
             />
         </motion.div>

@@ -2,7 +2,7 @@ import React from 'react';
 import { Save } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 
-const BookingFooter = ({ calculateTotal, totalAllocated, handleSubmit, loading }) => {
+const BookingFooter = ({ calculateTotal, totalAllocated, handleSubmit, loading, submitLabel = 'Save Booking' }) => {
   const grandTotal = calculateTotal();
   const isBalanced = Math.abs(totalAllocated - grandTotal) < 0.01;
 
@@ -34,7 +34,7 @@ const BookingFooter = ({ calculateTotal, totalAllocated, handleSubmit, loading }
           isLoading={loading}
           icon={Save}
         >
-          Save Booking
+          {submitLabel}
         </Button>
       </div>
     </div>

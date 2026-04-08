@@ -21,6 +21,8 @@ class UpdateUserRequest extends FormRequest
             'roles' => 'sometimes|array',
             'roles.*' => 'exists:roles,name',
             'supervisor_id' => 'nullable|exists:users,id',
+            'supervisor_ids' => 'nullable|array',
+            'supervisor_ids.*' => 'exists:users,id',
             'phone' => 'nullable|string|max:20',
             'shift' => 'nullable|string|max:100',
             'week_off' => 'nullable|string|max:100',

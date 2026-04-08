@@ -106,6 +106,34 @@ button {
   font-family: inherit;
 }
 
+.crm-input {
+  color-scheme: dark;
+}
+
+.light .crm-input {
+  color-scheme: light;
+}
+
+.dark .crm-input[type="date"]::-webkit-calendar-picker-indicator,
+.dark .crm-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.02;
+  cursor: pointer;
+  position: absolute;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+}
+
+.light .crm-input[type="date"]::-webkit-calendar-picker-indicator,
+.light .crm-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.02;
+  cursor: pointer;
+  position: absolute;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

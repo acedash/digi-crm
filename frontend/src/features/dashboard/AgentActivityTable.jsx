@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Users, Clock, Phone, Coffee } from 'lucide-react';
+import { RefreshCw, Users, Clock, Phone, Coffee, CircleDollarSign } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import dashboardService from './dashboardService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AgentActivityTable = () => {
+  const MotionTr = motion.tr;
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,8 +54,8 @@ const AgentActivityTable = () => {
           <button 
             onClick={() => {
               const csvContent = "data:text/csv;charset=utf-8," 
-                + "Agent,Login Time,Status,Calls Picked,Bookings Created,Break Time\n"
-                + agents.map(a => `${a.agent_name},${a.login_time},${a.status},${a.calls_picked},${a.bookings_created},${a.break_time}`).join("\n");
+                + "Agent,Login Time,Status,Calls Picked,Bookings Created,Daily Revenue,Break Time\n"
+                + agents.map(a => `${a.agent_name},${a.login_time},${a.status},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time}`).join("\n");
               const link = document.createElement("a");
               link.setAttribute("href", encodeURI(csvContent));
               link.setAttribute("download", `team_activity_${new Date().getTime()}.csv`);
@@ -93,6 +94,7 @@ const AgentActivityTable = () => {
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calls Picked</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bookings Created</th>
+              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Daily Revenue</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Break Time</th>
             </tr>
           </thead>
@@ -100,7 +102,7 @@ const AgentActivityTable = () => {
             <AnimatePresence>
               {agents.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan="7" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     {loading ? 'Initializing telemetry...' : 'No agents assigned or active.'}
                   </td>
                 </tr>
@@ -108,7 +110,7 @@ const AgentActivityTable = () => {
                 agents.map((agent, idx) => {
                   const style = getStatusColor(agent.status);
                   return (
-                    <motion.tr 
+                    <MotionTr 
                       key={agent.id} 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -155,6 +157,14 @@ const AgentActivityTable = () => {
                           {agent.bookings_created}
                         </div>
                       </td>
+                      <td style={{ padding: '16px 24px', fontWeight: 700, color: '#22c55e' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '6px', borderRadius: '6px' }}>
+                            <CircleDollarSign size={14} style={{ color: '#22c55e' }} />
+                          </div>
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(agent.daily_revenue) || 0)}
+                        </div>
+                      </td>
                       <td style={{ padding: '16px 24px', fontWeight: 600, color: agent.break_time !== '--' ? '#facc15' : 'var(--text-muted)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '6px' }}>
@@ -163,7 +173,7 @@ const AgentActivityTable = () => {
                           {agent.break_time}
                         </div>
                       </td>
-                    </motion.tr>
+                    </MotionTr>
                   );
                 })
               )}

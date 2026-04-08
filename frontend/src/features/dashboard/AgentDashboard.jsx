@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../auth/useAuthStore';
 import dashboardService from './dashboardService';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   UserPlus, 
   Plane, 
@@ -16,7 +16,8 @@ import {
   Clock,
   Compass,
   Phone,
-  CheckCircle2
+  CheckCircle2,
+  CircleDollarSign
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -24,7 +25,8 @@ import activityService from '../activity-tracker/activityService';
 import Toast from '../../components/ui/Toast';
 
 const AgentDashboard = () => {
-  const { user, logout } = useAuthStore();
+  const MotionDiv = motion.div;
+  const { user } = useAuthStore();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState('active');
@@ -104,16 +106,6 @@ const AgentDashboard = () => {
     return () => clearInterval(interval);
   }, [lastActivityTime, currentStatus, baseBreakdown]);
 
-  const handleStatusChange = async (type) => {
-    try {
-      await activityService.logActivity({ activity_type: type });
-      setToast({ message: `Status updated to ${type.replace('_', ' ')}`, type: 'success' });
-      fetchStatus();
-    } catch (e) {
-      setToast({ message: 'Failed to update status', type: 'error' });
-    }
-  };
-
   const userName = user?.name || "Member"; 
 
   if (loading || !stats) {
@@ -128,7 +120,7 @@ const AgentDashboard = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
       
       {/* Premium Welcome Hero */}
-      <motion.div 
+      <MotionDiv 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="glass-panel"
@@ -188,7 +180,7 @@ const AgentDashboard = () => {
                 Good Morning, <span className="premium-gradient-text">{userName}</span>
               </h1>
               <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '500px', lineHeight: '1.6' }}>
-                You have logged <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.my_bookings_count} bookings</span> totaling <span style={{ color: '#4ade80', fontWeight: 700 }}>${stats.my_revenue.toLocaleString()}</span>.
+                You have logged <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.my_bookings_count} bookings</span> totaling <span style={{ color: '#4ade80', fontWeight: 700 }}>${stats.my_revenue.toLocaleString()}</span>, with <span style={{ color: '#60a5fa', fontWeight: 700 }}>${Number(stats.daily_revenue || 0).toLocaleString()}</span> booked today.
               </p>
             </div>
           </div>
@@ -206,7 +198,7 @@ const AgentDashboard = () => {
           background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)',
           borderRadius: '50%', filter: 'blur(40px)'
         }} />
-      </motion.div>
+      </MotionDiv>
 
       <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '32px' }}>
         <Card title="Activity Log" icon={Clock}>
@@ -249,7 +241,7 @@ const AgentDashboard = () => {
               { title: "Browse Routes", desc: "Explore curated packages", icon: Compass, color: "#f472b6" },
               { title: "Authorization", desc: "Check supervisor status", icon: ShieldCheck, color: "#4ade80" }
             ].map((action, idx) => (
-              <motion.div 
+              <MotionDiv 
                 key={idx}
                 whileHover={{ scale: 1.02, y: -5 }}
                 transition={{ type: 'spring', stiffness: 300 }}
@@ -271,7 +263,7 @@ const AgentDashboard = () => {
                     <ChevronRight size={14} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
                   </div>
                 </Card>
-              </motion.div>
+              </MotionDiv>
             ))}
           </div>
         </div>
@@ -279,6 +271,18 @@ const AgentDashboard = () => {
 
       {/* Activity Breakdown Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
+        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid rgba(96, 165, 250, 0.2)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(96, 165, 250, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+            <CircleDollarSign size={24} />
+          </div>
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Daily Revenue</p>
+            <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#60a5fa' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.daily_revenue) || 0)}
+            </h4>
+          </div>
+        </div>
+
         <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', background: 'linear-gradient(135deg, hsla(var(--primary), 0.05) 0%, transparent 100%)' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))' }}>
             <Clock size={24} />
@@ -339,9 +343,8 @@ const AgentDashboard = () => {
 };
 
 // Simple Fallback for missing icons
-const ShieldCheck = ({ size, color }) => (
+const ShieldCheck = ({ size }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
 );
 
 export default AgentDashboard;
-

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use App\Domains\Booking\Models\Booking;
+use App\Models\User;
 
 class PaymentAuth extends Model
 {
@@ -21,6 +22,10 @@ class PaymentAuth extends Model
         'total_amount',
         'currency',
         'approved_at',
+        'collected_at',
+        'collected_by',
+        'collection_notes',
+        'collection_reference',
         'approved_email',
         'masked_card',
         'declaration_version',
@@ -34,6 +39,7 @@ class PaymentAuth extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'collected_at' => 'datetime',
         'metadata' => 'array',
         'consent_snapshot' => 'array',
     ];
@@ -60,5 +66,10 @@ class PaymentAuth extends Model
     public function bookings()
     {
         return $this->belongsToMany(Booking::class, 'booking_payment_auth', 'payment_auth_id', 'booking_id');
+    }
+
+    public function collector()
+    {
+        return $this->belongsTo(User::class, 'collected_by');
     }
 }

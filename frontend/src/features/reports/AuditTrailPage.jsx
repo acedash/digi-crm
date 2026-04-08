@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Clock, Box, ArrowRight, Activity, Download, Search, Globe, Monitor } from 'lucide-react';
+import { Shield, Clock, Box, ArrowRight, Activity, Download, Search, Globe, Monitor, Eye, XCircle } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import api from '../../services/api';
 import { AnimatePresence } from 'framer-motion';
@@ -10,6 +10,7 @@ const AuditTrailPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState('all');
+  const [selectedLog, setSelectedLog] = useState(null);
 
   useEffect(() => {
     fetchLogs();
@@ -163,6 +164,35 @@ const AuditTrailPage = () => {
     );
   };
 
+  const getDetailsSummary = (log) => {
+    if (log.source === 'temporal') {
+      return 'Time tracker event';
+    }
+
+    if (!log.details || Object.keys(log.details).length === 0) {
+      return 'No notable modifications';
+    }
+
+    if (log.details.old) {
+      const changedCount = Object.keys(log.details)
+        .filter((key) => key !== 'old')
+        .filter((key) => String(log.details.old[key] ?? '') !== String(log.details[key] ?? ''))
+        .length;
+
+      return changedCount > 0
+        ? `${changedCount} field${changedCount === 1 ? '' : 's'} changed`
+        : 'No field changes recorded';
+    }
+
+    const detailCount = Object.keys(log.details)
+      .filter((key) => log.details[key] !== null && log.details[key] !== '')
+      .length;
+
+    return detailCount > 0
+      ? `${detailCount} detail${detailCount === 1 ? '' : 's'} recorded`
+      : 'No notable modifications';
+  };
+
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
@@ -285,11 +315,18 @@ const AuditTrailPage = () => {
                     </div>
                   </div>
 
-                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '10px' }}>
-                      Details / Changes
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '6px' }}>
+                        Details / Changes
+                      </div>
+                      <div style={{ color: 'var(--text-main)', fontSize: '14px', fontWeight: 600 }}>
+                        {getDetailsSummary(log)}
+                      </div>
                     </div>
-                    {renderChanges(log)}
+                    <Button variant="outline" size="sm" icon={Eye} onClick={() => setSelectedLog(log)}>
+                      Details
+                    </Button>
                   </div>
                 </div>
               ))
@@ -297,6 +334,92 @@ const AuditTrailPage = () => {
           </AnimatePresence>
         </div>
       </Card>
+
+      <AnimatePresence>
+        {selectedLog && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(2, 6, 23, 0.82)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1200,
+              padding: '24px',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '960px',
+                maxHeight: '88vh',
+                overflowY: 'auto',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '20px',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px' }}>
+                    Audit Details
+                  </div>
+                  <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                    {selectedLog.event_type}
+                  </h2>
+                </div>
+                <Button variant="ghost" icon={XCircle} onClick={() => setSelectedLog(null)}>
+                  Close
+                </Button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }}>
+                <Card style={{ padding: '16px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px' }}>
+                    Timestamp
+                  </div>
+                  <div style={{ fontFamily: 'monospace', color: 'var(--text-main)', fontWeight: 600, lineHeight: 1.5 }}>
+                    {formatDate(selectedLog.timestamp)}
+                  </div>
+                </Card>
+                <Card style={{ padding: '16px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px' }}>
+                    Actor
+                  </div>
+                  <div style={{ color: 'var(--text-main)', fontWeight: 700 }}>{selectedLog.causer_name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', wordBreak: 'break-word' }}>
+                    {selectedLog.ip_address}
+                  </div>
+                </Card>
+                <Card style={{ padding: '16px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px' }}>
+                    Source
+                  </div>
+                  <div style={{ color: 'var(--text-main)', fontWeight: 700 }}>
+                    {selectedLog.source === 'temporal' ? 'Time Tracker' : 'Database Event'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', wordBreak: 'break-word', lineHeight: 1.5 }}>
+                    {selectedLog.user_agent}
+                  </div>
+                </Card>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '10px' }}>
+                  Full Details / Changes
+                </div>
+                {renderChanges(selectedLog)}
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

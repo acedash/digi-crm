@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { 
   Users, 
   UserPlus, 
@@ -132,6 +132,7 @@ const UserList = () => {
             <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
               <th style={{ padding: '20px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Identity</th>
               <th style={{ padding: '20px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Role</th>
+              <th style={{ padding: '20px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Supervisors</th>
               <th style={{ padding: '20px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Activity</th>
               <th style={{ padding: '20px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>
               <th style={{ padding: '20px 24px', textAlign: 'right' }}>Actions</th>
@@ -139,12 +140,9 @@ const UserList = () => {
           </thead>
           <tbody>
             <AnimatePresence>
-              {filteredUsers.map((user, idx) => (
-                <motion.tr 
+              {filteredUsers.map((user) => (
+                <tr 
                   key={user.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.03 }}
                   style={{ borderBottom: '1px solid var(--border-color)', transition: 'var(--transition-smooth)' }}
                   onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-input)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
@@ -173,6 +171,29 @@ const UserList = () => {
                       }}>
                         {typeof user.roles?.[0] === 'object' ? user.roles[0].name : (user.roles?.[0] || 'Staff')}
                       </span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '20px 24px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {(user.supervisors?.length ? user.supervisors : []).map((supervisor) => (
+                        <span
+                          key={supervisor.id}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '100px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            background: 'rgba(96, 165, 250, 0.1)',
+                            color: '#60a5fa',
+                            border: '1px solid rgba(96, 165, 250, 0.2)'
+                          }}
+                        >
+                          {supervisor.name}
+                        </span>
+                      ))}
+                      {!user.supervisors?.length && (
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>None</span>
+                      )}
                     </div>
                   </td>
                   <td style={{ padding: '20px 24px' }}>
@@ -220,7 +241,7 @@ const UserList = () => {
                       </Button>
                     </div>
                   </td>
-                </motion.tr>
+                </tr>
               ))}
             </AnimatePresence>
           </tbody>
@@ -239,4 +260,3 @@ const UserList = () => {
 };
 
 export default UserList;
-

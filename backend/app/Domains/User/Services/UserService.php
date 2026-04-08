@@ -23,6 +23,9 @@ class UserService
 
     public function createUser(array $data): User
     {
+        $supervisorIds = $data['supervisor_ids'] ?? [];
+        unset($data['supervisor_ids']);
+        $data['supervisor_id'] = $supervisorIds[0] ?? ($data['supervisor_id'] ?? null);
         $data['password'] = Hash::make($data['password']);
         $user = $this->userRepository->create($data);
         
@@ -46,12 +49,16 @@ class UserService
             ]);
         }
 
+        $this->syncSupervisors($user, $supervisorIds);
+
         return $user;
     }
 
     public function update($id, array $data): User
     {
         $user = $this->userRepository->find($id);
+        $supervisorIds = $data['supervisor_ids'] ?? null;
+        unset($data['supervisor_ids']);
         
         if (isset($data['password'])) {
             $data['password'] = Hash::make($data['password']);
@@ -59,10 +66,18 @@ class UserService
             unset($data['password']);
         }
 
+        if ($supervisorIds !== null) {
+            $data['supervisor_id'] = $supervisorIds[0] ?? null;
+        }
+
         $this->userRepository->update($user, $data);
 
         if (isset($data['roles'])) {
             $user->syncRoles($data['roles']);
+        }
+
+        if ($supervisorIds !== null) {
+            $this->syncSupervisors($user, $supervisorIds);
         }
 
         return $user;
@@ -83,5 +98,17 @@ class UserService
     public function getAgentsBySupervisor($supervisorId): Collection
     {
         return $this->userRepository->getBySupervisor($supervisorId);
+    }
+
+    protected function syncSupervisors(User $user, array $supervisorIds): void
+    {
+        $supervisorIds = collect($supervisorIds)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $user->supervisors()->sync($supervisorIds);
     }
 }

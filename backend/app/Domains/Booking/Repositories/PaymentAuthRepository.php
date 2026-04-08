@@ -28,8 +28,33 @@ class PaymentAuthRepository extends BaseRepository
     {
         return $this->model
             ->whereHas('bookings', fn ($query) => $query->where('bookings.id', $bookingId))
-            ->with(['client', 'bookings.passengers', 'bookings.services.serviceable'])
+            ->with(['client', 'bookings.passengers', 'bookings.services.serviceable', 'collector'])
             ->latest('id')
             ->first();
+    }
+
+    public function getChargeQueue(string $view = 'pending')
+    {
+        $query = $this->model
+            ->whereHas('bookings')
+            ->where('status', 'Approved')
+            ->with(['client.cards', 'bookings.agent', 'collector']);
+
+        if ($view === 'charged') {
+            $query->whereNotNull('collected_at')->latest('collected_at');
+        } elseif ($view === 'all') {
+            $query->latest('approved_at');
+        } else {
+            $query->whereNull('collected_at')->latest('approved_at');
+        }
+
+        return $query->get();
+    }
+
+    public function findByIdForCollection(int $id)
+    {
+        return $this->model
+            ->with(['client.cards', 'bookings.agent', 'collector'])
+            ->find($id);
     }
 }

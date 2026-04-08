@@ -1,0 +1,482 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, BadgeDollarSign, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
+import paymentAuthService from './paymentAuthService';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Toast from '../../components/ui/Toast';
+import sensitiveAuditService from '../../services/sensitiveAuditService';
+
+const formatMoney = (amount, currency = 'USD') =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(amount || 0));
+
+const extractLast4 = (value) => {
+  const clean = String(value || '').replace(/\D+/g, '');
+  return clean ? clean.slice(-4) : '';
+};
+
+const normalizeExpiry = (card) => {
+  if (card.exp) return card.exp;
+  if (card.expiry_month && card.expiry_year) {
+    return `${String(card.expiry_month).padStart(2, '0')}/${String(card.expiry_year).slice(-2)}`;
+  }
+  return '';
+};
+
+const resolveChargeCards = (record) => {
+  const authType = record.consent_snapshot?.authorization_type || record.metadata?.authorization_type || 'initial';
+  const bookingCards = record.bookings?.[0]?.details_json?.payment_cards || [];
+  const clientCards = record.client?.cards || [];
+
+  if (authType === 'initial') {
+    return bookingCards
+      .filter((card) => Number(card.amount || 0) > 0)
+      .map((card) => ({
+        holder_name: card.holder_name,
+        number: card.number,
+        exp: card.exp,
+        cvv: card.cvv,
+        amount: Number(card.amount || 0),
+        remarks: card.remarks || '',
+        source: 'booking',
+      }));
+  }
+
+  const allocations = record.consent_snapshot?.card_allocations || record.metadata?.card_allocations || [];
+
+  return allocations.map((allocation) => {
+    const allocationLast4 = extractLast4(allocation.card_label);
+    const bookingMatch = bookingCards.find((card) => {
+      const bookingLast4 = extractLast4(card.number);
+      return (
+        (allocationLast4 && bookingLast4 === allocationLast4) ||
+        (allocation.holder_name && card.holder_name && allocation.holder_name.toLowerCase() === card.holder_name.toLowerCase())
+      );
+    });
+
+    const clientMatch = clientCards.find((card) => {
+      const clientLast4 = extractLast4(card.last_4 || card.card_number);
+      return (
+        (allocationLast4 && clientLast4 === allocationLast4) ||
+        (allocation.holder_name && card.card_holder_name && allocation.holder_name.toLowerCase() === card.card_holder_name.toLowerCase())
+      );
+    });
+
+    const matched = bookingMatch
+      ? {
+          holder_name: bookingMatch.holder_name,
+          number: bookingMatch.number,
+          exp: bookingMatch.exp,
+          cvv: bookingMatch.cvv,
+          remarks: allocation.remarks || bookingMatch.remarks || '',
+          source: 'booking',
+        }
+      : clientMatch
+        ? {
+            holder_name: clientMatch.card_holder_name,
+            number: clientMatch.card_number,
+            exp: normalizeExpiry(clientMatch),
+            cvv: clientMatch.cvv,
+            remarks: allocation.remarks || '',
+            source: 'client',
+          }
+        : {
+            holder_name: allocation.holder_name || 'Card on file',
+            number: allocation.card_label || 'Unavailable',
+            exp: '',
+            cvv: '',
+            remarks: allocation.remarks || '',
+            source: 'allocation',
+          };
+
+    return {
+      ...matched,
+      amount: Number(allocation.amount || 0),
+    };
+  });
+};
+
+const ChargeQueuePage = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [submittingId, setSubmittingId] = useState(null);
+  const [queue, setQueue] = useState([]);
+  const [viewFilter, setViewFilter] = useState('pending');
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [revealedCards, setRevealedCards] = useState({});
+  const [collectionReference, setCollectionReference] = useState('');
+  const [collectionNotes, setCollectionNotes] = useState('');
+  const [toast, setToast] = useState({ message: '', type: 'error' });
+
+  const loadQueue = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await paymentAuthService.getChargeQueue(viewFilter);
+      setQueue(response.data.data || []);
+    } catch (error) {
+      setToast({ message: error?.response?.data?.message || 'Failed to load charge queue.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [viewFilter]);
+
+  useEffect(() => {
+    loadQueue();
+  }, [loadQueue]);
+
+  useEffect(() => {
+    sensitiveAuditService.logEvent({
+      event_type: 'Sensitive Page Viewed',
+      module: 'Charge Queue',
+      description: 'Opened admin charge queue',
+      details: { view: viewFilter },
+    }).catch(() => {});
+  }, [viewFilter]);
+
+  const openMarkCharged = (record) => {
+    setSelectedRecord(record);
+    setRevealedCards({});
+    setCollectionReference('');
+    setCollectionNotes('');
+  };
+
+  const revealCard = (recordId, card, index) => {
+    const key = `${recordId}-${index}`;
+    setRevealedCards((prev) => ({ ...prev, [key]: true }));
+    sensitiveAuditService.logEvent({
+      event_type: 'Card Details Revealed',
+      module: 'Charge Queue',
+      description: 'Admin revealed charge card details',
+      details: {
+        authorization_id: recordId,
+        holder_name: card.holder_name || 'Unknown',
+        last_4: extractLast4(card.number || card.card_label),
+      },
+    }).catch(() => {});
+  };
+
+  const submitMarkCharged = async () => {
+    if (!selectedRecord) return;
+
+    try {
+      setSubmittingId(selectedRecord.id);
+      await paymentAuthService.markCharged(selectedRecord.id, {
+        collection_reference: collectionReference,
+        collection_notes: collectionNotes,
+      });
+      setToast({ message: 'Marked as charged successfully.', type: 'success' });
+      setSelectedRecord(null);
+      await loadQueue();
+    } catch (error) {
+      setToast({ message: error?.response?.data?.message || 'Failed to mark as charged.', type: 'error' });
+    } finally {
+      setSubmittingId(null);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ fontSize: '32px', fontWeight: 800, letterSpacing: '-1px', marginBottom: '8px' }}>
+            Charge Queue
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
+            Track approved authorizations that are waiting to be charged or already collected.
+          </p>
+        </div>
+        <Button variant="outline" icon={RefreshCw} size="sm" onClick={loadQueue}>
+          Refresh
+        </Button>
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        {[
+          { value: 'pending', label: 'Pending Charge' },
+          { value: 'charged', label: 'Charged History' },
+          { value: 'all', label: 'All Records' },
+        ].map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setViewFilter(option.value)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '999px',
+              border: '1px solid var(--border-color)',
+              background: viewFilter === option.value ? 'hsl(var(--primary))' : 'var(--bg-card)',
+              color: viewFilter === option.value ? 'white' : 'var(--text-main)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+        <Card title="Visible Records" subtitle="Based on the current filter" icon={BadgeDollarSign}>
+          <div style={{ fontSize: '30px', fontWeight: 800, color: '#16a34a' }}>{queue.length}</div>
+        </Card>
+        <Card title="Initial Approvals" subtitle="Original booking authorizations" icon={ShieldCheck}>
+          <div style={{ fontSize: '30px', fontWeight: 800, color: '#2563eb' }}>
+            {queue.filter((item) => (item.consent_snapshot?.authorization_type || item.metadata?.authorization_type || 'initial') === 'initial').length}
+          </div>
+        </Card>
+        <Card title="Change Charges" subtitle="Post-approval updated amounts" icon={CreditCard}>
+          <div style={{ fontSize: '30px', fontWeight: 800, color: '#f59e0b' }}>
+            {queue.filter((item) => (item.consent_snapshot?.authorization_type || item.metadata?.authorization_type) === 'change_charge').length}
+          </div>
+        </Card>
+      </div>
+
+      <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {loading ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading charge queue...</div>
+          ) : queue.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              {viewFilter === 'charged'
+                ? 'No charged authorizations found yet.'
+                : viewFilter === 'all'
+                  ? 'No charge records found.'
+                  : 'Nothing is waiting to be charged right now.'}
+            </div>
+          ) : (
+            queue.map((record) => {
+              const authType = record.consent_snapshot?.authorization_type || record.metadata?.authorization_type || 'initial';
+              const booking = record.bookings?.[0];
+              const clientName =
+                record.client?.name ||
+                `${record.client?.first_name || ''} ${record.client?.last_name || ''}`.trim() ||
+                'Unknown Client';
+              const chargeCards = resolveChargeCards(record);
+
+              return (
+                <div
+                  key={record.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.2fr 0.9fr 0.9fr 1fr 1.1fr',
+                    gap: '16px',
+                    padding: '18px 0',
+                    borderBottom: '1px solid var(--border-color)',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                      {booking?.booking_reference || `Authorization #${record.id}`}
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      {clientName}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Type</div>
+                    <div style={{ fontWeight: 700, color: authType === 'change_charge' ? '#f59e0b' : '#2563eb', marginTop: '4px' }}>
+                      {authType === 'change_charge' ? 'Change Charge' : 'Initial Approval'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      {record.collected_at ? 'Charged' : 'Approved'}
+                    </div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
+                      {record.collected_at
+                        ? new Date(record.collected_at).toLocaleString()
+                        : record.approved_at
+                          ? new Date(record.approved_at).toLocaleString()
+                          : 'Pending'}
+                    </div>
+                    {record.collected_by && record.collector?.name && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        by {record.collector.name}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Amount</div>
+                    <div style={{ fontWeight: 800, color: '#16a34a', marginTop: '4px' }}>
+                      {formatMoney(record.total_amount, record.currency)}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ alignSelf: 'center', fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>
+                      {chargeCards.length} card{chargeCards.length === 1 ? '' : 's'}
+                    </div>
+                    {booking?.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={ArrowRight}
+                        onClick={() => {
+                          sensitiveAuditService.logEvent({
+                            event_type: 'Sensitive Page Opened',
+                            module: 'Consent Proof',
+                            description: 'Opened booking consent proof from charge queue',
+                            details: {
+                              booking_id: booking.id,
+                              authorization_id: record.id,
+                            },
+                          }).catch(() => {});
+                          navigate(`/admin/bookings/${booking.id}/consent-proof`);
+                        }}
+                      >
+                        Proof
+                      </Button>
+                    )}
+                    {record.collected_at ? (
+                      <div style={{ alignSelf: 'center', fontSize: '12px', color: '#16a34a', fontWeight: 700 }}>
+                        Charged
+                      </div>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon={BadgeDollarSign}
+                        onClick={() => openMarkCharged(record)}
+                      >
+                        Mark Charged
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {selectedRecord && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(2, 6, 23, 0.82)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1200,
+            padding: '24px',
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: '520px', background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '10px' }}>Mark Authorization as Charged</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px' }}>
+              Record the collection details for {selectedRecord.bookings?.[0]?.booking_reference || `authorization #${selectedRecord.id}`}.
+            </p>
+
+            <div
+              style={{
+                marginBottom: '20px',
+                padding: '16px',
+                borderRadius: '16px',
+                background: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+                Cards To Charge
+              </div>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {resolveChargeCards(selectedRecord).map((card, index) => {
+                  const revealKey = `${selectedRecord.id}-${index}`;
+                  const isRevealed = Boolean(revealedCards[revealKey]);
+
+                  return (
+                  <div
+                    key={`${card.number}-${index}`}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'grid', gap: '4px' }}>
+                        <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{card.holder_name || 'Card Holder'}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-main)' }}>
+                          Number: {isRevealed ? (card.number || 'Not available') : (extractLast4(card.number || card.card_label) ? `•••• •••• •••• ${extractLast4(card.number || card.card_label)}` : 'Hidden')}
+                        </div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-main)' }}>
+                          Expiry: {card.exp || 'Not available'}{isRevealed && card.cvv ? ` • CVV: ${card.cvv}` : !isRevealed && card.cvv ? ' • CVV: Hidden' : ''}
+                        </div>
+                        {card.remarks && (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Remarks: {card.remarks}</div>
+                        )}
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          Source: {card.source === 'client' ? 'Saved Client Card' : card.source === 'booking' ? 'Booking Card' : 'Allocation Snapshot'}
+                        </div>
+                        {!isRevealed && (
+                          <div style={{ marginTop: '8px' }}>
+                            <Button variant="outline" size="sm" onClick={() => revealCard(selectedRecord.id, card, index)}>
+                              Reveal Card
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#16a34a' }}>
+                        {formatMoney(card.amount, selectedRecord.currency)}
+                      </div>
+                    </div>
+                  </div>
+                )})}
+              </div>
+            </div>
+
+            <Input
+              label="Collection Reference"
+              placeholder="Optional bank reference or internal receipt id"
+              value={collectionReference}
+              onChange={(e) => setCollectionReference(e.target.value)}
+            />
+
+            <div style={{ marginTop: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Collection Notes
+              </label>
+              <textarea
+                value={collectionNotes}
+                onChange={(e) => setCollectionNotes(e.target.value)}
+                placeholder="Optional notes about how the charge was processed"
+                style={{
+                  width: '100%',
+                  minHeight: '120px',
+                  padding: '14px 16px',
+                  borderRadius: '16px',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-main)',
+                  outline: 'none',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+              <Button variant="ghost" onClick={() => setSelectedRecord(null)}>Cancel</Button>
+              <Button
+                variant="primary"
+                icon={BadgeDollarSign}
+                onClick={submitMarkCharged}
+                isLoading={submittingId === selectedRecord.id}
+              >
+                Confirm Charged
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />
+    </div>
+  );
+};
+
+export default ChargeQueuePage;

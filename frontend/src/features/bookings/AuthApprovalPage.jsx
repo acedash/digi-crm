@@ -138,6 +138,9 @@ const AuthApprovalPage = () => {
 
   const isAlreadyApproved = auth?.status === 'Approved' || approved;
   const isAlreadyRejected = auth?.status === 'Rejected' || rejected;
+  const authorizationType = auth?.consent_snapshot?.authorization_type || auth?.metadata?.authorization_type || 'initial';
+  const cardAllocations = auth?.consent_snapshot?.card_allocations || auth?.metadata?.card_allocations || [];
+  const changeEntries = auth?.consent_snapshot?.change_entries || auth?.metadata?.change_entries || [];
 
   return (
     <div style={{
@@ -164,11 +167,11 @@ const AuthApprovalPage = () => {
           }}>
             <Shield size={16} style={{ color: '#016040' }} />
             <span style={{ fontSize: 13, fontWeight: 700, color: '#016040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Secure Authorization Portal
+              {authorizationType === 'change_charge' ? 'Secure Change Charge Portal' : 'Secure Authorization Portal'}
             </span>
           </div>
           <h1 style={{ fontSize: 42, fontWeight: 900, marginBottom: 12, letterSpacing: '-1.5px', color: '#016040' }}>
-            Review &amp; Approve
+            {authorizationType === 'change_charge' ? 'Review Update & Approve' : 'Review & Approve'}
           </h1>
           <p style={{ color: '#636366', fontSize: 16 }}>
             Prepared for <strong style={{ color: '#1c1c1e' }}>{auth?.client?.name}</strong>
@@ -237,7 +240,7 @@ const AuthApprovalPage = () => {
           boxShadow: '0 12px 24px rgba(1, 96, 64, 0.2)'
         }}>
           <span style={{ fontSize: 17, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
-            Total Authorization Amount
+            {authorizationType === 'change_charge' ? 'Total Additional Charge' : 'Total Authorization Amount'}
           </span>
           <span style={{ fontSize: 36, fontWeight: 900, color: 'white', letterSpacing: '-1px' }}>
             {new Intl.NumberFormat('en-US', {
@@ -246,6 +249,75 @@ const AuthApprovalPage = () => {
             }).format(auth?.total_amount)}
           </span>
         </div>
+
+        {changeEntries.length ? (
+          <div style={{
+            background: 'white',
+            borderRadius: '28px',
+            padding: '28px 32px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.04)',
+            marginBottom: 32,
+            border: '1px solid rgba(0,0,0,0.05)'
+          }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>Updated Booking Changes</h3>
+            <div style={{ display: 'grid', gap: 12 }}>
+              {changeEntries.map((change, index) => (
+                <div key={index} style={{ padding: '16px', borderRadius: '18px', background: '#F9FAFB', border: '1px solid #E5E7EB' }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>
+                    {change.service_type || 'Service'} · {change.change_type || 'Update'}
+                  </div>
+                  {change.change_summary ? (
+                    <div style={{ fontSize: 14, color: '#636366', lineHeight: 1.6, marginBottom: 6 }}>
+                      {change.change_summary}
+                    </div>
+                  ) : null}
+                  {Number(change.additional_charge || 0) > 0 ? (
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#016040' }}>
+                      Additional Charge: {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: auth?.currency || 'USD'
+                      }).format(Number(change.additional_charge) || 0)}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {cardAllocations.length ? (
+          <div style={{
+            background: 'white',
+            borderRadius: '28px',
+            padding: '28px 32px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.04)',
+            marginBottom: 32,
+            border: '1px solid rgba(0,0,0,0.05)'
+          }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>Card Allocation For This Charge</h3>
+            <div style={{ display: 'grid', gap: 12 }}>
+              {cardAllocations.map((allocation, index) => (
+                <div key={index} style={{ padding: '16px', borderRadius: '18px', background: '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 800 }}>{allocation.holder_name || 'Card Holder'}</div>
+                    <div style={{ fontSize: 13, color: '#8e8e93', marginTop: 4 }}>{allocation.card_label || 'Card on file'}</div>
+                    {allocation.remarks ? (
+                      <div style={{ fontSize: 13, color: '#636366', lineHeight: 1.6, marginTop: 6 }}>
+                        {allocation.remarks}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#016040' }}>
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: auth?.currency || 'USD'
+                    }).format(Number(allocation.amount) || 0)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {/* Consent Section */}
         {isAlreadyApproved ? (

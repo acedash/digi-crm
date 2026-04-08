@@ -9,6 +9,11 @@ class CallLog extends Model
     protected $fillable = [
         'agent_id',
         'client_id',
+        'log_scope',
+        'contact_name',
+        'contact_email',
+        'contact_phone',
+        'lead_source',
         'call_type',
         'airline_inquiry',
         'customer_outcome',

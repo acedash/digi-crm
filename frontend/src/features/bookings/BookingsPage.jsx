@@ -22,8 +22,8 @@ const BookingsPage = () => {
     navigate(`${basePath}/bookings/${id}/edit`);
   };
 
-  const handleSuccess = () => {
-    navigate(`${basePath}/bookings`);
+  const handleSuccess = (flash) => {
+    navigate(`${basePath}/bookings`, { state: { flash } });
   };
 
   return (

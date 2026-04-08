@@ -9,6 +9,7 @@ use App\Http\Requests\Domains\Client\UpdateClientRequest;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class ClientController extends Controller
 {
@@ -30,8 +31,16 @@ class ClientController extends Controller
 
     public function store(CreateClientRequest $request): JsonResponse
     {
-        $client = $this->clientService->createClient($request->validated());
-        return $this->success($client, 'Client created successfully', 201);
+        try {
+            $client = $this->clientService->createClient($request->validated());
+            return $this->success($client, 'Client created successfully', 201);
+        } catch (ValidationException $e) {
+            return $this->error(
+                $e->errors()['client'][0] ?? $e->getMessage(),
+                422,
+                $e->errors()
+            );
+        }
     }
 
     public function show($id): JsonResponse
@@ -42,13 +51,29 @@ class ClientController extends Controller
 
     public function update(UpdateClientRequest $request, $id): JsonResponse
     {
-        $client = $this->clientService->updateClient($id, $request->validated());
-        return $this->success($client, 'Client updated successfully');
+        try {
+            $client = $this->clientService->updateClient($id, $request->validated());
+            return $this->success($client, 'Client updated successfully');
+        } catch (ValidationException $e) {
+            return $this->error(
+                $e->errors()['client'][0] ?? $e->getMessage(),
+                422,
+                $e->errors()
+            );
+        }
     }
 
     public function destroy($id): JsonResponse
     {
-        $this->clientService->deleteClient($id);
-        return $this->success(null, 'Client deleted successfully', 204);
+        try {
+            $this->clientService->deleteClient($id);
+            return $this->success(null, 'Client deleted successfully', 204);
+        } catch (ValidationException $e) {
+            return $this->error(
+                $e->errors()['client'][0] ?? $e->getMessage(),
+                422,
+                $e->errors()
+            );
+        }
     }
 }

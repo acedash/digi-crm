@@ -21,9 +21,8 @@ class SearchService
             $query->where(function($q) use ($user) { $q->where('agent_id', '=', $user->id); });
         } elseif ($user->hasRole('supervisor')) {
             $query->where(function($q) use ($user) {
-                $q->where('supervisor_id', '=', $user->id)
-                  ->orWhereHas('agent', function($aq) use ($user) {
-                      $aq->where('supervisor_id', '=', $user->id);
+                $q->whereHas('agent.supervisors', function($aq) use ($user) {
+                      $aq->where('users.id', '=', $user->id);
                   });
             });
         }
@@ -37,11 +36,27 @@ class SearchService
         }
 
         if (!empty($params['phone'])) {
-            $query->where(function($q) use ($params) { $q->where('phone', 'like', '%' . (string)$params['phone'] . '%'); });
+            $normalizedPhone = preg_replace('/\D+/', '', (string) $params['phone']);
+            $query->where(function($q) use ($normalizedPhone) {
+                $q->whereRaw("
+                    REPLACE(
+                        REPLACE(
+                            REPLACE(
+                                REPLACE(
+                                    REPLACE(phone, ' ', ''),
+                                '-', ''),
+                            '(', ''),
+                        ')', ''),
+                    '+', '') LIKE ?
+                ", ['%' . $normalizedPhone . '%']);
+            });
         }
 
         if (!empty($params['email'])) {
-            $query->where(function($q) use ($params) { $q->where('email', 'like', '%' . (string)$params['email'] . '%'); });
+            $normalizedEmail = strtolower(trim((string) $params['email']));
+            $query->where(function($q) use ($normalizedEmail) {
+                $q->whereRaw('LOWER(email) LIKE ?', ['%' . $normalizedEmail . '%']);
+            });
         }
 
         // Search by Booking ID or PNR

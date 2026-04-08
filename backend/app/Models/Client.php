@@ -18,7 +18,9 @@ class Client extends Model
         'middle_name',
         'last_name',
         'email',
+        'alternate_email',
         'phone',
+        'alternate_phone',
         'date_of_birth',
         'gender',
         'address',
@@ -31,7 +33,7 @@ class Client extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'first_name', 'last_name', 'email', 'phone', 'type', 'agent_id', 'created_by', 'is_active'])
+            ->logOnly(['name', 'first_name', 'last_name', 'email', 'alternate_email', 'phone', 'alternate_phone', 'type', 'agent_id', 'created_by', 'is_active'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -67,6 +69,11 @@ class Client extends Model
     public function cards()
     {
         return $this->hasMany(ClientCard::class);
+    }
+
+    public function paymentAuthorizations()
+    {
+        return $this->hasMany(PaymentAuth::class);
     }
 
     public function callLogs()

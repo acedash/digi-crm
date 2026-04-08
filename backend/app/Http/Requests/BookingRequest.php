@@ -16,7 +16,8 @@ class BookingRequest extends FormRequest
         return [
             'client_id' => 'nullable|exists:clients,id',
             'agent_id' => 'nullable|exists:users,id',
-            'status' => 'nullable|string|in:Pending,Awaiting Approval,Approved,Rejected,Confirmed,Cancelled,Completed',
+            'update_mode' => 'nullable|string|in:standard,service_change',
+            'status' => 'nullable|string|in:Pending,Awaiting Approval,Approved,Rejected,Confirmed,Cancelled,Completed,Awaiting Change Approval,Change Approved,Change Rejected',
             'currency' => 'nullable|string|size:3',
             'passengers' => 'nullable|array',
             'passengers.*' => 'exists:passengers,id',
@@ -48,6 +49,15 @@ class BookingRequest extends FormRequest
             ],
             'payment_cards.*.cvv' => 'nullable|string|min:3|max:4',
             'payment_cards.*.amount' => 'required_with:payment_cards|numeric|min:0.01',
+            'change_charge_cards_to_sync' => 'nullable|array',
+            'change_charge_cards_to_sync.*.holder_name' => 'required_with:change_charge_cards_to_sync|string|max:255',
+            'change_charge_cards_to_sync.*.number' => 'required_with:change_charge_cards_to_sync|string|min:13|max:19',
+            'change_charge_cards_to_sync.*.exp' => [
+                'required_with:change_charge_cards_to_sync',
+                'string',
+                'regex:/^(0[1-9]|1[0-2])\/\d{2}$/'
+            ],
+            'change_charge_cards_to_sync.*.cvv' => 'nullable|string|min:3|max:4',
         ];
     }
 }

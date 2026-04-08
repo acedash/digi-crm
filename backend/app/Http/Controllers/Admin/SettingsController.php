@@ -41,4 +41,31 @@ class SettingsController extends Controller
             'message' => 'SMTP settings updated successfully.',
         ]);
     }
+
+    public function listMailTemplates(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->systemSettingService->getMailTemplates(),
+        ]);
+    }
+
+    public function updateMailTemplates(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'templates' => 'required|array|min:1',
+            'templates.*.key' => 'required|string',
+            'templates.*.name' => 'required|string',
+            'templates.*.description' => 'nullable|string',
+            'templates.*.subject' => 'required|string',
+            'templates.*.body' => 'required|string',
+            'templates.*.enabled' => 'required|boolean',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->systemSettingService->updateMailTemplates($validated['templates']),
+            'message' => 'Email templates updated successfully.',
+        ]);
+    }
 }

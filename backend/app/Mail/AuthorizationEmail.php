@@ -3,6 +3,8 @@
 namespace App\Mail;
 
 use App\Models\PaymentAuth;
+use App\Services\BookingMailContextBuilder;
+use App\Services\SystemSettingService;
 use Illuminate\Support\Collection;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -14,6 +16,8 @@ class AuthorizationEmail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    protected ?array $authorizationReplacements = null;
+
     public function __construct(
         public PaymentAuth $authorization,
         public string $approvalUrl
@@ -22,8 +26,10 @@ class AuthorizationEmail extends Mailable
 
     public function envelope(): Envelope
     {
+        $template = app(SystemSettingService::class)->getMailTemplate('authorization');
+
         return new Envelope(
-            subject: 'Booking payment approval request'
+            subject: $template['subject'] ?: 'Booking payment approval request'
         );
     }
 
@@ -38,8 +44,21 @@ class AuthorizationEmail extends Mailable
                 'maskedCard' => $this->getMaskedCard(),
                 'supplierLabel' => $this->getSupplierLabel(),
                 'embeddedTickets' => $this->getEmbeddedTickets(),
+                'authorizationType' => $this->getAuthorizationType(),
+                'cardAllocations' => $this->getCardAllocations(),
+                'changeEntries' => $this->getChangeEntries(),
+                'templateBody' => $this->getTemplateBody(),
             ]
         );
+    }
+
+    protected function getTemplateBody(): string
+    {
+        $template = app(SystemSettingService::class)->getMailTemplate('authorization');
+        $body = $template['body']
+            ?? "We hope this message finds you well. Please review the itinerary, traveller information, fare details, and authorization declaration below. Once confirmed, use the approval button at the bottom to securely record your consent.";
+
+        return strtr($body, $this->getAuthorizationReplacements());
     }
 
     protected function getClientName(): string
@@ -62,13 +81,6 @@ class AuthorizationEmail extends Mailable
         return $this->authorization->bookings
             ->flatMap(function ($booking) {
                 $travellers = collect();
-
-                if ($booking->client) {
-                    $travellers->push([
-                        'name' => trim(($booking->client->first_name ?? '') . ' ' . ($booking->client->middle_name ?? '') . ' ' . ($booking->client->last_name ?? '')),
-                        'dob' => $booking->client->date_of_birth,
-                    ]);
-                }
 
                 foreach ($booking->passengers ?? [] as $passenger) {
                     $travellers->push([
@@ -159,6 +171,23 @@ class AuthorizationEmail extends Mailable
         return $labels->implode(' / ') . ' / Digicircle';
     }
 
+    protected function getAuthorizationType(): string
+    {
+        return $this->authorization->consent_snapshot['authorization_type']
+            ?? $this->authorization->metadata['authorization_type']
+            ?? 'initial';
+    }
+
+    protected function getCardAllocations(): Collection
+    {
+        return collect($this->authorization->consent_snapshot['card_allocations'] ?? $this->authorization->metadata['card_allocations'] ?? []);
+    }
+
+    protected function getChangeEntries(): Collection
+    {
+        return collect($this->authorization->consent_snapshot['change_entries'] ?? $this->authorization->metadata['change_entries'] ?? []);
+    }
+
     protected function getEmbeddedTickets(): Collection
     {
         if (!empty($this->authorization->consent_snapshot['ticket_images'])) {
@@ -211,6 +240,18 @@ class AuthorizationEmail extends Mailable
             return $fallbackUrl;
         }
 
-        return rtrim(config('app.backend_url'), '/') . '/storage/' . ltrim($path, '/');
+        return app(BookingMailContextBuilder::class)->buildStorageUrl($path);
+    }
+
+    protected function getAuthorizationReplacements(): array
+    {
+        if ($this->authorizationReplacements !== null) {
+            return $this->authorizationReplacements;
+        }
+
+        $this->authorizationReplacements = app(BookingMailContextBuilder::class)
+            ->buildAuthorizationReplacements($this->authorization);
+
+        return $this->authorizationReplacements;
     }
 }

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { XCircle, PhoneCall, CheckCircle2 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import api from '../../../services/api';
@@ -30,7 +29,8 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
       await api.post('/call-logs', {
         ...formData,
         callback_required: formData.customer_outcome === 'Follow up required',
-        client_id: client?.id
+        client_id: client?.id,
+        log_scope: 'booking',
       });
       if (onSuccess) onSuccess();
       onClose();
@@ -48,9 +48,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
       background: 'rgba(2, 6, 23, 0.8)', backdropFilter: 'blur(8px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '24px'
     }}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
+      <div
         className="glass-panel"
         style={{ 
           width: '100%', maxWidth: '450px', borderRadius: '24px', 
@@ -174,7 +172,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
             </Button>
           </div>
         </form>
-      </motion.div>
+      </div>
     </div>
   );
 };

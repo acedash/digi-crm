@@ -6,6 +6,7 @@ import {
   Award,
   Phone,
   Plane,
+  CircleDollarSign,
   ArrowRightLeft,
   X
 } from 'lucide-react';
@@ -23,6 +24,8 @@ const SupervisorDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reassignModal, setReassignModal] = useState({ open: false, bookingId: null, currentAgentId: null });
+  const [selectedReassignAgent, setSelectedReassignAgent] = useState('');
+  const [handoffRemark, setHandoffRemark] = useState('');
   const [reassigning, setReassigning] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'error' });
 
@@ -52,25 +55,38 @@ const SupervisorDashboard = () => {
       bookingId: booking.id,
       currentAgentId: booking.agent_id,
     });
+    setSelectedReassignAgent('');
+    setHandoffRemark('');
   };
 
   const closeReassignModal = () => {
     if (reassigning) return;
     setReassignModal({ open: false, bookingId: null, currentAgentId: null });
+    setSelectedReassignAgent('');
+    setHandoffRemark('');
   };
 
-  const handleReassign = async (event) => {
-    const nextAgentId = event.target.value;
-    if (!nextAgentId) return;
+  const handleReassign = async () => {
+    if (!selectedReassignAgent) {
+      setToast({ message: 'Please select who should receive this booking.', type: 'error' });
+      return;
+    }
+
+    if (!handoffRemark.trim()) {
+      setToast({ message: 'Please add a handoff remark for the next assignee.', type: 'error' });
+      return;
+    }
 
     try {
       setReassigning(true);
-      await bookingService.reassignBooking(reassignModal.bookingId, nextAgentId);
+      await bookingService.reassignBooking(reassignModal.bookingId, selectedReassignAgent, handoffRemark.trim());
       setToast({ message: 'Booking reassigned successfully', type: 'success' });
       setReassignModal({ open: false, bookingId: null, currentAgentId: null });
+      setSelectedReassignAgent('');
+      setHandoffRemark('');
       await fetchData();
-    } catch {
-      setToast({ message: 'Failed to reassign booking', type: 'error' });
+    } catch (error) {
+      setToast({ message: error?.response?.data?.message || 'Failed to reassign booking', type: 'error' });
     } finally {
       setReassigning(false);
     }
@@ -80,7 +96,7 @@ const SupervisorDashboard = () => {
   const recentBookings = stats?.recent_bookings || [];
   const recentInquiries = stats?.recent_inquiries || [];
 
-  const ReassignModal = () => {
+  const renderReassignModal = () => {
     if (!reassignModal.open) return null;
 
     return (
@@ -109,15 +125,15 @@ const SupervisorDashboard = () => {
             <div>
               <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>Reassign Booking</h3>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                Move this booking to another agent on your team.
+                Move this booking to another agent on your team and leave a clear handoff note.
               </p>
             </div>
             <Button variant="ghost" size="sm" icon={X} onClick={closeReassignModal} disabled={reassigning} />
           </div>
 
           <select
-            defaultValue=""
-            onChange={handleReassign}
+            value={selectedReassignAgent}
+            onChange={(event) => setSelectedReassignAgent(event.target.value)}
             disabled={reassigning}
             style={{
               width: '100%',
@@ -143,6 +159,40 @@ const SupervisorDashboard = () => {
                 </option>
               ))}
           </select>
+
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Final Handoff Remark
+            </label>
+            <textarea
+              value={handoffRemark}
+              onChange={(event) => setHandoffRemark(event.target.value)}
+              disabled={reassigning}
+              placeholder="Add the final context for the next agent: what changed, what is pending, and what they should do next."
+              style={{
+                width: '100%',
+                minHeight: '110px',
+                padding: '12px 14px',
+                borderRadius: '14px',
+                background: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-main)',
+                fontSize: '14px',
+                outline: 'none',
+                resize: 'vertical',
+                marginTop: '8px'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+            <Button variant="ghost" onClick={closeReassignModal} disabled={reassigning}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleReassign} disabled={reassigning}>
+              {reassigning ? 'Reassigning...' : 'Reassign'}
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -180,9 +230,9 @@ const SupervisorDashboard = () => {
             {stats?.weekly_bookings || 0}
           </p>
         </Card>
-        <Card title="Calls Handled by Team" subtitle="Last 7 days" icon={Activity}>
-          <p style={{ fontSize: '28px', fontWeight: 800, color: '#4ade80' }}>
-            {stats?.team_calls || 0}
+        <Card title="Daily Revenue" subtitle="Bookings created today by your team" icon={CircleDollarSign}>
+          <p style={{ fontSize: '28px', fontWeight: 800, color: '#22c55e' }}>
+            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats?.daily_revenue) || 0)}
           </p>
         </Card>
         <Card title="Airline Inquiry from Team" subtitle="Last 7 days" icon={Phone}>
@@ -327,7 +377,7 @@ const SupervisorDashboard = () => {
         </div>
       </Card>
 
-      <ReassignModal />
+      {renderReassignModal()}
       <Toast
         message={toast.message}
         type={toast.type}

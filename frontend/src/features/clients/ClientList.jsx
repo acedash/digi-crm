@@ -1,32 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, 
   Search, 
-  UserPlus, 
   Phone, 
   Mail, 
-  MoreHorizontal,
   ArrowRight,
   Filter,
   RefreshCw,
   Edit,
-  User as UserIcon
+  User as UserIcon,
+  Trash2
 } from 'lucide-react';
 import clientService from './clientService';
-import ClientForm from './ClientForm';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
 const ClientList = ({ isEmbedded = false }) => {
+  const MotionDiv = motion.div;
+  const MotionTr = motion.tr;
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = '/' + location.pathname.split('/')[1];
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [selectedClient, setSelectedClient] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     pnr: '',
@@ -36,49 +36,12 @@ const ClientList = ({ isEmbedded = false }) => {
     email: ''
   });
 
-  const location = useLocation();
-  const { id: urlId } = useParams();
-
-  useEffect(() => {
-    fetchClients();
-  }, []);
-
-  useEffect(() => {
-    if (location.pathname === '/clients/new') {
-      setSelectedClient(null);
-      setShowModal(true);
-    } else if (urlId && location.pathname.endsWith('/edit')) {
-      // If we already have the client in the list, use it
-      const client = clients.find(c => String(c.id) === String(urlId));
-      if (client) {
-        setSelectedClient(client);
-        setShowModal(true);
-      } else {
-        // Direct refresh case: fetch the client
-        const loadClient = async () => {
-          try {
-            const res = await clientService.getClient(urlId);
-            setSelectedClient(res.data.data);
-            setShowModal(true);
-          } catch (e) {
-            console.error('Failed to load client for editing', e);
-            navigate('/clients');
-          }
-        };
-        loadClient();
-      }
-    } else {
-      setShowModal(false);
-      setSelectedClient(null);
-    }
-  }, [location.pathname, urlId, clients.length]);
-
-  const fetchClients = async (searchTerm = search, advancedFilters = filters) => {
+  const fetchClients = useCallback(async (searchTerm = search, advancedFilters = filters) => {
     setLoading(true);
     try {
       const params = { 
         client_name: searchTerm,
-        ...Object.fromEntries(Object.entries(advancedFilters).filter(([_, v]) => v !== ''))
+        ...Object.fromEntries(Object.entries(advancedFilters).filter(([, v]) => v !== ''))
       };
       const response = await clientService.getClients(params);
       setClients(response.data.data.data || response.data.data || []);
@@ -88,7 +51,11 @@ const ClientList = ({ isEmbedded = false }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, search]);
+
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
 
   const handleSearch = (e) => {
     const value = e.target.value;
@@ -98,16 +65,28 @@ const ClientList = ({ isEmbedded = false }) => {
     }
   };
 
-  const handleAddClient = () => {
-    navigate('/clients/new');
-  };
-
   const handleEditClient = (client) => {
-    navigate(`/clients/${client.id}/edit`);
+    navigate(`${basePath}/clients/${client.id}/edit`);
   };
 
   const handleViewClient = (client) => {
-    navigate(`/clients/${client.id}`);
+    navigate(`${basePath}/clients/${client.id}`);
+  };
+
+  const handleDeleteClient = async (client) => {
+    const confirmed = window.confirm(
+      `Delete client ${client.first_name || ''} ${client.last_name || ''}? This will remove the client profile.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await clientService.deleteClient(client.id);
+      fetchClients();
+    } catch (error) {
+      console.error('Failed to delete client', error);
+      alert(error?.response?.data?.message || 'Failed to delete client.');
+    }
   };
 
   return (
@@ -128,17 +107,6 @@ const ClientList = ({ isEmbedded = false }) => {
               Centralized management for travelers and corporate accounts.
             </p>
           </div>
-          <Button variant="primary" icon={UserPlus} onClick={handleAddClient}>
-            Create New Client
-          </Button>
-        </div>
-      )}
-
-      {isEmbedded && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-16px' }}>
-          <Button variant="primary" icon={UserPlus} onClick={handleAddClient} size="sm">
-            Quick Add Client
-          </Button>
         </div>
       )}
 
@@ -165,7 +133,7 @@ const ClientList = ({ isEmbedded = false }) => {
 
         <AnimatePresence>
           {showFilters && (
-            <motion.div
+            <MotionDiv
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -208,7 +176,7 @@ const ClientList = ({ isEmbedded = false }) => {
                   <Button variant="primary" size="sm" onClick={() => fetchClients()}>Apply Filters</Button>
                 </div>
               </Card>
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>
@@ -217,7 +185,7 @@ const ClientList = ({ isEmbedded = false }) => {
       <div style={{ position: 'relative' }}>
         <AnimatePresence mode="wait">
           {loading ? (
-            <motion.div
+            <MotionDiv
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -225,9 +193,9 @@ const ClientList = ({ isEmbedded = false }) => {
             >
               <RefreshCw className="animate-spin" size={32} style={{ marginBottom: '16px' }} />
               <p>Syncing Client Databases...</p>
-            </motion.div>
+            </MotionDiv>
           ) : (
-            <motion.div
+            <MotionDiv
               initial={{ opacity: 0, scale: 0.99 }}
               animate={{ opacity: 1, scale: 1 }}
               className="glass-panel"
@@ -246,7 +214,7 @@ const ClientList = ({ isEmbedded = false }) => {
                 </thead>
                 <tbody>
                   {clients.length > 0 ? clients.map((client, idx) => (
-                    <motion.tr 
+                    <MotionTr 
                       key={client.id}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -331,6 +299,13 @@ const ClientList = ({ isEmbedded = false }) => {
                             onClick={() => handleEditClient(client)}
                             style={{ padding: '8px' }}
                           />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={Trash2}
+                            onClick={() => handleDeleteClient(client)}
+                            style={{ color: '#f87171', padding: '8px' }}
+                          />
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -341,7 +316,7 @@ const ClientList = ({ isEmbedded = false }) => {
                           </Button>
                         </div>
                       </td>
-                    </motion.tr>
+                    </MotionTr>
                   )) : (
                     <tr>
                       <td colSpan="5" style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
@@ -351,24 +326,12 @@ const ClientList = ({ isEmbedded = false }) => {
                   )}
                 </tbody>
               </table>
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>
-
-      {showModal && (
-        <ClientForm 
-          client={selectedClient} 
-          onClose={() => navigate('/clients')} 
-          onSuccess={() => {
-            fetchClients();
-            navigate('/clients');
-          }} 
-        />
-      )}
     </div>
   );
 };
 
 export default ClientList;
-

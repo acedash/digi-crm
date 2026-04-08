@@ -13,7 +13,7 @@ class AuditController extends Controller
     {
         // 1. Fetch Spatie Model CRUD Activities
         $modelActivities = Activity::with('causer')->latest()->take(500)->get()->map(function($act) {
-            $subjectName = class_basename($act->subject_type);
+            $subjectName = $act->subject_type ? class_basename($act->subject_type) : null;
             $action = ucfirst($act->description); // e.g., "Created", "Updated"
             
             $details = [];
@@ -22,16 +22,24 @@ class AuditController extends Controller
                 if ($act->properties->has('old')) {
                     $details['old'] = $act->properties['old'];
                 }
+            } elseif ($act->properties && $act->properties->has('details')) {
+                $details = $act->properties['details'];
             }
 
             $ip = $act->properties ? $act->properties->get('ip_address', 'Unknown IP') : 'Unknown IP';
             $ua = $act->properties ? $act->properties->get('user_agent', 'Unknown Device') : 'Unknown Device';
+            $eventType = $subjectName
+                ? "{$subjectName} {$action}"
+                : ($act->properties ? $act->properties->get('event_type', $act->description) : $act->description);
+            $module = $subjectName
+                ? $subjectName
+                : ($act->properties ? $act->properties->get('module', 'System Activity') : 'System Activity');
 
             return [
                 'id' => 'model_' . $act->id,
                 'source' => 'system',
-                'event_type' => "{$subjectName} {$action}",
-                'module' => $subjectName,
+                'event_type' => $eventType,
+                'module' => $module,
                 'causer_name' => $act->causer ? $act->causer->name : 'System / Background',
                 'ip_address' => $ip,
                 'user_agent' => $ua,

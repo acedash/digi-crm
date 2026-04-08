@@ -6,7 +6,11 @@ export const bookingService = {
   createBooking: (data) => api.post('/bookings', data),
   updateBooking: (id, data) => api.put(`/bookings/${id}`, data),
   deleteBooking: (id) => api.delete(`/bookings/${id}`),
-  reassignBooking: (id, agentId) => api.patch(`/bookings/${id}/reassign`, { agent_id: agentId }),
+  reassignBooking: (id, agentId, handoffRemark) => api.patch(`/bookings/${id}/reassign`, {
+    agent_id: agentId,
+    handoff_remark: handoffRemark,
+  }),
+  sendTemplateEmail: (id, templateKey) => api.post(`/bookings/${id}/send-template-email`, { template_key: templateKey }),
 };
 
 export default bookingService;

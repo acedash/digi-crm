@@ -6,6 +6,7 @@ use App\Domains\Booking\Models\Booking;
 use App\Models\Client;
 use App\Models\User;
 use App\Models\CallLog;
+use App\Models\PaymentAuth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -27,6 +28,10 @@ class DashboardController extends Controller
 
     private function getAdminStats()
     {
+        $dailyRevenue = (float) PaymentAuth::whereHas('bookings')
+            ->whereNotNull('collected_at')
+            ->whereDate('collected_at', now()->toDateString())
+            ->sum('total_amount');
         $currentMonthRevenue = (float) Booking::whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->sum('total_amount');
@@ -44,12 +49,24 @@ class DashboardController extends Controller
                 'active_staff' => User::whereIn('status', ['Active', 'On Call', 'active', 'on call'])->count(),
                 'total_clients' => Client::count(),
                 'total_bookings' => Booking::count(),
-                'total_calls' => CallLog::count(),
+                'total_calls' => CallLog::where('log_scope', 'booking')->count(),
+                'daily_revenue' => $dailyRevenue,
                 'monthly_revenue' => $currentMonthRevenue,
                 'pending_approvals' => Booking::where('status', 'Pending')->count(),
+                'ready_to_charge' => PaymentAuth::whereHas('bookings')
+                    ->where('status', 'Approved')
+                    ->whereNull('collected_at')
+                    ->count(),
                 'revenue_growth' => $revenueGrowth,
                 'recent_bookings' => Booking::with(['client', 'agent'])
                     ->latest()
+                    ->take(5)
+                    ->get(),
+                'charge_queue' => PaymentAuth::with(['client', 'bookings'])
+                    ->whereHas('bookings')
+                    ->where('status', 'Approved')
+                    ->whereNull('collected_at')
+                    ->latest('approved_at')
                     ->take(5)
                     ->get(),
             ]
@@ -58,11 +75,13 @@ class DashboardController extends Controller
 
     private function getSupervisorStats($user)
     {
-        $agentIds = $user->agents()->pluck('id')->toArray();
+        $agentIds = $user->supervisedAgents()->pluck('users.id')->toArray();
         $teamIds = array_merge([$user->id], $agentIds);
         $weeklyThreshold = now()->subDays(7);
         $agents = User::role('agent')
-            ->where('supervisor_id', $user->id)
+            ->whereHas('supervisors', function ($query) use ($user) {
+                $query->where('users.id', $user->id);
+            })
             ->withCount([
                 'bookings',
                 'bookings as weekly_bookings_count' => function ($query) use ($weeklyThreshold) {
@@ -73,11 +92,13 @@ class DashboardController extends Controller
 
         $callCounts = CallLog::select('agent_id', DB::raw('COUNT(*) as total_calls'))
             ->whereIn('agent_id', $agentIds)
+            ->where('log_scope', 'booking')
             ->groupBy('agent_id')
             ->pluck('total_calls', 'agent_id');
 
         $airlineInquiryCounts = CallLog::select('agent_id', DB::raw('COUNT(*) as airline_inquiries'))
             ->whereIn('agent_id', $agentIds)
+            ->where('log_scope', 'booking')
             ->whereNotNull('airline_inquiry')
             ->where('airline_inquiry', '!=', '')
             ->groupBy('agent_id')
@@ -85,6 +106,7 @@ class DashboardController extends Controller
 
         $recentInquiries = CallLog::with(['agent:id,name', 'client:id,name,first_name,last_name'])
             ->whereIn('agent_id', $agentIds)
+            ->where('log_scope', 'booking')
             ->latest()
             ->take(5)
             ->get();
@@ -95,9 +117,13 @@ class DashboardController extends Controller
                 'total_clients' => Client::whereIn('agent_id', $teamIds)
                     ->whereHas('bookings')
                     ->count(),
+                'daily_revenue' => (float) Booking::whereIn('agent_id', $teamIds)
+                    ->whereDate('created_at', now()->toDateString())
+                    ->sum('total_amount'),
                 'weekly_bookings' => Booking::whereIn('agent_id', $teamIds)->where('created_at', '>=', $weeklyThreshold)->count(),
-                'team_calls' => CallLog::whereIn('agent_id', $teamIds)->where('created_at', '>=', $weeklyThreshold)->count(),
+                'team_calls' => CallLog::whereIn('agent_id', $teamIds)->where('log_scope', 'booking')->where('created_at', '>=', $weeklyThreshold)->count(),
                 'team_airline_inquiries' => CallLog::whereIn('agent_id', $teamIds)
+                    ->where('log_scope', 'booking')
                     ->where('created_at', '>=', $weeklyThreshold)
                     ->whereNotNull('airline_inquiry')
                     ->where('airline_inquiry', '!=', '')
@@ -127,13 +153,18 @@ class DashboardController extends Controller
 
     private function getAgentStats($user)
     {
+        $dailyRevenue = (float) Booking::where('agent_id', $user->id)
+            ->whereDate('created_at', now()->toDateString())
+            ->sum('total_amount');
+
         return response()->json([
             'success' => true,
             'data' => [
                 'my_bookings_count' => Booking::where('agent_id', $user->id)->count(),
                 'my_revenue' => (float) Booking::where('agent_id', $user->id)->sum('total_amount'),
-                'my_calls' => CallLog::where('agent_id', $user->id)->count(),
-                'recent_logs' => CallLog::where('agent_id', $user->id)->latest()->take(5)->get(),
+                'daily_revenue' => $dailyRevenue,
+                'my_calls' => CallLog::where('agent_id', $user->id)->where('log_scope', 'booking')->count(),
+                'recent_logs' => CallLog::where('agent_id', $user->id)->where('log_scope', 'booking')->latest()->take(5)->get(),
                 'daily_target' => 75
             ]
         ]);
@@ -148,7 +179,7 @@ class DashboardController extends Controller
                 $q->whereIn('name', ['agent', 'supervisor']);
             })->get();
         } elseif ($user->hasRole('supervisor')) {
-            $agents = $user->agents()->get();
+            $agents = $user->supervisedAgents()->get();
         } else {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
@@ -194,12 +225,17 @@ class DashboardController extends Controller
             }
 
             $callsPicked = CallLog::where('agent_id', $agent->id)
+                ->where('log_scope', 'booking')
                 ->whereDate('created_at', now()->timezone($tz)->format('Y-m-d'))
                 ->count();
 
             $bookingsCreated = Booking::where('agent_id', $agent->id)
                 ->whereDate('created_at', now()->timezone($tz)->format('Y-m-d'))
                 ->count();
+
+            $dailyRevenue = (float) Booking::where('agent_id', $agent->id)
+                ->whereDate('created_at', now()->timezone($tz)->format('Y-m-d'))
+                ->sum('total_amount');
 
             $breakFormatted = $breakSeconds > 0 ? floor($breakSeconds / 60) . ' min' : '--';
             if ($breakSeconds >= 3600) {
@@ -215,6 +251,7 @@ class DashboardController extends Controller
                 'status' => $agent->status ?? 'Offline',
                 'calls_picked' => $callsPicked,
                 'bookings_created' => $bookingsCreated,
+                'daily_revenue' => $dailyRevenue,
                 'break_time' => $breakFormatted
             ];
         });
@@ -235,7 +272,7 @@ class DashboardController extends Controller
         $supervisors = User::role('supervisor')->get();
         
         $data = $supervisors->map(function($sup) {
-            $agents = $sup->agents()->get();
+            $agents = $sup->supervisedAgents()->get();
             $totalAgents = $agents->count();
             // Count active or on call
             $active = $agents->filter(function($agent) {

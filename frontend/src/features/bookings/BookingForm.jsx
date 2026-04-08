@@ -1,14 +1,16 @@
 // Refactored Modular Booking Form
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import bookingService from './bookingService';
+import paymentAuthService from './paymentAuthService';
 import { BACKEND_BASE_URL } from '../../services/api';
 import Toast from '../../components/ui/Toast';
 import api from '../../services/api';
 import { useAuthStore } from '../auth/useAuthStore';
 import Card from '../../components/ui/Card';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 // Sub-components
 import PassengerSection from './components/PassengerSection';
@@ -19,28 +21,107 @@ import CarSection from './components/CarSection';
 import CruiseSection from './components/CruiseSection';
 import BookingFooter from './components/BookingFooter';
 
+const createEmptyFlightSegment = () => ({
+  airline: '',
+  flight_number: '',
+  origin: '',
+  destination: '',
+  departure_at: '',
+  arrival_at: '',
+  ticket_image: '',
+  ticket_preview: '',
+});
+
+const buildStoredImagePreview = (path) => {
+  if (!path) return '';
+  if (String(path).startsWith('data:image')) return path;
+  if (String(path).startsWith('http://') || String(path).startsWith('https://')) return path;
+  return `${BACKEND_BASE_URL}/storage/${String(path).replace(/^\/+/, '')}`;
+};
+
+const normalizeFlightSegments = (segments = []) => {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return [createEmptyFlightSegment()];
+  }
+
+  return segments.map((segment) => ({
+    airline: segment.airline || segment.airline_code || '',
+    flight_number: segment.flight_number || '',
+    origin: segment.origin || segment.departure_city || '',
+    destination: segment.destination || segment.arrival_city || '',
+    departure_at: segment.departure_at || '',
+    arrival_at: segment.arrival_at || '',
+    ticket_image: segment.ticket_image || '',
+    ticket_preview: segment.ticket_preview || buildStoredImagePreview(segment.ticket_image),
+  }));
+};
+
 const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const basePath = '/' + location.pathname.split('/')[1];
   const activeRole = typeof user?.roles?.[0] === 'object' ? user.roles[0].name : user?.roles?.[0];
   const [loading, setLoading] = useState(false);
+  const workflow = searchParams.get('workflow') || '';
+  const workflowTemplate = searchParams.get('template') || '';
+  const isChangeWorkflow = Boolean(bookingId && workflow === 'service-change');
+  const [bookingStatus, setBookingStatus] = useState('');
+  const isApprovalLocked = Boolean(
+    bookingId &&
+    !isChangeWorkflow &&
+    ['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'].includes(bookingStatus)
+  );
+  const isChangeWorkflowBlocked = Boolean(
+    bookingId &&
+    isChangeWorkflow &&
+    !['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'].includes(bookingStatus)
+  );
   
   // State
   const [newClient, setNewClient] = useState({ 
     first_name: '', middle_name: '', last_name: '', 
-    email: '', phone: '', address: '', date_of_birth: '', gender: '' 
+    email: '', alternate_email: '', phone: '', alternate_phone: '', address: '', date_of_birth: '', gender: '' 
   });
   const [selectedClientId, setSelectedClientId] = useState(null);
+  const [matchedClients, setMatchedClients] = useState([]);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [existingClientSearch, setExistingClientSearch] = useState('');
+  const [existingClientResults, setExistingClientResults] = useState([]);
+  const [existingClientsLoading, setExistingClientsLoading] = useState(false);
   const [newPassengers, setNewPassengers] = useState([]);
   const [paymentCards, setPaymentCards] = useState([
-    { holder_name: '', number: '', exp: '', cvv: '', amount: '' }
+    { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '' }
   ]);
+  const [changeChargeCards, setChangeChargeCards] = useState([]);
   
-  const [flight, setFlight] = useState({ active: false, ticket_image: '', ticket_preview: '', cost: 0, markup: 0, sell: 0 });
-  const [hotel, setHotel] = useState({ active: false, name: '', city: '', checkin: '', checkout: '', cost: 0, markup: 0, sell: 0 });
-  const [vehicle, setVehicle] = useState({ active: false, company: '', model: '', pickup_loc: '', pickup_date: '', dropoff_date: '', cost: 0, markup: 0, sell: 0 });
-  const [cruise, setCruise] = useState({ active: false, line: '', ship: '', departure_date: '', arrival_date: '', cost: 0, markup: 0, sell: 0 });
+  const [flight, setFlight] = useState({
+    active: false,
+    trip_type: 'one_way',
+    pnr: '',
+    segments: [createEmptyFlightSegment()],
+    ticket_image: '',
+    ticket_preview: '',
+    remarks: '',
+    change_type: '',
+    change_summary: '',
+    additional_charge: '',
+    cost: 0,
+    markup: 0,
+    sell: 0
+  });
+  const [hotel, setHotel] = useState({ active: false, name: '', city: '', address: '', room_type: '', images: [], image_previews: [], checkin: '', checkout: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
+  const [vehicle, setVehicle] = useState({ active: false, company: '', model: '', images: [], image_previews: [], pickup_loc: '', drop_loc: '', pickup_date: '', dropoff_date: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
+  const [cruise, setCruise] = useState({ active: false, line: '', ship: '', images: [], image_previews: [], departure_date: '', arrival_date: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
   
   const [toast, setToast] = useState({ message: '', type: 'error' });
+  const [existingServiceFlags, setExistingServiceFlags] = useState({
+    flight: false,
+    hotel: false,
+    car: false,
+    cruise: false,
+  });
 
   // Reassignment Dropdown
   const [availableAgents, setAvailableAgents] = useState([]);
@@ -66,16 +147,112 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   }, [activeRole]);
 
   useEffect(() => {
-    loadInitialData();
+    if (bookingId || selectedClientId) {
+      return;
+    }
+
+    const normalizedPhone = newClient.phone.replace(/\D+/g, '');
+    const normalizedEmail = newClient.email.trim();
+    const hasEnoughData = normalizedPhone.length >= 7 || normalizedEmail.length > 3;
+
+    if (!hasEnoughData) {
+      setMatchedClients([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setMatchesLoading(true);
+        const response = await api.get('/admin/clients', {
+          params: {
+            email: normalizedEmail || undefined,
+            phone: normalizedPhone,
+          }
+        });
+
+        const payload = response.data?.data?.data || response.data?.data || [];
+        setMatchedClients(Array.isArray(payload) ? payload.slice(0, 5) : []);
+      } catch {
+        setMatchedClients([]);
+      } finally {
+        setMatchesLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    bookingId,
+    selectedClientId,
+    newClient.email,
+    newClient.phone,
+  ]);
+
+  useEffect(() => {
+    if (bookingId) {
+      return;
+    }
+
+    const query = existingClientSearch.trim();
+    if (query.length < 2) {
+      setExistingClientResults([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setExistingClientsLoading(true);
+        const normalizedPhone = query.replace(/\D+/g, '');
+        const normalizedEmail = query.toLowerCase();
+        const looksLikeEmail = normalizedEmail.includes('@');
+        const looksLikePhone = normalizedPhone.length >= 3 && /^[\d\s()+-]+$/.test(query);
+        const response = await api.get('/admin/clients', {
+          params: {
+            client_name: !looksLikeEmail && !looksLikePhone ? query : undefined,
+            email: looksLikeEmail ? normalizedEmail : undefined,
+            phone: looksLikePhone ? normalizedPhone : undefined,
+          }
+        });
+
+        const payload = response.data?.data?.data || response.data?.data || [];
+        setExistingClientResults(Array.isArray(payload) ? payload.slice(0, 8) : []);
+      } catch {
+        setExistingClientResults([]);
+      } finally {
+        setExistingClientsLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [bookingId, existingClientSearch]);
+
+  const applySelectedClient = useCallback((client) => {
+    setSelectedClientId(client.id);
+    setNewClient({
+      first_name: client.first_name || '',
+      middle_name: client.middle_name || '',
+      last_name: client.last_name || '',
+      email: client.email || '',
+      alternate_email: client.alternate_email || '',
+      phone: client.phone || '',
+      alternate_phone: client.alternate_phone || '',
+      address: client.address || '',
+      date_of_birth: client.date_of_birth || '',
+      gender: client.gender || '',
+    });
+    setMatchedClients([]);
+    setExistingClientResults([]);
+    setExistingClientSearch([client.first_name, client.middle_name, client.last_name].filter(Boolean).join(' ') || client.email || client.phone || '');
   }, []);
 
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       setLoading(true);
       if (bookingId) {
         const res = await bookingService.getBooking(bookingId);
         const b = res.data.data;
         if (b) {
+          const serviceFlags = { flight: false, hotel: false, car: false, cruise: false };
+          setBookingStatus(b.status || '');
           setSelectedAgentId(b.agent_id); // Load the original assignee
           
           if (b.client) {
@@ -86,7 +263,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           }
 
           if (b.passengers) {
-             const others = b.passengers.filter(p => p.id !== b.client_id).map(p => {
+             const others = b.passengers.map(p => {
                const cleanP = { ...p, id: p.id };
                Object.keys(cleanP).forEach(key => { if (cleanP[key] === null) cleanP[key] = ''; });
                return cleanP;
@@ -95,12 +272,23 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           }
 
           if (b.details_json?.payment_cards) {
-            setPaymentCards(b.details_json.payment_cards.map(c => ({
+            const mappedCards = b.details_json.payment_cards.map(c => ({
               holder_name: c.holder_name ?? '',
               number: c.number ?? '',
               exp: c.exp ?? '',
               cvv: c.cvv ?? '',
-              amount: c.amount ?? ''
+              amount: c.amount ?? '',
+              remarks: c.remarks ?? ''
+            }));
+            setPaymentCards(mappedCards);
+            setChangeChargeCards(mappedCards.map((card) => ({
+              holder_name: card.holder_name,
+              number: card.number,
+              exp: card.exp,
+              cvv: card.cvv,
+              amount: '',
+              remarks: '',
+              isNew: false,
             })));
           }
 
@@ -112,21 +300,108 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
             const sell = s.sell_price ?? 0;
 
             if (type === 'flight') {
+              serviceFlags.flight = true;
               const imgPath = details.ticket_image;
-              const preview = imgPath ? `${BACKEND_BASE_URL}/storage/${imgPath}` : '';
-              setFlight({ active: true, pnr: details.pnr ?? '', airline: details.airline ?? '', origin: details.origin ?? '', destination: details.destination ?? '', ticket_image: imgPath ?? '', ticket_preview: preview, cost, markup, sell });
+              const preview = buildStoredImagePreview(imgPath);
+              const storedSegments = s.details_json?.segments || [];
+              const normalizedSegments = normalizeFlightSegments(
+                storedSegments.length
+                  ? storedSegments
+                  : [{
+                      airline: details.airline || details.airline_code || '',
+                      flight_number: details.flight_number || '',
+                      origin: details.origin || details.departure_city || '',
+                      destination: details.destination || details.arrival_city || '',
+                      departure_at: details.departure_at || '',
+                      arrival_at: details.arrival_at || '',
+                      ticket_image: imgPath ?? '',
+                    }]
+              );
+              setFlight({
+                active: true,
+                pnr: details.pnr ?? '',
+                trip_type: s.details_json?.trip_type || (normalizedSegments.length > 2 ? 'multi_city' : normalizedSegments.length === 2 ? 'round_trip' : 'one_way'),
+                segments: normalizedSegments,
+                ticket_image: imgPath ?? '',
+                ticket_preview: preview,
+                remarks: s.details_json?.remarks ?? '',
+                change_type: s.details_json?.change_type ?? '',
+                change_summary: s.details_json?.change_summary ?? '',
+                additional_charge: s.details_json?.additional_charge ?? '',
+                cost,
+                markup,
+                sell
+              });
             } else if (type === 'hotel') {
-              setHotel({ active: true, name: details.name ?? '', city: details.city ?? '', checkin: s.details_json?.checkin ?? '', checkout: s.details_json?.checkout ?? '', cost, markup, sell });
+              serviceFlags.hotel = true;
+              setHotel({
+                active: true,
+                name: details.name ?? '',
+                city: details.city ?? '',
+                address: details.address ?? '',
+                room_type: details.room_type ?? '',
+                images: s.details_json?.images ?? [],
+                image_previews: (s.details_json?.images ?? []).map((image) => buildStoredImagePreview(image)).filter(Boolean),
+                checkin: s.details_json?.checkin ?? '',
+                checkout: s.details_json?.checkout ?? '',
+                remarks: s.details_json?.remarks ?? '',
+                change_type: s.details_json?.change_type ?? '',
+                change_summary: s.details_json?.change_summary ?? '',
+                additional_charge: s.details_json?.additional_charge ?? '',
+                cost,
+                markup,
+                sell
+              });
             } else if (type === 'car') {
-              setVehicle({ active: true, company: details.company ?? '', model: details.car_type ?? details.model ?? '', pickup_loc: s.details_json?.pickup_loc ?? '', pickup_date: s.details_json?.pickup_date ?? '', dropoff_date: s.details_json?.dropoff_date ?? '', cost, markup, sell });
+              serviceFlags.car = true;
+              setVehicle({
+                active: true,
+                company: details.company ?? '',
+                model: details.car_type ?? details.model ?? '',
+                images: s.details_json?.images ?? [],
+                image_previews: (s.details_json?.images ?? []).map((image) => buildStoredImagePreview(image)).filter(Boolean),
+                pickup_loc: s.details_json?.pickup_loc ?? '',
+                drop_loc: s.details_json?.drop_loc ?? '',
+                pickup_date: s.details_json?.pickup_date ?? '',
+                dropoff_date: s.details_json?.dropoff_date ?? '',
+                remarks: s.details_json?.remarks ?? '',
+                change_type: s.details_json?.change_type ?? '',
+                change_summary: s.details_json?.change_summary ?? '',
+                additional_charge: s.details_json?.additional_charge ?? '',
+                cost,
+                markup,
+                sell
+              });
             } else if (type === 'cruise') {
-              setCruise({ active: true, line: details.operator ?? details.line ?? '', ship: details.cruise_name ?? details.ship ?? '', departure_date: s.details_json?.departure_date ?? '', arrival_date: s.details_json?.arrival_date ?? '', cost, markup, sell });
+              serviceFlags.cruise = true;
+              setCruise({
+                active: true,
+                line: details.operator ?? details.line ?? '',
+                ship: details.cruise_name ?? details.ship ?? '',
+                images: s.details_json?.images ?? [],
+                image_previews: (s.details_json?.images ?? []).map((image) => buildStoredImagePreview(image)).filter(Boolean),
+                departure_date: s.details_json?.departure_date ?? '',
+                arrival_date: s.details_json?.arrival_date ?? '',
+                remarks: s.details_json?.remarks ?? '',
+                change_type: s.details_json?.change_type ?? '',
+                change_summary: s.details_json?.change_summary ?? '',
+                additional_charge: s.details_json?.additional_charge ?? '',
+                cost,
+                markup,
+                sell
+              });
             }
           });
+
+          setExistingServiceFlags(serviceFlags);
         }
       }
     } catch (error) { console.error('Error loading booking:', error); } finally { setLoading(false); }
-  };
+  }, [bookingId]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   const calculateTotal = () => {
     let t = 0;
@@ -137,11 +412,181 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     return t;
   };
 
-  const handleTicketUpload = (e) => {
+  const calculateAdditionalChargeTotal = () => {
+    if (!isChangeWorkflow) return 0;
+
+    let total = 0;
+    if (existingServiceFlags.flight && flight.active) total += Number(flight.additional_charge) || 0;
+    if (existingServiceFlags.hotel && hotel.active) total += Number(hotel.additional_charge) || 0;
+    if (existingServiceFlags.car && vehicle.active) total += Number(vehicle.additional_charge) || 0;
+    if (existingServiceFlags.cruise && cruise.active) total += Number(cruise.additional_charge) || 0;
+    return total;
+  };
+
+  const calculateChangeChargeAllocated = () =>
+    changeChargeCards.reduce((sum, card) => sum + (parseFloat(card.amount) || 0), 0);
+
+  const updateFlightSegmentsForTripType = useCallback((tripType) => {
+    setFlight((current) => {
+      let nextSegments = normalizeFlightSegments(current.segments);
+
+      if (tripType === 'one_way') {
+        nextSegments = [nextSegments[0] || createEmptyFlightSegment()];
+      } else if (tripType === 'round_trip') {
+        while (nextSegments.length < 2) {
+          nextSegments.push(createEmptyFlightSegment());
+        }
+        nextSegments = nextSegments.slice(0, 2);
+      } else {
+        while (nextSegments.length < 2) {
+          nextSegments.push(createEmptyFlightSegment());
+        }
+      }
+
+      return { ...current, trip_type: tripType, segments: nextSegments };
+    });
+  }, []);
+
+  const updateFlightSegment = useCallback((index, field, value) => {
+    setFlight((current) => {
+      const nextSegments = normalizeFlightSegments(current.segments);
+      nextSegments[index] = { ...nextSegments[index], [field]: value };
+      return { ...current, segments: nextSegments };
+    });
+  }, []);
+
+  const addFlightSegment = useCallback(() => {
+    setFlight((current) => ({
+      ...current,
+      trip_type: current.trip_type === 'one_way' ? 'multi_city' : current.trip_type,
+      segments: [...normalizeFlightSegments(current.segments), createEmptyFlightSegment()],
+    }));
+  }, []);
+
+  const removeFlightSegment = useCallback((index) => {
+    setFlight((current) => {
+      const minimum = current.trip_type === 'one_way' ? 1 : 2;
+      const nextSegments = normalizeFlightSegments(current.segments);
+
+      if (nextSegments.length <= minimum) {
+        return current;
+      }
+
+      return {
+        ...current,
+        segments: nextSegments.filter((_, segmentIndex) => segmentIndex !== index),
+      };
+    });
+  }, []);
+
+  const formatCardLabel = (number) => {
+    const clean = String(number || '').replace(/\D+/g, '');
+    if (!clean) return 'Card on file';
+    return `XXXXXX${clean.slice(-4)}`;
+  };
+
+  const buildTravelerFromContact = useCallback(() => ({
+    first_name: newClient.first_name || '',
+    middle_name: newClient.middle_name || '',
+    last_name: newClient.last_name || '',
+    date_of_birth: newClient.date_of_birth || '',
+    gender: newClient.gender || '',
+  }), [newClient]);
+
+  const isSameTraveler = useCallback((left, right) => {
+    const normalize = (value) => String(value || '').trim().toLowerCase();
+
+    return (
+      normalize(left.first_name) === normalize(right.first_name) &&
+      normalize(left.middle_name) === normalize(right.middle_name) &&
+      normalize(left.last_name) === normalize(right.last_name) &&
+      normalize(left.date_of_birth) === normalize(right.date_of_birth) &&
+      normalize(left.gender) === normalize(right.gender)
+    );
+  }, []);
+
+  const contactAlreadyAddedAsTraveler = newPassengers.some((passenger) =>
+    isSameTraveler(passenger, buildTravelerFromContact())
+  );
+
+  const addContactAsTraveler = useCallback(() => {
+    const traveler = buildTravelerFromContact();
+    const missingFields = [];
+
+    if (!traveler.first_name) missingFields.push('First Name');
+    if (!traveler.last_name) missingFields.push('Last Name');
+    if (!traveler.date_of_birth) missingFields.push('Date of Birth');
+    if (!traveler.gender) missingFields.push('Gender');
+
+    if (missingFields.length > 0) {
+      setToast({
+        message: `Complete the contact person fields first: ${missingFields.join(', ')}`,
+        type: 'error',
+      });
+      return;
+    }
+
+    if (newPassengers.some((passenger) => isSameTraveler(passenger, traveler))) {
+      setToast({
+        message: 'This contact person is already added as a traveler.',
+        type: 'success',
+      });
+      return;
+    }
+
+    setNewPassengers((current) => [...current, traveler]);
+    setToast({
+      message: 'Contact person added to traveling passengers.',
+      type: 'success',
+    });
+  }, [buildTravelerFromContact, isSameTraveler, newPassengers]);
+
+  const updateChangeChargeCard = (index, field, value) => {
+    setChangeChargeCards((current) => {
+      const updated = [...current];
+      let nextValue = value ?? '';
+
+      if (field === 'exp') {
+        let clean = String(nextValue).replace(/\D/g, '');
+        if (clean.length > 2) {
+          nextValue = clean.substring(0, 2) + '/' + clean.substring(2, 4);
+        } else {
+          nextValue = clean;
+        }
+      }
+
+      if (field === 'number') {
+        let clean = String(nextValue).replace(/\D/g, '');
+        if (clean.length > 16) clean = clean.substring(0, 16);
+        nextValue = clean.match(/.{1,4}/g)?.join(' ') || clean;
+      }
+
+      updated[index] = { ...updated[index], [field]: nextValue };
+      return updated;
+    });
+  };
+
+  const handleTicketUpload = (e, segmentIndex = 0) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => { setFlight({ ...flight, ticket_image: reader.result, ticket_preview: reader.result }); };
+      reader.onloadend = () => {
+        setFlight((current) => {
+          const nextSegments = normalizeFlightSegments(current.segments);
+          nextSegments[segmentIndex] = {
+            ...nextSegments[segmentIndex],
+            ticket_image: reader.result,
+            ticket_preview: reader.result,
+          };
+
+          return {
+            ...current,
+            ticket_image: segmentIndex === 0 ? reader.result : current.ticket_image,
+            ticket_preview: segmentIndex === 0 ? reader.result : current.ticket_preview,
+            segments: nextSegments,
+          };
+        });
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -157,50 +602,248 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   };
 
   const handleSubmit = async () => {
-    const missingPrimary = [];
-    if (!newClient.first_name) missingPrimary.push("First Name");
-    if (!newClient.last_name) missingPrimary.push("Last Name");
-    if (!newClient.email) missingPrimary.push("Email");
-    if (!newClient.phone) missingPrimary.push("Phone");
-    if (!newClient.date_of_birth) missingPrimary.push("Date of Birth");
-    if (!newClient.gender) missingPrimary.push("Gender");
+    if (!selectedClientId) {
+      const missingPrimary = [];
+      if (!newClient.first_name) missingPrimary.push("First Name");
+      if (!newClient.last_name) missingPrimary.push("Last Name");
+      if (!newClient.email) missingPrimary.push("Email");
+      if (!newClient.phone) missingPrimary.push("Phone");
+      if (!newClient.date_of_birth) missingPrimary.push("Date of Birth");
+      if (!newClient.gender) missingPrimary.push("Gender");
 
-    if (missingPrimary.length > 0) return setToast({ message: `Missing fields: ${missingPrimary.join(', ')}`, type: 'error' });
+      if (missingPrimary.length > 0) return setToast({ message: `Missing fields: ${missingPrimary.join(', ')}`, type: 'error' });
+    }
 
     const servicesPayload = [];
-    if (flight.active) servicesPayload.push({ type: 'flight', flight_details: { ticket_image: flight.ticket_image }, cost_price: flight.cost, markup: flight.markup, sell_price: flight.sell });
-    if (hotel.active) servicesPayload.push({ type: 'hotel', hotel_details: { name: hotel.name, city: hotel.city }, details: { checkin: hotel.checkin, checkout: hotel.checkout }, cost_price: hotel.cost, markup: hotel.markup, sell_price: hotel.sell });
-    if (vehicle.active) servicesPayload.push({ type: 'car', car_details: { company: vehicle.company, car_type: vehicle.model }, details: { pickup_loc: vehicle.pickup_loc, pickup_date: vehicle.pickup_date, dropoff_date: vehicle.dropoff_date }, cost_price: vehicle.cost, markup: vehicle.markup, sell_price: vehicle.sell });
-    if (cruise.active) servicesPayload.push({ type: 'cruise', cruise_details: { operator: cruise.line, cruise_name: cruise.ship }, details: { departure_date: cruise.departure_date, arrival_date: cruise.arrival_date }, cost_price: cruise.cost, markup: cruise.markup, sell_price: cruise.sell });
+    if (flight.active) {
+      const normalizedSegments = normalizeFlightSegments(flight.segments);
+      const firstSegment = normalizedSegments[0] || createEmptyFlightSegment();
+
+      servicesPayload.push({
+      type: 'flight',
+      flight_details: {
+        ticket_image: normalizedSegments[0]?.ticket_image || flight.ticket_image,
+        pnr: flight.pnr,
+        airline_code: firstSegment.airline,
+        flight_number: firstSegment.flight_number,
+        departure_city: firstSegment.origin,
+        arrival_city: firstSegment.destination,
+        departure_at: firstSegment.departure_at,
+        arrival_at: firstSegment.arrival_at,
+      },
+      details: {
+        trip_type: flight.trip_type,
+        segments: normalizedSegments.map((segment) => ({
+          airline: segment.airline,
+          flight_number: segment.flight_number,
+          origin: segment.origin,
+          destination: segment.destination,
+          departure_at: segment.departure_at,
+          arrival_at: segment.arrival_at,
+          ticket_image: segment.ticket_image,
+        })),
+        remarks: flight.remarks,
+        change_type: flight.change_type,
+        change_summary: flight.change_summary,
+        additional_charge: flight.additional_charge
+      },
+      cost_price: flight.cost,
+      markup: flight.markup,
+      sell_price: flight.sell
+    });
+    }
+    if (hotel.active) servicesPayload.push({
+      type: 'hotel',
+      hotel_details: { name: hotel.name, city: hotel.city, address: hotel.address, room_type: hotel.room_type },
+      details: {
+        images: hotel.images || [],
+        checkin: hotel.checkin,
+        checkout: hotel.checkout,
+        remarks: hotel.remarks,
+        change_type: hotel.change_type,
+        change_summary: hotel.change_summary,
+        additional_charge: hotel.additional_charge
+      },
+      cost_price: hotel.cost,
+      markup: hotel.markup,
+      sell_price: hotel.sell
+    });
+    if (vehicle.active) servicesPayload.push({
+      type: 'car',
+      car_details: { company: vehicle.company, car_type: vehicle.model },
+      details: {
+        images: vehicle.images || [],
+        pickup_loc: vehicle.pickup_loc,
+        drop_loc: vehicle.drop_loc,
+        pickup_date: vehicle.pickup_date,
+        dropoff_date: vehicle.dropoff_date,
+        remarks: vehicle.remarks,
+        change_type: vehicle.change_type,
+        change_summary: vehicle.change_summary,
+        additional_charge: vehicle.additional_charge
+      },
+      cost_price: vehicle.cost,
+      markup: vehicle.markup,
+      sell_price: vehicle.sell
+    });
+    if (cruise.active) servicesPayload.push({
+      type: 'cruise',
+      cruise_details: { operator: cruise.line, cruise_name: cruise.ship },
+      details: {
+        images: cruise.images || [],
+        departure_date: cruise.departure_date,
+        arrival_date: cruise.arrival_date,
+        remarks: cruise.remarks,
+        change_type: cruise.change_type,
+        change_summary: cruise.change_summary,
+        additional_charge: cruise.additional_charge
+      },
+      cost_price: cruise.cost,
+      markup: cruise.markup,
+      sell_price: cruise.sell
+    });
 
     if (servicesPayload.length === 0) return setToast({ message: "Add at least one service.", type: 'error' });
 
     const grandTotal = calculateTotal();
     const totalAllocated = paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
-    if (Math.abs(totalAllocated - grandTotal) > 0.01) return setToast({ message: "Payment allocation mismatch.", type: 'error' });
 
-    for (let i = 0; i < paymentCards.length; i++) {
-        const card = paymentCards[i];
+    if (!isChangeWorkflow) {
+      if (Math.abs(totalAllocated - grandTotal) > 0.01) return setToast({ message: "Payment allocation mismatch.", type: 'error' });
+
+      for (let i = 0; i < paymentCards.length; i++) {
+          const card = paymentCards[i];
+          const cardNumClean = (card.number || '').replace(/\s/g, '');
+          if (!card.holder_name || !card.number || !card.exp || !card.amount) return setToast({ message: `Card #${i + 1} incomplete.`, type: 'error' });
+          if (!isValidLuhn(cardNumClean)) return setToast({ message: `Card #${i + 1} invalid (Luhn).`, type: 'error' });
+      }
+    }
+
+    const additionalChargeTotal = calculateAdditionalChargeTotal();
+    const changeChargeAllocated = calculateChangeChargeAllocated();
+
+    if (isChangeWorkflow && additionalChargeTotal > 0) {
+      if (!changeChargeCards.length) {
+        return setToast({ message: 'No saved cards are available for the change-charge authorization.', type: 'error' });
+      }
+
+      if (Math.abs(changeChargeAllocated - additionalChargeTotal) > 0.01) {
+        return setToast({
+          message: `Change charge allocation mismatch. Allocate exactly USD ${additionalChargeTotal.toFixed(2)} across the selected cards.`,
+          type: 'error'
+        });
+      }
+
+      for (let i = 0; i < changeChargeCards.length; i++) {
+        const card = changeChargeCards[i];
+        const amount = parseFloat(card.amount) || 0;
+        if (amount <= 0) continue;
+
         const cardNumClean = (card.number || '').replace(/\s/g, '');
-        if (!card.holder_name || !card.number || !card.exp || !card.amount) return setToast({ message: `Card #${i + 1} incomplete.`, type: 'error' });
-        if (!isValidLuhn(cardNumClean)) return setToast({ message: `Card #${i + 1} invalid (Luhn).`, type: 'error' });
+        if (!card.holder_name || !card.number || !card.exp) {
+          return setToast({ message: `Change charge card #${i + 1} is incomplete.`, type: 'error' });
+        }
+
+        if (!isValidLuhn(cardNumClean)) {
+          return setToast({ message: `Change charge card #${i + 1} is invalid (Luhn).`, type: 'error' });
+        }
+      }
     }
 
     const payload = {
       agent_id: selectedAgentId,
       client_id: selectedClientId,
+      update_mode: bookingId ? (isChangeWorkflow ? 'service_change' : 'standard') : 'standard',
       new_client: bookingId ? newClient : (selectedClientId ? null : newClient),
       new_passengers: newPassengers,
       services: servicesPayload,
       payment_cards: paymentCards,
-      cards_to_sync: paymentCards.filter(c => !c.number.includes('•') && !c.number.includes('*'))
+      cards_to_sync: paymentCards.filter(c => !c.number.includes('•') && !c.number.includes('*')),
+      change_charge_cards_to_sync: changeChargeCards
+        .filter((card) => card.isNew && (parseFloat(card.amount) || 0) > 0)
+        .map((card) => ({
+          holder_name: card.holder_name,
+          number: card.number,
+          exp: card.exp,
+          cvv: card.cvv || '',
+        })),
     };
 
     setLoading(true);
     try {
-      if (bookingId) await bookingService.updateBooking(bookingId, payload);
-      else await bookingService.createBooking(payload);
-      onSuccess();
+      const response = bookingId
+        ? await bookingService.updateBooking(bookingId, payload)
+        : await bookingService.createBooking(payload);
+      const savedBooking = response?.data?.data;
+      const changeTracking = savedBooking?.change_tracking || {};
+
+      if (bookingId && isChangeWorkflow) {
+        if (!changeTracking.recorded_service_change) {
+          onSuccess({
+            message: 'Booking updated. No tracked change was recorded, so no follow-up email was sent.',
+            type: 'success',
+          });
+          return;
+        }
+
+        if ((Number(changeTracking.total_additional_charge) || 0) > 0) {
+          try {
+            await paymentAuthService.create({
+              client_id: selectedClientId,
+              booking_ids: [bookingId],
+              authorization_type: 'change_charge',
+              card_allocations: changeChargeCards
+                .filter((card) => (parseFloat(card.amount) || 0) > 0)
+                .map((card) => ({
+                  holder_name: card.holder_name,
+                  card_label: formatCardLabel(card.number),
+                  amount: parseFloat(card.amount) || 0,
+                  remarks: card.remarks || '',
+                })),
+              change_entries: changeTracking.current_service_changes || [],
+            });
+            onSuccess({
+              message: 'Tracked change saved and change-charge authorization sent successfully.',
+              type: 'success',
+            });
+            return;
+          } catch (error) {
+            setToast({
+              message: error?.response?.data?.message || 'Change saved, but the change-charge authorization failed to send.',
+              type: 'error'
+            });
+            return;
+          }
+        }
+
+        if (workflowTemplate === 'flight_change' && changeTracking.recorded_flight_change) {
+          try {
+            await bookingService.sendTemplateEmail(bookingId, 'flight_change');
+            onSuccess({
+              message: 'Flight change saved and email sent successfully.',
+              type: 'success',
+            });
+            return;
+          } catch (error) {
+            setToast({
+              message: error?.response?.data?.message || 'Booking saved, but the flight change email failed to send.',
+              type: 'error'
+            });
+            return;
+          }
+        }
+
+        onSuccess({
+          message: 'Tracked change saved successfully.',
+          type: 'success',
+        });
+        return;
+      }
+
+      onSuccess({
+        message: bookingId ? 'Booking updated successfully.' : 'Booking created successfully.',
+        type: 'success',
+      });
     } catch (error) {
       setToast({
         message: error?.response?.data?.message || 'Error saving booking.',
@@ -210,13 +853,192 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '120px' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '120px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
         <Button variant="ghost" icon={ArrowLeft} onClick={onCancel}>Back</Button>
         <h2 style={{ fontSize: '28px', fontWeight: 800 }}>{bookingId ? 'Edit' : 'Create'} <span className="premium-gradient-text">Booking</span></h2>
       </div>
 
+      {isApprovalLocked ? (
+        <div>
+          <Card style={{ padding: '22px', border: '1px solid rgba(245,158,11,0.25)', background: 'rgba(245,158,11,0.07)' }}>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+              Standard Edit Locked After Approval
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '18px' }}>
+              This booking is already {bookingStatus}. To protect the approval record, normal edit is no longer allowed. Any post-approval update should go through tracked change mode so we can record what changed and charge the client properly if needed.
+            </div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <Button variant="secondary" onClick={onCancel}>Back to Bookings</Button>
+              <Button
+                variant="primary"
+                onClick={() => navigate(`${basePath}/bookings/${bookingId}/edit?workflow=service-change`)}
+              >
+                Open Tracked Change
+              </Button>
+            </div>
+          </Card>
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />
+        </div>
+      ) : isChangeWorkflowBlocked ? (
+        <div>
+          <Card style={{ padding: '22px', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.06)' }}>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+              Tracked Change Not Available Yet
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '18px' }}>
+              This booking is currently {bookingStatus || 'Pending'}. Tracked change is only used after payment approval. Before approval, please use the normal edit flow.
+            </div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <Button variant="secondary" onClick={onCancel}>Back to Bookings</Button>
+              <Button
+                variant="primary"
+                onClick={() => navigate(`${basePath}/bookings/${bookingId}/edit`)}
+              >
+                Open Normal Edit
+              </Button>
+            </div>
+          </Card>
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />
+        </div>
+      ) : (
+      <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {isChangeWorkflow ? (
+          <Card style={{ padding: '18px 20px', border: '1px solid rgba(96,165,250,0.2)', background: 'rgba(96,165,250,0.06)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
+              Flight Change Workflow
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+              Update the booking, record the change details in the relevant service section, and save. We will only send the flight change email if a flight change was actually tracked during this edit.
+            </div>
+          </Card>
+        ) : null}
+
+        {isChangeWorkflow && calculateAdditionalChargeTotal() > 0 ? (
+          <Card style={{ padding: '20px', border: '1px solid rgba(1,96,64,0.18)', background: 'rgba(1,96,64,0.04)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', marginBottom: '14px' }}>
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
+                  Change Charge Allocation
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                  Allocate only the additional change amount across the saved cards. We will send a fresh approval request for this change charge.
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Additional Charge Total</div>
+                <div style={{ fontSize: '24px', fontWeight: 900, color: '#016040' }}>USD {calculateAdditionalChargeTotal().toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '12px' }}>
+              {changeChargeCards.map((card, index) => (
+                <div key={`${card.number}-${index}`} style={{ padding: '14px', borderRadius: '14px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: card.isNew ? '1.1fr 1.1fr 0.8fr 0.8fr 0.8fr auto' : '1.2fr 0.8fr auto', gap: '16px', alignItems: 'end' }}>
+                    {card.isNew ? (
+                      <>
+                        <Input
+                          label="Holder Name"
+                          value={card.holder_name || ''}
+                          onChange={(e) => updateChangeChargeCard(index, 'holder_name', e.target.value)}
+                        />
+                        <Input
+                          label="Card Number"
+                          value={card.number || ''}
+                          onChange={(e) => updateChangeChargeCard(index, 'number', e.target.value)}
+                        />
+                        <Input
+                          label="Expiry"
+                          placeholder="MM/YY"
+                          value={card.exp || ''}
+                          onChange={(e) => updateChangeChargeCard(index, 'exp', e.target.value)}
+                        />
+                        <Input
+                          label="CVV"
+                          type="password"
+                          value={card.cvv || ''}
+                          onChange={(e) => updateChangeChargeCard(index, 'cvv', e.target.value)}
+                        />
+                        <Input
+                          label="Amount to Charge"
+                          type="number"
+                          value={card.amount || ''}
+                          placeholder="0.00"
+                          onChange={(e) => updateChangeChargeCard(index, 'amount', e.target.value)}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{card.holder_name || 'Card Holder'}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{formatCardLabel(card.number)}</div>
+                        </div>
+                        <Input
+                          label="Amount to Charge"
+                          type="number"
+                          value={card.amount || ''}
+                          placeholder="0.00"
+                          onChange={(e) => updateChangeChargeCard(index, 'amount', e.target.value)}
+                        />
+                      </>
+                    )}
+                    {card.isNew ? (
+                      <Button
+                        variant="ghost"
+                        icon={Trash2}
+                        onClick={() => setChangeChargeCards((current) => current.filter((_, entryIndex) => entryIndex !== index))}
+                        style={{ color: '#ef4444', height: '42px' }}
+                      />
+                    ) : <div />}
+                  </div>
+                  <div style={{ marginTop: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                      Card Charge Note
+                    </label>
+                    <textarea
+                      value={card.remarks || ''}
+                      onChange={(e) => updateChangeChargeCard(index, 'remarks', e.target.value)}
+                      placeholder="Optional note for this card allocation"
+                      style={{
+                        width: '100%',
+                        minHeight: '72px',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border-color)',
+                        outline: 'none',
+                        color: 'var(--text-main)',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '14px' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={Plus}
+                onClick={() => setChangeChargeCards((current) => ([
+                  ...current,
+                  { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '', isNew: true }
+                ]))}
+              >
+                + Add New Card For This Change
+              </Button>
+            </div>
+
+            <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-muted)' }}>
+              <span>Allocated</span>
+              <strong style={{ color: Math.abs(calculateChangeChargeAllocated() - calculateAdditionalChargeTotal()) < 0.01 ? '#016040' : '#dc2626' }}>
+                USD {calculateChangeChargeAllocated().toFixed(2)}
+              </strong>
+            </div>
+          </Card>
+        ) : null}
         
         {/* Supervisor Reassignment Box */}
         {(activeRole === 'admin' || activeRole === 'supervisor') && (
@@ -241,23 +1063,112 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           </Card>
         )}
 
-        <PassengerSection newClient={newClient} setNewClient={setNewClient} newPassengers={newPassengers} setNewPassengers={setNewPassengers} />
-        <PaymentSection paymentCards={paymentCards} setPaymentCards={setPaymentCards} grandTotal={calculateTotal()} />
-        <FlightSection flight={flight} setFlight={setFlight} handleTicketUpload={handleTicketUpload} />
-        <HotelSection hotel={hotel} setHotel={setHotel} />
-        <CarSection vehicle={vehicle} setVehicle={setVehicle} />
-        <CruiseSection cruise={cruise} setCruise={setCruise} />
+        <PassengerSection
+          isEditMode={Boolean(bookingId)}
+          newClient={newClient}
+          setNewClient={setNewClient}
+          newPassengers={newPassengers}
+          setNewPassengers={setNewPassengers}
+          onAddContactAsTraveler={addContactAsTraveler}
+          contactAlreadyAddedAsTraveler={contactAlreadyAddedAsTraveler}
+          selectedClientId={selectedClientId}
+          existingClientSearch={existingClientSearch}
+          setExistingClientSearch={setExistingClientSearch}
+          existingClientResults={existingClientResults}
+          existingClientsLoading={existingClientsLoading}
+          matchedClients={matchedClients}
+          matchesLoading={matchesLoading}
+          onSelectMatchedClient={applySelectedClient}
+          onClearMatchedClient={() => {
+            setSelectedClientId(null);
+            setExistingClientSearch('');
+            setExistingClientResults([]);
+          }}
+        />
+        {isChangeWorkflow ? (
+          <Card style={{ padding: 0 }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '8px', background: 'rgba(74, 222, 128, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontWeight: 900 }}>
+                  2
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>Original Payment Cards</div>
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Reference only</div>
+            </div>
+            <div style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+                This is the original approved allocation for the booking. We keep it read-only here. Any extra charge for the tracked change should be split below in <strong style={{ color: 'var(--text-main)' }}>Change Charge Allocation</strong>.
+              </div>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {paymentCards.map((card, index) => (
+                  <div key={`${card.number}-${index}`} style={{ padding: '16px', borderRadius: '14px', background: 'var(--bg-app)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>{card.holder_name || 'Card Holder'}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{formatCardLabel(card.number)}</div>
+                        {card.exp ? (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Expiry: {card.exp}</div>
+                        ) : null}
+                        {card.remarks ? (
+                          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.6 }}>{card.remarks}</div>
+                        ) : null}
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 900, color: '#4ade80' }}>
+                        USD {(parseFloat(card.amount) || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <PaymentSection paymentCards={paymentCards} setPaymentCards={setPaymentCards} grandTotal={calculateTotal()} />
+        )}
+        <FlightSection 
+          flight={flight} 
+          setFlight={setFlight} 
+          handleTicketUpload={handleTicketUpload} 
+          isEditMode={Boolean(bookingId)}
+          showChangeTracking={isChangeWorkflow && existingServiceFlags.flight}
+          updateFlightSegmentsForTripType={updateFlightSegmentsForTripType}
+          updateFlightSegment={updateFlightSegment}
+          addFlightSegment={addFlightSegment}
+          removeFlightSegment={removeFlightSegment}
+        />
+        <HotelSection
+          hotel={hotel}
+          setHotel={setHotel}
+          isEditMode={Boolean(bookingId)}
+          showChangeTracking={isChangeWorkflow && existingServiceFlags.hotel}
+        />
+        <CarSection
+          vehicle={vehicle}
+          setVehicle={setVehicle}
+          isEditMode={Boolean(bookingId)}
+          showChangeTracking={isChangeWorkflow && existingServiceFlags.car}
+        />
+        <CruiseSection
+          cruise={cruise}
+          setCruise={setCruise}
+          isEditMode={Boolean(bookingId)}
+          showChangeTracking={isChangeWorkflow && existingServiceFlags.cruise}
+        />
       </div>
 
       <BookingFooter 
-        calculateTotal={calculateTotal} 
-        totalAllocated={paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)} 
+        calculateTotal={isChangeWorkflow ? calculateAdditionalChargeTotal : calculateTotal}
+        totalAllocated={isChangeWorkflow ? calculateChangeChargeAllocated() : paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)} 
         handleSubmit={handleSubmit} 
         loading={loading} 
+        submitLabel={isChangeWorkflow ? 'Save Change' : 'Save Booking'}
       />
 
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />
-    </motion.div>
+      </>
+      )}
+    </div>
   );
 };
 

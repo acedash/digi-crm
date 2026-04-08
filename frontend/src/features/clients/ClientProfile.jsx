@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
   Phone, 
@@ -36,36 +35,35 @@ const ClientProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const basePath = '/' + location.pathname.split('/')[1];
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCards, setShowCards] = useState({});
 
-  // Removed the useEffect that conflicting with router on /edit
-
-  useEffect(() => {
-    fetchClient();
-  }, [id]);
-
-  const fetchClient = async () => {
+  const fetchClient = useCallback(async () => {
     setLoading(true);
     try {
       const response = await clientService.getClient(id);
       setClient(response.data.data);
-    } catch (err) {
+    } catch (error) {
       setError('Failed to load client details. Please try again later.');
-      console.error(err);
+      console.error(error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchClient();
+  }, [fetchClient]);
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
       try {
         await clientService.deleteClient(id);
-        navigate('/clients');
-      } catch (err) {
+        navigate(`${basePath}/clients`);
+      } catch {
         alert('Failed to delete client.');
       }
     }
@@ -85,12 +83,41 @@ const ClientProfile = () => {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <p style={{ color: '#f87171' }}>{error || 'Client not found.'}</p>
-        <Button variant="ghost" icon={ChevronLeft} onClick={() => navigate('/clients')}>Back to Clients</Button>
+        <Button variant="ghost" icon={ChevronLeft} onClick={() => navigate(`${basePath}/clients`)}>Back to Clients</Button>
       </div>
     );
   }
 
   const totalSpent = (client.bookings || []).reduce((sum, b) => sum + (parseFloat(b.total_amount) || 0), 0);
+  const displayCards = (client.cards?.length ? client.cards : (client.bookings || [])
+    .flatMap((booking) => (booking.details_json?.payment_cards || []).map((card, index) => ({
+      id: `booking-${booking.id}-${index}`,
+      card_holder_name: card.holder_name || 'Card Holder',
+      card_number: card.number || '',
+      expiry_month: card.exp?.split('/')?.[0] || '',
+      expiry_year: card.exp?.split('/')?.[1] || '',
+      card_type: 'Booking Card',
+      cvv: card.cvv || '',
+      is_primary: false,
+      source: 'booking',
+      booking_reference: booking.booking_reference,
+    })))
+    .filter((card, index, cards) => {
+      const key = `${card.card_number}-${card.expiry_month}-${card.expiry_year}`;
+      return cards.findIndex((candidate) => `${candidate.card_number}-${candidate.expiry_month}-${candidate.expiry_year}` === key) === index;
+    }));
+
+  const formatCardNumber = (cardNumber) => {
+    if (!cardNumber) return 'Card number not available';
+    const compact = String(cardNumber).replace(/\s+/g, '');
+    if (compact.length <= 4) return compact;
+    return `•••• •••• •••• ${compact.slice(-4)}`;
+  };
+
+  const revealCardNumber = (cardNumber) => {
+    if (!cardNumber) return 'Card number not available';
+    return String(cardNumber).replace(/\s+/g, '').match(/.{1,4}/g)?.join(' ') || String(cardNumber);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
@@ -101,7 +128,7 @@ const ClientProfile = () => {
         </Button>
         <div style={{ display: 'flex', gap: '12px' }}>
           {client.bookings?.length > 0 && (
-            <Button variant="primary" icon={Edit} onClick={() => navigate(`/bookings/${client.bookings[0].id}/edit`)}>Edit Booking</Button>
+            <Button variant="primary" icon={Edit} onClick={() => navigate(`${basePath}/bookings/${client.bookings[0].id}/edit`)}>Edit Booking</Button>
           )}
           <Button variant="ghost" icon={Trash2} onClick={handleDelete} style={{ color: '#f87171' }}>Delete</Button>
         </div>
@@ -206,7 +233,9 @@ const ClientProfile = () => {
             <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main, white)', marginBottom: '24px' }}>Communication</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <ContactItem icon={Mail} label="Email Address" value={client.email} />
+              <ContactItem icon={Mail} label="Alternate Email" value={client.alternate_email || 'Not provided'} />
               <ContactItem icon={Phone} label="Primary Phone" value={client.phone || 'Not provided'} />
+              <ContactItem icon={Phone} label="Alternate Phone" value={client.alternate_phone || 'Not provided'} />
               <ContactItem icon={MapPin} label="Home Address" value={client.address || 'Address not listed'} />
             </div>
           </Card>
@@ -221,7 +250,7 @@ const ClientProfile = () => {
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {client.cards?.length > 0 ? client.cards.map((card, idx) => (
+              {displayCards.length > 0 ? displayCards.map((card, idx) => (
                 <div key={idx} style={{ 
                   padding: '24px', borderRadius: '20px', 
                   background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
@@ -231,12 +260,17 @@ const ClientProfile = () => {
                     <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main, white)', textTransform: 'uppercase' }}>{card.card_type}</span>
                     <CreditCard size={18} style={{ opacity: 0.4 }} />
                   </div>
+                  {card.source === 'booking' ? (
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                      Pulled from booking {card.booking_reference}
+                    </div>
+                  ) : null}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <div style={{ letterSpacing: '3px', fontSize: '18px', color: 'var(--text-main, white)', fontWeight: 700, fontFamily: 'monospace' }}>
                       {showCards[card.id] ? (
-                        card.card_number.match(/.{1,4}/g).join(' ')
+                        revealCardNumber(card.card_number)
                       ) : (
-                        `•••• •••• •••• ${card.card_number.slice(-4)}`
+                        formatCardNumber(card.card_number)
                       )}
                     </div>
                     <Button 
@@ -254,7 +288,9 @@ const ClientProfile = () => {
                     </div>
                     <div>
                       <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Expires</p>
-                      <p style={{ fontSize: '14px', fontWeight: 600 }}>{card.expiry_month}/{card.expiry_year}</p>
+                      <p style={{ fontSize: '14px', fontWeight: 600 }}>
+                        {card.expiry_month && card.expiry_year ? `${card.expiry_month}/${card.expiry_year}` : 'Not available'}
+                      </p>
                     </div>
                     {card.cvv && (
                       <div style={{ textAlign: 'right' }}>
@@ -290,7 +326,7 @@ const ClientProfile = () => {
           {client.bookings?.length > 0 ? client.bookings.map((booking, idx) => (
             <div 
               key={idx} 
-              onClick={() => navigate('/bookings')}
+              onClick={() => navigate(`${basePath}/bookings/${booking.id}`)}
               className="hover-glow"
               style={{ 
                 padding: '20px 24px', borderRadius: '24px', background: 'var(--bg-app)', border: '1px solid var(--border-color)',
@@ -486,30 +522,38 @@ const ClientProfile = () => {
   );
 };
 
-const InfoItem = ({ icon: Icon, label, value }) => (
+const InfoItem = ({ icon, label, value }) => {
+  const IconComponent = icon;
+
+  return (
   <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-    <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}><Icon size={16} /></div>
+    <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}><IconComponent size={16} /></div>
     <div>
       <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>{label}</p>
       <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main, white)' }}>{value}</p>
     </div>
   </div>
-);
+  );
+};
 
-const ContactItem = ({ icon: Icon, label, value }) => (
+const ContactItem = ({ icon, label, value }) => {
+  const IconComponent = icon;
+
+  return (
   <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
     <div style={{ 
       width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-input)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))',
       border: '1px solid var(--border-color)'
     }}>
-      <Icon size={18} />
+      <IconComponent size={18} />
     </div>
     <div style={{ flex: 1 }}>
       <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{label}</p>
       <p style={{ fontSize: '14px', color: 'var(--text-main, white)', wordBreak: 'break-all', fontWeight: 500 }}>{value}</p>
     </div>
   </div>
-);
+  );
+};
 
 export default ClientProfile;

@@ -44,6 +44,16 @@ class User extends Authenticatable
         return $this->hasMany(User::class, 'supervisor_id');
     }
 
+    public function supervisors()
+    {
+        return $this->belongsToMany(User::class, 'user_supervisor', 'user_id', 'supervisor_id');
+    }
+
+    public function supervisedAgents()
+    {
+        return $this->belongsToMany(User::class, 'user_supervisor', 'supervisor_id', 'user_id');
+    }
+
     public function bookings()
     {
         return $this->hasMany(\App\Domains\Booking\Models\Booking::class, 'agent_id');

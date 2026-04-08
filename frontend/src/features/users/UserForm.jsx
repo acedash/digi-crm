@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
   Mail, 
@@ -18,13 +17,19 @@ import userService from './userService';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
+const RequiredLabel = ({ text }) => (
+  <span>
+    {text} <span style={{ color: '#ef4444' }}>*</span>
+  </span>
+);
+
 const UserForm = ({ user, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     roles: ['agent'],
-    supervisor_id: '',
+    supervisor_ids: [],
     phone: '',
     shift: '',
     week_off: '',
@@ -32,6 +37,19 @@ const UserForm = ({ user, onClose, onSuccess }) => {
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const toggleSupervisor = (supervisorId) => {
+    setFormData((prev) => {
+      const exists = prev.supervisor_ids.includes(supervisorId);
+
+      return {
+        ...prev,
+        supervisor_ids: exists
+          ? prev.supervisor_ids.filter((id) => id !== supervisorId)
+          : [...prev.supervisor_ids, supervisorId],
+      };
+    });
+  };
 
   useEffect(() => {
     fetchSupervisors();
@@ -41,7 +59,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
         email: user.email || '',
         password: '',
         roles: user.roles ? user.roles.map(r => r.name || r) : ['agent'],
-        supervisor_id: user.supervisor_id || '',
+        supervisor_ids: user.supervisors?.map((supervisor) => String(supervisor.id)) || (user.supervisor_id ? [String(user.supervisor_id)] : []),
         phone: user.phone || '',
         shift: user.shift || '',
         week_off: user.week_off || '',
@@ -53,7 +71,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
     try {
       const response = await userService.getSupervisors();
       setSupervisors(response.data.data || response.data);
-    } catch (err) {
+    } catch {
       console.error('Failed to load supervisors');
     }
   };
@@ -65,8 +83,9 @@ const UserForm = ({ user, onClose, onSuccess }) => {
 
     const submissionData = { ...formData };
     if (!submissionData.roles.includes('agent')) {
-      submissionData.supervisor_id = null;
+      submissionData.supervisor_ids = [];
     }
+    submissionData.supervisor_id = submissionData.supervisor_ids[0] || null;
     if (user && !submissionData.password) {
       delete submissionData.password;
     }
@@ -103,10 +122,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
       zIndex: 1000,
       padding: '24px'
     }}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+      <div
         className="glass-panel"
         style={{
           width: '100%',
@@ -142,9 +158,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
           {error && (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
+            <div 
               style={{ 
                 background: 'rgba(239, 68, 68, 0.1)', 
                 border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -158,7 +172,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
             >
               <Info size={18} />
               {error}
-            </motion.div>
+            </div>
           )}
 
           <form id="user-form" onSubmit={handleSubmit}>
@@ -170,7 +184,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                   <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Profile Identity</h3>
                 </div>
                 <Input 
-                  label="Full Name" 
+                  label={<RequiredLabel text="Full Name" />}
                   placeholder="e.g. John Doe"
                   value={formData.name} 
                   onChange={e => setFormData({...formData, name: e.target.value})}
@@ -178,7 +192,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                 />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <Input 
-                    label="Email Address" 
+                    label={<RequiredLabel text="Email Address" />}
                     icon={Mail}
                     placeholder="john@example.com"
                     value={formData.email} 
@@ -202,14 +216,15 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                 </div>
                 
                 <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-muted)' }}>Roles</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-muted)' }}>
+                    <RequiredLabel text="Roles" />
+                  </label>
                   <div style={{ display: 'flex', gap: '12px' }}>
                     {['agent', 'supervisor', 'admin'].map(role => {
                       const isSelected = formData.roles.includes(role);
                       return (
-                        <motion.div 
+                        <div 
                           key={role}
-                          whileTap={{ scale: 0.95 }}
                           onClick={() => setFormData({...formData, roles: [role]})}
                           style={{
                             flex: 1,
@@ -227,14 +242,14 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                           }}
                         >
                           {role}
-                        </motion.div>
+                        </div>
                       );
                     })}
                   </div>
                 </div>
 
                 <Input 
-                  label={user ? 'New Password (leave blank to keep current)' : 'Account Passcode'}
+                  label={user ? 'New Password (leave blank to keep current)' : <RequiredLabel text="Account Passcode" />}
                   icon={Lock}
                   type="password"
                   placeholder="••••••••"
@@ -308,30 +323,77 @@ const UserForm = ({ user, onClose, onSuccess }) => {
 
                 {formData.roles.includes('agent') && (
                   <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>Direct Supervisor</label>
-                    <div style={{ position: 'relative' }}>
-                      <select 
-                        style={{
-                          width: '100%',
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '12px',
-                          padding: '12px',
-                          color: 'var(--text-main)',
-                          fontSize: '14px',
-                          appearance: 'none',
-                          outline: 'none'
-                        }}
-                        value={formData.supervisor_id}
-                        onChange={e => setFormData({...formData, supervisor_id: e.target.value})}
-                      >
-                        <option value="" style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>Select Supervisor</option>
-                        {supervisors.map(sup => (
-                          <option key={sup.id} value={sup.id} style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>{sup.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)', opacity: 0.5 }} />
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '10px', color: 'var(--text-muted)' }}>
+                      <RequiredLabel text="Assigned Supervisors" />
+                    </label>
+                    <div
+                      style={{
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '16px',
+                        padding: '12px',
+                        display: 'grid',
+                        gap: '10px'
+                      }}
+                    >
+                      {supervisors.length === 0 ? (
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                          No supervisors available.
+                        </div>
+                      ) : (
+                        supervisors.map((sup) => {
+                          const isSelected = formData.supervisor_ids.includes(String(sup.id));
+
+                          return (
+                            <button
+                              key={sup.id}
+                              type="button"
+                              onClick={() => toggleSupervisor(String(sup.id))}
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '12px',
+                                padding: '12px 14px',
+                                borderRadius: '12px',
+                                border: isSelected ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid var(--border-color)',
+                                background: isSelected ? 'rgba(96, 165, 250, 0.12)' : 'var(--bg-card)',
+                                color: 'var(--text-main)',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                              }}
+                            >
+                              <div>
+                                <div style={{ fontSize: '14px', fontWeight: 700 }}>{sup.name}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                  {sup.email}
+                                </div>
+                              </div>
+                              <div
+                                style={{
+                                  minWidth: '18px',
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '999px',
+                                  border: isSelected ? '5px solid #60a5fa' : '2px solid var(--border-color)',
+                                  background: isSelected ? '#ffffff' : 'transparent',
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
+                    <input
+                      type="hidden"
+                      value={formData.supervisor_ids.join(',')}
+                      required={formData.roles.includes('agent')}
+                    />
+                    <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      Click once to select or deselect supervisors.
+                    </p>
                   </div>
                 )}
               </section>
@@ -357,10 +419,9 @@ const UserForm = ({ user, onClose, onSuccess }) => {
             {user ? 'Sync Subscriptions' : 'Confirm Access'}
           </Button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
 
 export default UserForm;
-

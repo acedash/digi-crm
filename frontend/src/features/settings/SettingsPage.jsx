@@ -18,8 +18,11 @@ const defaultForm = {
 
 const SettingsPage = () => {
   const [form, setForm] = useState(defaultForm);
+  const [templates, setTemplates] = useState([]);
+  const [activeTemplateKey, setActiveTemplateKey] = useState('authorization');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingTemplates, setSavingTemplates] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'error' });
 
   useEffect(() => {
@@ -29,13 +32,26 @@ const SettingsPage = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const response = await settingsService.getMailSettings();
+      const [mailResponse, templatesResponse] = await Promise.all([
+        settingsService.getMailSettings(),
+        settingsService.getMailTemplates(),
+      ]);
+
       setForm({
         ...defaultForm,
-        ...response.data.data,
+        ...mailResponse.data.data,
       });
+      const nextTemplates = templatesResponse.data.data || [];
+      setTemplates(nextTemplates);
+      if (nextTemplates.length > 0) {
+        setActiveTemplateKey((current) => (
+          nextTemplates.some((template) => template.key === current)
+            ? current
+            : nextTemplates[0].key
+        ));
+      }
     } catch {
-      setToast({ message: 'Failed to load SMTP settings.', type: 'error' });
+      setToast({ message: 'Failed to load settings.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -43,6 +59,14 @@ const SettingsPage = () => {
 
   const handleChange = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleTemplateChange = (templateKey, field, value) => {
+    setTemplates((prev) => prev.map((template) => (
+      template.key === templateKey
+        ? { ...template, [field]: value }
+        : template
+    )));
   };
 
   const handleSubmit = async () => {
@@ -64,6 +88,24 @@ const SettingsPage = () => {
       setSaving(false);
     }
   };
+
+  const handleTemplateSubmit = async () => {
+    try {
+      setSavingTemplates(true);
+      const response = await settingsService.updateMailTemplates(templates);
+      setTemplates(response.data.data || []);
+      setToast({ message: 'Email templates saved successfully.', type: 'success' });
+    } catch (error) {
+      setToast({
+        message: error?.response?.data?.message || 'Failed to save email templates.',
+        type: 'error',
+      });
+    } finally {
+      setSavingTemplates(false);
+    }
+  };
+
+  const activeTemplate = templates.find((template) => template.key === activeTemplateKey) || templates[0];
 
   if (loading) {
     return (
@@ -161,6 +203,145 @@ const SettingsPage = () => {
           <Button variant="primary" icon={Save} onClick={handleSubmit} isLoading={saving}>
             Save SMTP Settings
           </Button>
+        </div>
+      </Card>
+
+      <Card title="Email Templates" subtitle="Manage customer-facing mail copy for the CRM lifecycle" icon={Mail}>
+        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {templates.map((template) => {
+              const isActive = template.key === activeTemplate?.key;
+
+              return (
+                <button
+                  key={template.key}
+                  type="button"
+                  onClick={() => setActiveTemplateKey(template.key)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    border: isActive ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                    background: isActive ? 'rgba(11, 97, 71, 0.08)' : 'var(--bg-card)',
+                    color: 'var(--text-main)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+                    <strong style={{ fontSize: '14px' }}>{template.name}</strong>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: template.enabled ? '#0f766e' : '#b45309',
+                    }}>
+                      {template.enabled ? 'ACTIVE' : 'PAUSED'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.5 }}>
+                    {template.description}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {activeTemplate ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '16px', alignItems: 'end' }}>
+                <Input
+                  label="Template Name"
+                  value={activeTemplate.name}
+                  onChange={(e) => handleTemplateChange(activeTemplate.key, 'name', e.target.value)}
+                  placeholder="Authorization"
+                />
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                    Status
+                  </label>
+                  <select
+                    value={activeTemplate.enabled ? 'enabled' : 'disabled'}
+                    onChange={(e) => handleTemplateChange(activeTemplate.key, 'enabled', e.target.value === 'enabled')}
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      color: 'var(--text-main)',
+                      fontSize: '14px',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="enabled">Enabled</option>
+                    <option value="disabled">Disabled</option>
+                  </select>
+                </div>
+              </div>
+
+              <Input
+                label="Email Subject"
+                value={activeTemplate.subject}
+                onChange={(e) => handleTemplateChange(activeTemplate.key, 'subject', e.target.value)}
+                placeholder="Booking payment approval request"
+              />
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                  Description
+                </label>
+                <textarea
+                  value={activeTemplate.description || ''}
+                  onChange={(e) => handleTemplateChange(activeTemplate.key, 'description', e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    color: 'var(--text-main)',
+                    fontSize: '14px',
+                    outline: 'none',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                  Template Body
+                </label>
+                <textarea
+                  value={activeTemplate.body}
+                  onChange={(e) => handleTemplateChange(activeTemplate.key, 'body', e.target.value)}
+                  rows={12}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    color: 'var(--text-main)',
+                    fontSize: '14px',
+                    lineHeight: 1.6,
+                    outline: 'none',
+                    resize: 'vertical',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace',
+                  }}
+                />
+              </div>
+
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                Available variables: {(activeTemplate.variables || []).map((item) => `{{${item}}}`).join(', ') || 'None'}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button variant="primary" icon={Save} onClick={handleTemplateSubmit} isLoading={savingTemplates}>
+                  Save Email Templates
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </Card>
 

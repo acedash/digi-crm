@@ -8,14 +8,18 @@
 <body style="margin:0;padding:0;background:#f6f7fb;font-family:Arial,sans-serif;color:#111827;">
     <div style="max-width:640px;margin:0 auto;padding:32px 20px;">
         <div style="background:#ffffff;border-radius:20px;padding:32px;border:1px solid #e5e7eb;">
-            <p style="margin:0 0 12px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#016040;">Payment Authorization</p>
-            <h1 style="margin:0 0 12px;font-size:28px;line-height:1.2;">Review your booking and approve payment</h1>
+            <p style="margin:0 0 12px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#016040;">
+                {{ $authorizationType === 'change_charge' ? 'Change Charge Authorization' : 'Payment Authorization' }}
+            </p>
+            <h1 style="margin:0 0 12px;font-size:28px;line-height:1.2;">
+                {{ $authorizationType === 'change_charge' ? 'Review your updated booking and approve the added charge' : 'Review your booking and approve payment' }}
+            </h1>
             <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">
                 Dear {{ $clientName }},
             </p>
-            <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#4b5563;">
-                We hope this message finds you well. Please review the itinerary, traveller information, fare details, and authorization declaration below. Once confirmed, click the approval button to securely record your consent.
-            </p>
+            <div style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#4b5563;">
+                {!! nl2br(e($templateBody)) !!}
+            </div>
 
             <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:24px;">
                 <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Authorization total</p>
@@ -74,14 +78,21 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">Base fare</td>
-                            <td align="right" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">${{ number_format($fareBreakdown['base_fare'], 2) }}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">Taxes &amp; fee</td>
-                            <td align="right" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">${{ number_format($fareBreakdown['taxes_and_fee'], 2) }}</td>
-                        </tr>
+                        @if(($fareBreakdown['change_charge'] ?? 0) > 0)
+                            <tr>
+                                <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">Additional change charge</td>
+                                <td align="right" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">${{ number_format($fareBreakdown['change_charge'], 2) }}</td>
+                            </tr>
+                        @else
+                            <tr>
+                                <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">Base fare</td>
+                                <td align="right" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">${{ number_format($fareBreakdown['base_fare'], 2) }}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">Taxes &amp; fee</td>
+                                <td align="right" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">${{ number_format($fareBreakdown['taxes_and_fee'], 2) }}</td>
+                            </tr>
+                        @endif
                         <tr style="background:#f9fafb;font-weight:700;">
                             <td style="padding:12px 16px;">Grand Total</td>
                             <td align="right" style="padding:12px 16px;">${{ number_format($fareBreakdown['grand_total'], 2) }}</td>
@@ -90,10 +101,63 @@
                 </table>
             </div>
 
+            @if($changeEntries->isNotEmpty())
+                <div style="margin-bottom:24px;">
+                    <h2 style="margin:0 0 14px;font-size:18px;">Updated Booking Changes</h2>
+                    <div style="border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
+                        @foreach($changeEntries as $change)
+                            <div style="padding:14px 16px;{{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                <div style="font-weight:700;margin-bottom:6px;">
+                                    {{ $change['service_type'] ?? 'Service' }} · {{ $change['change_type'] ?? 'Update' }}
+                                </div>
+                                @if(!empty($change['change_summary']))
+                                    <div style="font-size:13px;line-height:1.6;color:#4b5563;margin-bottom:6px;">
+                                        {{ $change['change_summary'] }}
+                                    </div>
+                                @endif
+                                @if(($change['additional_charge'] ?? 0) > 0)
+                                    <div style="font-size:13px;color:#016040;font-weight:700;">
+                                        Additional Charge: {{ $authorization->currency }} {{ number_format((float) $change['additional_charge'], 2) }}
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            @if($cardAllocations->isNotEmpty())
+                <div style="margin-bottom:24px;">
+                    <h2 style="margin:0 0 14px;font-size:18px;">Card Allocation</h2>
+                    <div style="border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
+                        @foreach($cardAllocations as $allocation)
+                            <div style="padding:14px 16px;{{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;">
+                                    <div>
+                                        <div style="font-weight:700;">{{ $allocation['holder_name'] ?? 'Card Holder' }}</div>
+                                        <div style="font-size:13px;color:#6b7280;margin-top:4px;">{{ $allocation['card_label'] ?? 'Card on file' }}</div>
+                                        @if(!empty($allocation['remarks']))
+                                            <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px;">{{ $allocation['remarks'] }}</div>
+                                        @endif
+                                    </div>
+                                    <div style="font-weight:800;color:#016040;">
+                                        {{ $authorization->currency }} {{ number_format((float) ($allocation['amount'] ?? 0), 2) }}
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <div style="margin-bottom:24px;padding:20px;border:1px solid #e5e7eb;border-radius:16px;background:#fcfcfd;">
                 <h2 style="margin:0 0 12px;font-size:18px;">Declaration</h2>
                 <p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#374151;">
-                    I, <strong>{{ $clientName }}</strong>, hereby authorise <strong>{{ $supplierLabel }}</strong> to charge my card ending in <strong>{{ $maskedCard }}</strong> with the total amount of <strong>{{ $authorization->currency }} ${{ number_format((float) $authorization->total_amount, 2) }}</strong>.
+                    @if($authorizationType === 'change_charge')
+                        I, <strong>{{ $clientName }}</strong>, hereby authorise <strong>{{ $supplierLabel }}</strong> to charge the <strong>additional updated amount</strong> of <strong>{{ $authorization->currency }} ${{ number_format((float) $authorization->total_amount, 2) }}</strong> using the card allocation listed above.
+                    @else
+                        I, <strong>{{ $clientName }}</strong>, hereby authorise <strong>{{ $supplierLabel }}</strong> to charge my card ending in <strong>{{ $maskedCard }}</strong> with the total amount of <strong>{{ $authorization->currency }} ${{ number_format((float) $authorization->total_amount, 2) }}</strong>.
+                    @endif
                 </p>
                 <p style="margin:0;font-size:14px;line-height:1.7;color:#374151;">
                     By clicking the approval button below, I confirm that I have reviewed the above information and authorised the payment as stated.

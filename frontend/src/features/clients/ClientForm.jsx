@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
@@ -27,7 +28,9 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
     middle_name: '',
     last_name: '',
     email: '',
+    alternate_email: '',
     phone: '',
+    alternate_phone: '',
     date_of_birth: '',
     gender: 'Male',
     address: '',
@@ -46,7 +49,9 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
         middle_name: client.middle_name || '',
         last_name: client.last_name || '',
         email: client.email || '',
+        alternate_email: client.alternate_email || '',
         phone: client.phone || '',
+        alternate_phone: client.alternate_phone || '',
         date_of_birth: client.date_of_birth || '',
         gender: client.gender || 'Male',
         address: client.address || '',
@@ -319,8 +324,12 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
                       </div>
                       <Input label="Email" placeholder="name@example.com" icon={Mail} value={formData.email}
                         onChange={e => setFormData({...formData, email: e.target.value})} />
+                      <Input label="Alternate Email" placeholder="alternate@example.com" icon={Mail} value={formData.alternate_email}
+                        onChange={e => setFormData({...formData, alternate_email: e.target.value})} />
                       <Input label="Phone" placeholder="+1 (555) 000-0000" icon={Phone} value={formData.phone}
                         onChange={e => setFormData({...formData, phone: e.target.value})} />
+                      <Input label="Alternate Phone" placeholder="+1 (555) 111-1111" icon={Phone} value={formData.alternate_phone}
+                        onChange={e => setFormData({...formData, alternate_phone: e.target.value})} />
                       <Input label="Address" placeholder="City, Country" icon={MapPin} value={formData.address}
                         onChange={e => setFormData({...formData, address: e.target.value})} />
                     </div>

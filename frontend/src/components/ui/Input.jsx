@@ -1,6 +1,9 @@
 import React from 'react';
+import { CalendarDays } from 'lucide-react';
 
 const Input = ({ label, icon: Icon, error, style, className, ...props }) => {
+  const isDateField = props.type === 'date' || props.type === 'datetime-local';
+
   return (
     <div className={className} style={{ marginBottom: '20px', ...style }}>
       {label && (
@@ -27,7 +30,25 @@ const Input = ({ label, icon: Icon, error, style, className, ...props }) => {
             <Icon size={18} />
           </div>
         )}
+        {isDateField && !Icon && (
+          <div
+            style={{
+              position: 'absolute',
+              right: '14px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)',
+              opacity: 0.9,
+              pointerEvents: 'none',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <CalendarDays size={18} />
+          </div>
+        )}
         <input
+          className="crm-input"
           style={{
             width: '100%',
             background: 'var(--bg-input)',
@@ -35,6 +56,7 @@ const Input = ({ label, icon: Icon, error, style, className, ...props }) => {
             borderRadius: '12px',
             padding: '12px 16px',
             paddingLeft: Icon ? '44px' : '16px',
+            paddingRight: isDateField ? '44px' : '16px',
             color: 'var(--text-main)',
             fontSize: '14px',
             outline: 'none',

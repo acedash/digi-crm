@@ -92,13 +92,35 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
                 disabled={paymentCards.length === 1}
               />
             </div>
+
+            <div style={{ marginTop: '14px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                Remarks
+              </label>
+              <textarea
+                value={card.remarks || ''}
+                onChange={(e) => updatePaymentCard(index, 'remarks', e.target.value)}
+                placeholder="Add card-specific notes, authorization notes, split-payment notes, or internal remarks"
+                style={{
+                  width: '100%',
+                  minHeight: '84px',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  outline: 'none',
+                  color: 'var(--text-main)',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
           </div>
         ))}
 
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={() => setPaymentCards([...paymentCards, { holder_name: '', number: '', exp: '', cvv: '', amount: '' }])}
+          onClick={() => setPaymentCards([...paymentCards, { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '' }])}
           icon={Plus}
         >
           + Add Another Card
