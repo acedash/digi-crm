@@ -59,6 +59,7 @@ class SettingsController extends Controller
             'templates.*.description' => 'nullable|string',
             'templates.*.subject' => 'required|string',
             'templates.*.body' => 'required|string',
+            'templates.*.terms_content' => 'nullable|string',
             'templates.*.enabled' => 'required|boolean',
         ]);
 
