@@ -31,9 +31,9 @@ const ClientList = lazyWithRetry(() => import('../features/clients/ClientList'))
 const ClientProfile = lazyWithRetry(() => import('../features/clients/ClientProfile'));
 const ClientEditPage = lazyWithRetry(() => import('../features/clients/ClientEditPage'));
 const BookingsPage = lazyWithRetry(() => import('../features/bookings/BookingsPage'));
-const BookingDetailsPage = lazyWithRetry(() => import('../features/bookings/BookingDetailsPage'));
+import BookingDetailsPage from '../features/bookings/BookingDetailsPage';
 const AuthApprovalPage = lazyWithRetry(() => import('../features/bookings/AuthApprovalPage'));
-const ConsentProofPage = lazyWithRetry(() => import('../features/bookings/ConsentProofPage'));
+import ConsentProofPage from '../features/bookings/ConsentProofPage';
 const ChargeQueuePage = lazyWithRetry(() => import('../features/bookings/ChargeQueuePage'));
 const MasterList = lazyWithRetry(() => import('../features/suppliers/MasterList'));
 const CallLoggingPage = lazyWithRetry(() => import('../features/activity-tracker/CallLoggingPage'));
@@ -62,9 +62,9 @@ const sharedRoutes = [
   { path: 'clients/:id', element: <LazyPage><ClientProfile /></LazyPage> },
   { path: 'bookings', element: <LazyPage><BookingsPage /></LazyPage> },
   { path: 'bookings/new', element: <LazyPage><BookingsPage /></LazyPage> },
-  { path: 'bookings/:id', element: <LazyPage><BookingDetailsPage /></LazyPage> },
+  { path: 'bookings/:id', element: <BookingDetailsPage /> },
   { path: 'bookings/:id/edit', element: <LazyPage><BookingsPage /></LazyPage> },
-  { path: 'bookings/:id/consent-proof', element: <LazyPage><ConsentProofPage /></LazyPage> },
+  { path: 'bookings/:id/consent-proof', element: <ConsentProofPage /> },
   { path: 'reports', element: <LazyPage><ReportsPage /></LazyPage> },
   { path: 'call-logs', element: <LazyPage><CallLoggingPage /></LazyPage> }
 ];
