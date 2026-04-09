@@ -126,16 +126,13 @@ const BookingRow = ({
   onDelete,
 }) => {
   const clientDisplayName = getClientDisplayName(booking);
-  const reassignmentHistory = booking.details_json?.reassignment_history || [];
-  const latestReassignment = reassignmentHistory.length ? reassignmentHistory[reassignmentHistory.length - 1] : null;
   const createdByName =
-    booking.details_json?.created_by_name ||
-    latestReassignment?.from_agent_name ||
+    booking.created_by_name ||
     booking.agent?.name ||
     'Unknown';
   const currentAssignee = booking.agent?.name || 'Self/System';
-  const wasReassigned = reassignmentHistory.length > 0;
-  const latestHandoffRemark = latestReassignment?.remark || booking.details_json?.latest_reassignment_remark || '';
+  const wasReassigned = Boolean(booking.was_reassigned);
+  const latestHandoffRemark = booking.latest_handoff_remark || '';
 
   return (
     <div

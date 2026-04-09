@@ -38,7 +38,6 @@ class BookingService
                 'status',
                 'total_amount',
                 'currency',
-                'details_json',
                 'created_at',
             ])
             ->with([
@@ -62,17 +61,21 @@ class BookingService
         }
 
         if (auth()->user()->hasRole('admin')) {
-            return $query->paginate($perPage);
+            return $this->transformBookingListPaginator($query->paginate($perPage));
         }
 
         if (auth()->user()->hasRole('supervisor')) {
             $teamIds = auth()->user()->agents()->pluck('id')->toArray();
             $teamIds[] = auth()->id();
             
-            return $query->whereIn('agent_id', $teamIds)->paginate($perPage);
+            return $this->transformBookingListPaginator(
+                $query->whereIn('agent_id', $teamIds)->paginate($perPage)
+            );
         }
 
-        return $query->where('agent_id', auth()->id())->paginate($perPage);
+        return $this->transformBookingListPaginator(
+            $query->where('agent_id', auth()->id())->paginate($perPage)
+        );
     }
 
     public function getById($id)
@@ -226,5 +229,55 @@ class BookingService
         $booking->details_json = $details;
 
         return $booking;
+    }
+
+    protected function transformBookingListPaginator($paginator)
+    {
+        $paginator->setCollection(
+            $paginator->getCollection()->map(function ($booking) {
+                $details = $booking->details_json ?? [];
+                $history = collect($details['reassignment_history'] ?? []);
+                $latestReassignment = $history->last();
+
+                return [
+                    'id' => $booking->id,
+                    'client_id' => $booking->client_id,
+                    'agent_id' => $booking->agent_id,
+                    'booking_reference' => $booking->booking_reference,
+                    'status' => $booking->status,
+                    'total_amount' => $booking->total_amount,
+                    'currency' => $booking->currency,
+                    'travel_date' => $booking->travel_date,
+                    'created_at' => $booking->created_at,
+                    'passengers_count' => (int) ($booking->passengers_count ?? 0),
+                    'client' => $booking->client ? [
+                        'id' => $booking->client->id,
+                        'name' => $booking->client->name,
+                        'first_name' => $booking->client->first_name,
+                        'last_name' => $booking->client->last_name,
+                        'phone' => $booking->client->phone,
+                        'email' => $booking->client->email ?? null,
+                    ] : null,
+                    'agent' => $booking->agent ? [
+                        'id' => $booking->agent->id,
+                        'name' => $booking->agent->name,
+                    ] : null,
+                    'services' => collect($booking->services ?? [])->map(function ($service) {
+                        return [
+                            'id' => $service->id,
+                            'serviceable_type' => $service->serviceable_type,
+                        ];
+                    })->values()->all(),
+                    'created_by_name' => $details['created_by_name']
+                        ?? ($latestReassignment['from_agent_name'] ?? null)
+                        ?? ($booking->agent->name ?? null),
+                    'latest_handoff_remark' => $latestReassignment['remark']
+                        ?? ($details['latest_reassignment_remark'] ?? null),
+                    'was_reassigned' => $history->isNotEmpty(),
+                ];
+            })
+        );
+
+        return $paginator;
     }
 }
