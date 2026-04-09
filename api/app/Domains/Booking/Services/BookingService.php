@@ -27,8 +27,39 @@ class BookingService
     public function getAllBookings($params = [])
     {
         $perPage = $params['per_page'] ?? 15;
-        $query = \App\Domains\Booking\Models\Booking::with(['client.agent', 'agent', 'passengers', 'services.serviceable'])
+        $search = trim((string) ($params['search'] ?? ''));
+
+        $query = \App\Domains\Booking\Models\Booking::query()
+            ->select([
+                'id',
+                'client_id',
+                'agent_id',
+                'booking_reference',
+                'status',
+                'total_amount',
+                'currency',
+                'details_json',
+                'created_at',
+            ])
+            ->with([
+                'client:id,agent_id,first_name,last_name,name,phone',
+                'agent:id,name',
+                'services:id,booking_id,serviceable_type',
+            ])
+            ->withCount('passengers')
             ->orderBy('created_at', 'desc');
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('booking_reference', 'like', '%' . $search . '%')
+                    ->orWhereHas('client', function ($clientQuery) use ($search) {
+                        $clientQuery->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('first_name', 'like', '%' . $search . '%')
+                            ->orWhere('last_name', 'like', '%' . $search . '%')
+                            ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", ['%' . $search . '%']);
+                    });
+            });
+        }
 
         if (auth()->user()->hasRole('admin')) {
             return $query->paginate($perPage);

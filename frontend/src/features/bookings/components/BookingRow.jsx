@@ -61,6 +61,10 @@ const getClientDisplayName = (booking) => (
     : 'Unknown Client')
 );
 
+const getTravelerCount = (booking) => (
+  Number(booking.passengers_count) || booking.passengers?.length || 0
+);
+
 const getServiceIcon = (serviceableType) => {
   if (serviceableType.includes('Flight')) return Plane;
   if (serviceableType.includes('Hotel')) return Hotel;
@@ -213,7 +217,7 @@ const BookingRow = ({
                 <Phone size={12} style={{ color: '#60a5fa' }} /> {booking.client?.phone || 'No Phone'}
               </span>
               <span style={{ opacity: 0.3 }}>|</span>
-              <span>{booking.passengers?.length || 0} travelers</span>
+              <span>{getTravelerCount(booking)} travelers</span>
             </div>
           </div>
 

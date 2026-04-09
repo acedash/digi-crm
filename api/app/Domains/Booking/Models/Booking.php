@@ -40,11 +40,33 @@ class Booking extends Model
 
     public function getTravelDateAttribute()
     {
-        // Try to find a flight departure date first
+        if ($this->relationLoaded('services')) {
+            $flightService = $this->services->first(function ($service) {
+                return $service->serviceable_type === 'App\\Domains\\Booking\\Models\\Flight';
+            });
+
+            if ($flightService) {
+                $loadedFlight = $flightService->relationLoaded('serviceable')
+                    ? $flightService->serviceable
+                    : null;
+
+                if ($loadedFlight && isset($loadedFlight->departure_at)) {
+                    return $loadedFlight->departure_at;
+                }
+
+                $segmentDeparture = data_get($flightService->details_json, 'segments.0.departure_at');
+                if ($segmentDeparture) {
+                    return $segmentDeparture;
+                }
+            }
+
+            return $this->created_at;
+        }
+
         $flightService = $this->services()
             ->where('serviceable_type', 'App\Domains\Booking\Models\Flight')
             ->first();
-            
+
         if ($flightService) {
             /** @var \App\Domains\Booking\Models\Flight|null $flight */
             $flight = $flightService->serviceable;

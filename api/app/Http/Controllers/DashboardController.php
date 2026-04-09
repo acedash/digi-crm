@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\CallLog;
 use App\Models\PaymentAuth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -28,23 +29,65 @@ class DashboardController extends Controller
 
     private function getAdminStats()
     {
-        $dailyRevenue = (float) PaymentAuth::whereHas('bookings')
-            ->whereNotNull('collected_at')
-            ->whereDate('collected_at', now()->toDateString())
-            ->sum('total_amount');
-        $currentMonthRevenue = (float) Booking::whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->sum('total_amount');
-        $previousMonthRevenue = (float) Booking::whereMonth('created_at', now()->subMonth()->month)
-            ->whereYear('created_at', now()->subMonth()->year)
-            ->sum('total_amount');
-        $revenueGrowth = $previousMonthRevenue > 0
-            ? round((($currentMonthRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100, 1)
-            : ($currentMonthRevenue > 0 ? 100.0 : 0.0);
+        $cacheKey = 'dashboard.admin.stats.v2';
 
-        return response()->json([
-            'success' => true,
-            'data' => [
+        $data = Cache::remember($cacheKey, now()->addSeconds(45), function () {
+            $today = now()->toDateString();
+            $currentMonth = now();
+            $previousMonth = now()->copy()->subMonth();
+
+            $dailyRevenue = (float) PaymentAuth::query()
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('booking_payment_auth')
+                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
+                })
+                ->whereNotNull('collected_at')
+                ->whereDate('collected_at', $today)
+                ->sum('total_amount');
+
+            $currentMonthRevenue = (float) Booking::query()
+                ->whereMonth('created_at', $currentMonth->month)
+                ->whereYear('created_at', $currentMonth->year)
+                ->sum('total_amount');
+
+            $previousMonthRevenue = (float) Booking::query()
+                ->whereMonth('created_at', $previousMonth->month)
+                ->whereYear('created_at', $previousMonth->year)
+                ->sum('total_amount');
+
+            $revenueGrowth = $previousMonthRevenue > 0
+                ? round((($currentMonthRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100, 1)
+                : ($currentMonthRevenue > 0 ? 100.0 : 0.0);
+
+            $recentBookings = Booking::query()
+                ->select(['id', 'booking_reference', 'client_id', 'agent_id', 'status', 'total_amount', 'currency', 'created_at'])
+                ->with([
+                    'client:id,first_name,last_name,name',
+                    'agent:id,name',
+                ])
+                ->latest('created_at')
+                ->limit(5)
+                ->get();
+
+            $chargeQueue = PaymentAuth::query()
+                ->select(['id', 'client_id', 'currency', 'total_amount', 'approved_at', 'metadata', 'consent_snapshot', 'status', 'collected_at'])
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('booking_payment_auth')
+                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
+                })
+                ->where('status', 'Approved')
+                ->whereNull('collected_at')
+                ->with([
+                    'client:id,first_name,last_name,name',
+                    'bookings:id,booking_reference',
+                ])
+                ->latest('approved_at')
+                ->limit(5)
+                ->get();
+
+            return [
                 'total_staff' => User::count(),
                 'active_staff' => User::whereIn('status', ['Active', 'On Call', 'active', 'on call'])->count(),
                 'total_clients' => Client::count(),
@@ -53,23 +96,24 @@ class DashboardController extends Controller
                 'daily_revenue' => $dailyRevenue,
                 'monthly_revenue' => $currentMonthRevenue,
                 'pending_approvals' => Booking::where('status', 'Pending')->count(),
-                'ready_to_charge' => PaymentAuth::whereHas('bookings')
+                'ready_to_charge' => PaymentAuth::query()
+                    ->whereExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('booking_payment_auth')
+                            ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
+                    })
                     ->where('status', 'Approved')
                     ->whereNull('collected_at')
                     ->count(),
                 'revenue_growth' => $revenueGrowth,
-                'recent_bookings' => Booking::with(['client', 'agent'])
-                    ->latest()
-                    ->take(5)
-                    ->get(),
-                'charge_queue' => PaymentAuth::with(['client', 'bookings'])
-                    ->whereHas('bookings')
-                    ->where('status', 'Approved')
-                    ->whereNull('collected_at')
-                    ->latest('approved_at')
-                    ->take(5)
-                    ->get(),
-            ]
+                'recent_bookings' => $recentBookings,
+                'charge_queue' => $chargeQueue,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
         ]);
     }
 
