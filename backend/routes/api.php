@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\SensitiveAuditController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\PublicEmailAssetController;
 use App\Http\Controllers\UserActivityController;
 use App\Http\Controllers\CallLogController;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/authorize/{token}', [PaymentAuthController::class, 'show']);
 Route::post('/authorize/{token}/approve', [PaymentAuthController::class, 'approve']);
 Route::post('/authorize/{token}/reject', [PaymentAuthController::class, 'reject']);
+Route::get('/email-assets/{encodedPath}/{signature}', [PublicEmailAssetController::class, 'show']);
 
 Route::post('/auth/login', [AuthController::class, 'login']);
 

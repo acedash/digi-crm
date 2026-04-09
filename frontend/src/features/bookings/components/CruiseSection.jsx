@@ -53,6 +53,15 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
               <Input label="Departure Date" type="date" value={cruise.departure_date || ''} onChange={e => setCruise({...cruise, departure_date: e.target.value})} />
               <Input label="Arrival Date" type="date" value={cruise.arrival_date || ''} onChange={e => setCruise({...cruise, arrival_date: e.target.value})} />
             </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Input
+                label="Deposit Amount"
+                type="number"
+                placeholder="0.00"
+                value={cruise.deposit_amount || ''}
+                onChange={e => setCruise({...cruise, deposit_amount: e.target.value})}
+              />
+            </div>
              <div style={{ display: 'flex', gap: '16px' }}>
                 <Input label="Net Cost" type="number" value={cruise.cost || ''} onChange={e => {
                   const cost = parseFloat(e.target.value) || 0;

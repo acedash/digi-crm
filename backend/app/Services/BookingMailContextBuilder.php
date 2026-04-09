@@ -12,6 +12,9 @@ class BookingMailContextBuilder
     public function buildBookingTemplateContext(Booking $booking, array $template): array
     {
         $primaryFlight = $this->resolvePrimaryFlight(collect($booking->services ?? []));
+        $hotelImages = $this->collectServiceImageUrls($booking, 'hotel');
+        $carImages = $this->collectServiceImageUrls($booking, 'car');
+        $cruiseImages = $this->collectServiceImageUrls($booking, 'cruise');
         $clientName = $this->resolveBookingClientName($booking);
         $travelDate = $booking->travel_date
             ? \Illuminate\Support\Carbon::parse($booking->travel_date)->format('M d, Y')
@@ -35,11 +38,40 @@ class BookingMailContextBuilder
             '{{flight_change_type}}' => $latestFlightChange['change_type'] ?? '',
             '{{flight_change_summary}}' => $latestFlightChange['change_summary'] ?? '',
             '{{flight_change_charge}}' => number_format((float) ($latestFlightChange['additional_charge'] ?? 0), 2),
+            '{{hotel_image_urls}}' => implode(', ', $hotelImages),
+            '{{hotel_images_html}}' => $this->buildImageGalleryHtml($hotelImages, 'Hotel Pictures', 'Hotel Image'),
+            '{{car_image_urls}}' => implode(', ', $carImages),
+            '{{car_images_html}}' => $this->buildImageGalleryHtml($carImages, 'Rental Car Pictures', 'Car Image'),
+            '{{cruise_image_urls}}' => implode(', ', $cruiseImages),
+            '{{cruise_images_html}}' => $this->buildImageGalleryHtml($cruiseImages, 'Cruise Pictures', 'Cruise Image'),
         ];
+
+        $body = strtr($template['body'] ?? '', array_merge($replacements, [
+            '{{booking_summary_html}}' => $this->buildBookingSummaryHtml([
+                'booking_reference' => $booking->booking_reference,
+                'travel_date' => $travelDate,
+                'service_summary' => $serviceSummary,
+                'currency' => $booking->currency ?: 'USD',
+                'total_amount' => number_format((float) $booking->total_amount, 2),
+                'status' => $booking->status,
+                'pnr' => $primaryFlight?->pnr ?: null,
+            ]),
+            '{{flight_image_html}}' => $this->buildFlightImageHtml($flightImageUrl),
+            '{{flight_change_details_html}}' => $this->buildFlightChangeDetailsHtml(
+                $latestFlightChange,
+                $booking->currency ?: 'USD'
+            ),
+            '{{support_html}}' => $this->buildSupportHtml(),
+        ]));
+
+        if (!str_contains($body, '<')) {
+            $body = nl2br(e($body));
+        }
 
         return [
             'subject' => strtr($template['subject'] ?? 'Booking update', $replacements),
             'body' => strtr($template['body'] ?? '', $replacements),
+            'body_html' => $body,
             'client_name' => $clientName,
             'booking_reference' => $booking->booking_reference,
             'status' => $booking->status,
@@ -49,6 +81,9 @@ class BookingMailContextBuilder
             'total_amount' => number_format((float) $booking->total_amount, 2),
             'pnr' => $primaryFlight?->pnr ?: null,
             'flight_image_url' => $flightImageUrl ?: null,
+            'hotel_image_urls' => $hotelImages,
+            'car_image_urls' => $carImages,
+            'cruise_image_urls' => $cruiseImages,
             'latest_service_change' => $latestServiceChange,
             'latest_flight_change' => $latestFlightChange,
         ];
@@ -72,6 +107,7 @@ class BookingMailContextBuilder
             '{{service_summary}}' => $this->resolveServiceSummary($services),
             '{{pnr}}' => $primaryFlight?->pnr ?: '',
             '{{flight_image_url}}' => $this->buildStorageUrl($primaryFlight?->ticket_image),
+            '{{approval_url}}' => '',
         ];
     }
 
@@ -81,7 +117,111 @@ class BookingMailContextBuilder
             return '';
         }
 
-        return rtrim(config('app.backend_url'), '/') . '/storage/' . ltrim($path, '/');
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'data:')) {
+            return $path;
+        }
+
+        $normalizedPath = ltrim(preg_replace('#^/?storage/#', '', $path), '/');
+        $encodedPath = rtrim(strtr(base64_encode($normalizedPath), '+/', '-_'), '=');
+        $signature = hash_hmac('sha256', $normalizedPath, (string) config('app.key'));
+
+        return rtrim(config('app.backend_url') ?: config('app.url'), '/') . '/api/email-assets/' . $encodedPath . '/' . $signature;
+    }
+
+    protected function buildBookingSummaryHtml(array $context): string
+    {
+        $rows = [
+            'Booking Reference' => $context['booking_reference'] ?? '',
+            'Travel Date' => $context['travel_date'] ?? '',
+            'Services' => $context['service_summary'] ?? '',
+            'Amount' => trim(($context['currency'] ?? 'USD') . ' ' . ($context['total_amount'] ?? '0.00')),
+            'Current Status' => $context['status'] ?? '',
+        ];
+
+        if (!empty($context['pnr'])) {
+            $rows['PNR'] = $context['pnr'];
+        }
+
+        $html = '<div style="border:1px solid #e5e7eb;border-radius:16px;padding:18px 20px;background:#f9fafb;margin-bottom:24px;"><h2 style="margin:0 0 14px;font-size:18px;">Booking Summary</h2><table role="presentation" style="width:100%;border-collapse:collapse;">';
+
+        foreach ($rows as $label => $value) {
+            $html .= '<tr><td style="padding:8px 0;color:#6b7280;">' . e($label) . '</td><td align="right" style="padding:8px 0;font-weight:700;">' . e($value) . '</td></tr>';
+        }
+
+        $html .= '</table></div>';
+
+        return $html;
+    }
+
+    protected function buildFlightImageHtml(?string $flightImageUrl): string
+    {
+        if (!filled($flightImageUrl)) {
+            return '';
+        }
+
+        return '<div style="margin-bottom:24px;"><h2 style="margin:0 0 14px;font-size:18px;">Flight Image</h2><img src="' . e($flightImageUrl) . '" alt="Flight Image" style="width:100%;border-radius:12px;border:1px solid #e5e7eb;display:block;"></div>';
+    }
+
+    protected function buildFlightChangeDetailsHtml(?array $latestFlightChange, string $currency): string
+    {
+        if (empty($latestFlightChange)) {
+            return '';
+        }
+
+        $html = '<div style="border:1px solid #e5e7eb;border-radius:16px;padding:18px 20px;background:#f9fafb;margin-bottom:24px;"><h2 style="margin:0 0 14px;font-size:18px;">Flight Change Details</h2><table role="presentation" style="width:100%;border-collapse:collapse;">';
+        $html .= '<tr><td style="padding:8px 0;color:#6b7280;">Change Type</td><td align="right" style="padding:8px 0;font-weight:700;">' . e($latestFlightChange['change_type'] ?? 'Flight Update') . '</td></tr>';
+        $html .= '<tr><td style="padding:8px 0;color:#6b7280;">Additional Charge</td><td align="right" style="padding:8px 0;font-weight:700;">' . e($currency) . ' ' . number_format((float) ($latestFlightChange['additional_charge'] ?? 0), 2) . '</td></tr>';
+        $html .= '</table>';
+
+        if (!empty($latestFlightChange['change_summary'])) {
+            $html .= '<div style="margin-top:14px;padding:14px;border-radius:12px;background:#ffffff;border:1px solid #e5e7eb;"><div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">Change Summary</div><div style="font-size:14px;line-height:1.7;color:#374151;">' . nl2br(e($latestFlightChange['change_summary'])) . '</div></div>';
+        }
+
+        if (!empty($latestFlightChange['changes'])) {
+            $html .= '<div style="margin-top:14px;"><div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">Tracked Changes</div>';
+            foreach ($latestFlightChange['changes'] as $change) {
+                $html .= '<div style="padding:10px 0;border-top:1px solid #e5e7eb;font-size:13px;line-height:1.6;color:#374151;"><strong>' . e($change['label'] ?? $change['field'] ?? 'Change') . '</strong>: ' . e(($change['old'] ?? null) !== null && ($change['old'] ?? '') !== '' ? (string) $change['old'] : 'Empty') . ' → ' . e(($change['new'] ?? null) !== null && ($change['new'] ?? '') !== '' ? (string) $change['new'] : 'Empty') . '</div>';
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    protected function buildSupportHtml(): string
+    {
+        return '<div style="padding-top:18px;border-top:1px solid #e5e7eb;"><p style="margin:0 0 10px;font-size:13px;line-height:1.8;color:#4b5563;">If you need help with this booking, contact our support team.</p><p style="margin:0;font-size:13px;line-height:1.8;color:#4b5563;"><strong>Contact Us:</strong><br>Email: cs@reservation-supports.com<br>Phone: +1 (325) 349 9888</p></div>';
+    }
+
+    protected function collectServiceImageUrls(Booking $booking, string $serviceType): array
+    {
+        return collect($booking->services ?? [])
+            ->filter(fn ($service) => strtolower(class_basename($service->serviceable_type ?? '')) === $serviceType)
+            ->flatMap(fn ($service) => collect(data_get($service, 'details_json.images', [])))
+            ->filter()
+            ->map(fn ($path) => $this->buildStorageUrl($path))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    protected function buildImageGalleryHtml(array $urls, string $title, string $altPrefix): string
+    {
+        if (empty($urls)) {
+            return '';
+        }
+
+        $html = '<div style="margin-bottom:24px;"><h2 style="margin:0 0 14px;font-size:18px;">' . e($title) . '</h2>';
+
+        foreach (array_values($urls) as $index => $url) {
+            $html .= '<div style="margin-bottom:12px;"><img src="' . e($url) . '" alt="' . e($altPrefix . ' ' . ($index + 1)) . '" style="width:100%;border-radius:12px;border:1px solid #e5e7eb;display:block;"></div>';
+        }
+
+        $html .= '</div>';
+
+        return $html;
     }
 
     protected function resolvePrimaryFlight(Collection $services): ?Flight

@@ -150,7 +150,7 @@ const BookingDetailsPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <Card style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <User size={18} color="#60a5fa" /> Contact Person
+              <User size={18} color="#60a5fa" /> Card Holder
             </h3>
             <div style={{ display: 'grid', gap: '10px', fontSize: '14px' }}>
               <div><strong>Name:</strong> {clientName}</div>
@@ -160,6 +160,7 @@ const BookingDetailsPage = () => {
               <div><strong>Alternate Phone:</strong> {booking.client?.alternate_phone || 'Not provided'}</div>
               <div><strong>Date of Birth:</strong> {booking.client?.date_of_birth || 'Not provided'}</div>
               <div><strong>Gender:</strong> {booking.client?.gender || 'Not provided'}</div>
+              <div><strong>Billing Address:</strong> {booking.client?.address || 'Not provided'}</div>
               <div><strong>Assigned Agent:</strong> {booking.agent?.name || 'Self/System'}</div>
             </div>
           </Card>
@@ -276,6 +277,7 @@ const BookingDetailsPage = () => {
                           <span>Operator: {service.serviceable?.operator || 'N/A'}</span>
                           <span>Departure: {service.details_json?.departure_date || 'N/A'}</span>
                           <span>Arrival: {service.details_json?.arrival_date || 'N/A'}</span>
+                          <span>Deposit Amount: {service.details_json?.deposit_amount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(Number(service.details_json.deposit_amount) || 0) : 'N/A'}</span>
                         </>
                       )}
                     </div>

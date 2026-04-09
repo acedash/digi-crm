@@ -319,6 +319,7 @@ class BookingOrchestrator
                 'image_count' => count($details['images'] ?? []),
                 'departure_date' => $details['departure_date'] ?? '',
                 'arrival_date' => $details['arrival_date'] ?? '',
+                'deposit_amount' => $details['deposit_amount'] ?? '',
                 'sell_price' => (float) ($service['sell_price'] ?? 0),
                 'cost_price' => (float) ($service['cost_price'] ?? 0),
                 'taxes_and_charges' => (float) ($service['markup'] ?? 0),
@@ -374,6 +375,7 @@ class BookingOrchestrator
                 'image_count' => 'Cruise Photos',
                 'departure_date' => 'Departure Date',
                 'arrival_date' => 'Arrival Date',
+                'deposit_amount' => 'Deposit Amount',
                 'sell_price' => 'Sell Price',
                 'cost_price' => 'Net Cost',
                 'taxes_and_charges' => 'Taxes & Charges',
@@ -484,6 +486,25 @@ class BookingOrchestrator
     {
         $type = strtolower($serviceData['type'] ?? '');
         $details = $serviceData['details'] ?? [];
+
+        if ($type === 'flight') {
+            $details['segments'] = collect($details['segments'] ?? [])
+                ->map(function ($segment) {
+                    if (!empty($segment['ticket_image']) && is_string($segment['ticket_image']) && str_starts_with($segment['ticket_image'], 'data:image')) {
+                        $segment['ticket_image'] = $this->uploadTicketImage($segment['ticket_image']);
+                    }
+
+                    return $segment;
+                })
+                ->values()
+                ->all();
+
+            if (empty(data_get($serviceData, 'flight_details.ticket_image')) && !empty($details['segments'][0]['ticket_image'])) {
+                $serviceData['flight_details']['ticket_image'] = $details['segments'][0]['ticket_image'];
+            }
+
+            $serviceData['details'] = $details;
+        }
 
         if (in_array($type, ['hotel', 'car', 'cruise'], true)) {
             $details['images'] = collect($details['images'] ?? [])

@@ -113,7 +113,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   });
   const [hotel, setHotel] = useState({ active: false, name: '', city: '', address: '', room_type: '', images: [], image_previews: [], checkin: '', checkout: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
   const [vehicle, setVehicle] = useState({ active: false, company: '', model: '', images: [], image_previews: [], pickup_loc: '', drop_loc: '', pickup_date: '', dropoff_date: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
-  const [cruise, setCruise] = useState({ active: false, line: '', ship: '', images: [], image_previews: [], departure_date: '', arrival_date: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
+  const [cruise, setCruise] = useState({ active: false, line: '', ship: '', images: [], image_previews: [], departure_date: '', arrival_date: '', deposit_amount: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
   
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const [existingServiceFlags, setExistingServiceFlags] = useState({
@@ -382,6 +382,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 image_previews: (s.details_json?.images ?? []).map((image) => buildStoredImagePreview(image)).filter(Boolean),
                 departure_date: s.details_json?.departure_date ?? '',
                 arrival_date: s.details_json?.arrival_date ?? '',
+                deposit_amount: s.details_json?.deposit_amount ?? '',
                 remarks: s.details_json?.remarks ?? '',
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
@@ -520,7 +521,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
     if (missingFields.length > 0) {
       setToast({
-        message: `Complete the contact person fields first: ${missingFields.join(', ')}`,
+        message: `Complete the card holder fields first: ${missingFields.join(', ')}`,
         type: 'error',
       });
       return;
@@ -528,7 +529,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
     if (newPassengers.some((passenger) => isSameTraveler(passenger, traveler))) {
       setToast({
-        message: 'This contact person is already added as a traveler.',
+        message: 'This card holder is already added as a traveler.',
         type: 'success',
       });
       return;
@@ -536,7 +537,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
     setNewPassengers((current) => [...current, traveler]);
     setToast({
-      message: 'Contact person added to traveling passengers.',
+      message: 'Card holder added to traveling passengers.',
       type: 'success',
     });
   }, [buildTravelerFromContact, isSameTraveler, newPassengers]);
@@ -609,7 +610,6 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
       if (!newClient.email) missingPrimary.push("Email");
       if (!newClient.phone) missingPrimary.push("Phone");
       if (!newClient.date_of_birth) missingPrimary.push("Date of Birth");
-      if (!newClient.gender) missingPrimary.push("Gender");
 
       if (missingPrimary.length > 0) return setToast({ message: `Missing fields: ${missingPrimary.join(', ')}`, type: 'error' });
     }
@@ -693,6 +693,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
         images: cruise.images || [],
         departure_date: cruise.departure_date,
         arrival_date: cruise.arrival_date,
+        deposit_amount: cruise.deposit_amount,
         remarks: cruise.remarks,
         change_type: cruise.change_type,
         change_summary: cruise.change_summary,

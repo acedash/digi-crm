@@ -16,6 +16,27 @@ const defaultForm = {
   from_name: '',
 };
 
+const decodeHtmlEntities = (value) => value
+  .replace(/&amp;/g, '&')
+  .replace(/&lt;/g, '<')
+  .replace(/&gt;/g, '>')
+  .replace(/&quot;/g, '"')
+  .replace(/&#39;/g, "'");
+
+const termsHtmlToPlainText = (value = '') => {
+  if (!value || !value.includes('<')) return value;
+
+  return decodeHtmlEntities(
+    value
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<p[^>]*>/gi, '')
+      .replace(/<strong[^>]*>/gi, '')
+      .replace(/<\/strong>/gi, '')
+      .replace(/<[^>]+>/g, '')
+  ).trim();
+};
+
 const SettingsPage = () => {
   const [form, setForm] = useState(defaultForm);
   const [templates, setTemplates] = useState([]);
@@ -41,7 +62,11 @@ const SettingsPage = () => {
         ...defaultForm,
         ...mailResponse.data.data,
       });
-      const nextTemplates = templatesResponse.data.data || [];
+      const nextTemplates = (templatesResponse.data.data || []).map((template) => (
+        template.key === 'authorization'
+          ? { ...template, terms_content: termsHtmlToPlainText(template.terms_content || '') }
+          : template
+      ));
       setTemplates(nextTemplates);
       if (nextTemplates.length > 0) {
         setActiveTemplateKey((current) => (
@@ -331,8 +356,53 @@ const SettingsPage = () => {
                 />
               </div>
 
+              {activeTemplate.key === 'authorization' ? (
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                    Terms Content
+                  </label>
+                  <textarea
+                    value={activeTemplate.terms_content || ''}
+                    onChange={(e) => handleTemplateChange(activeTemplate.key, 'terms_content', e.target.value)}
+                    rows={10}
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      color: 'var(--text-main)',
+                      fontSize: '14px',
+                      lineHeight: 1.6,
+                      outline: 'none',
+                      resize: 'vertical',
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace',
+                    }}
+                  />
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.6 }}>
+                    This field controls what <code>{'{{terms_html}}'}</code> renders. You can write plain text or HTML here.
+                  </div>
+                </div>
+              ) : null}
+
               <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                 Available variables: {(activeTemplate.variables || []).map((item) => `{{${item}}}`).join(', ') || 'None'}
+              </div>
+
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 14px', borderRadius: '12px', background: 'var(--bg-app)', border: '1px solid var(--border-color)' }}>
+                Template body supports HTML, and this saved body is the actual live email content inside the email card.
+                {' '}
+                {activeTemplate.key === 'authorization'
+                  ? (
+                    <>
+                      You can fully arrange sections using placeholders like <code>{'{{ticket_images_html}}'}</code>, <code>{'{{hotel_images_html}}'}</code>, <code>{'{{car_images_html}}'}</code>, <code>{'{{cruise_images_html}}'}</code>, <code>{'{{travellers_html}}'}</code>, <code>{'{{fare_breakdown_html}}'}</code>, <code>{'{{declaration_html}}'}</code>, <code>{'{{terms_html}}'}</code>, and <code>{'{{approval_button_html}}'}</code>.
+                    </>
+                  )
+                  : (
+                    <>
+                      You can fully arrange sections using placeholders like <code>{'{{booking_summary_html}}'}</code>, <code>{'{{flight_image_html}}'}</code>, <code>{'{{hotel_images_html}}'}</code>, <code>{'{{car_images_html}}'}</code>, <code>{'{{cruise_images_html}}'}</code>, <code>{'{{flight_change_details_html}}'}</code>, and <code>{'{{support_html}}'}</code>.
+                    </>
+                  )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

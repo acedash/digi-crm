@@ -5,6 +5,7 @@ namespace App\Domains\Booking\Services;
 use App\Domains\Booking\Repositories\PaymentAuthRepository;
 use App\Domains\Booking\Repositories\BookingRepository;
 use App\Services\AuthorizationMailer;
+use App\Services\BookingMailContextBuilder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -13,12 +14,14 @@ class PaymentAuthService
     protected $repository;
     protected $bookingRepository;
     protected $authorizationMailer;
+    protected $mailContextBuilder;
 
-    public function __construct(PaymentAuthRepository $repository, BookingRepository $bookingRepository, AuthorizationMailer $authorizationMailer)
+    public function __construct(PaymentAuthRepository $repository, BookingRepository $bookingRepository, AuthorizationMailer $authorizationMailer, BookingMailContextBuilder $mailContextBuilder)
     {
         $this->repository = $repository;
         $this->bookingRepository = $bookingRepository;
         $this->authorizationMailer = $authorizationMailer;
+        $this->mailContextBuilder = $mailContextBuilder;
     }
 
     /**
@@ -300,8 +303,12 @@ class PaymentAuthService
                         $segmentImages = collect(data_get($service, 'details_json.segments', []))
                             ->filter(fn ($segment) => filled($segment['ticket_image'] ?? null))
                             ->values()
-                            ->map(function ($segment, $index) use ($booking) {
+                            ->map(function ($segment, $index) use ($booking, $service) {
                                 $path = $segment['ticket_image'];
+
+                                if (is_string($path) && str_starts_with($path, 'data:image') && filled(data_get($service, 'serviceable.ticket_image'))) {
+                                    $path = data_get($service, 'serviceable.ticket_image');
+                                }
 
                                 return [
                                     'booking_reference' => $booking->booking_reference,
@@ -309,7 +316,7 @@ class PaymentAuthService
                                     'path' => $path,
                                     'url' => str_starts_with($path, 'data:image')
                                         ? $path
-                                        : rtrim(config('app.backend_url'), '/') . '/storage/' . ltrim($path, '/'),
+                                        : $this->mailContextBuilder->buildStorageUrl($path),
                                 ];
                             });
 
@@ -322,7 +329,7 @@ class PaymentAuthService
                                 'booking_reference' => $booking->booking_reference,
                                 'segment_label' => null,
                                 'path' => $service->serviceable->ticket_image,
-                                'url' => rtrim(config('app.backend_url'), '/') . '/storage/' . ltrim($service->serviceable->ticket_image, '/'),
+                                'url' => $this->mailContextBuilder->buildStorageUrl($service->serviceable->ticket_image),
                             ]];
                         }
 
@@ -331,6 +338,12 @@ class PaymentAuthService
             })
             ->values()
             ->all();
+
+        $serviceImages = [
+            'hotel_images' => $this->collectServiceImagesForSnapshot($bookings, 'hotel'),
+            'car_images' => $this->collectServiceImagesForSnapshot($bookings, 'car'),
+            'cruise_images' => $this->collectServiceImagesForSnapshot($bookings, 'cruise'),
+        ];
 
         $supplierLabel = $bookings
             ->flatMap(fn ($booking) => $booking->services ?? [])
@@ -381,6 +394,7 @@ class PaymentAuthService
             'travellers' => $travellers,
             'fare_breakdown' => $fareBreakdown,
             'ticket_images' => $ticketImages,
+            ...$serviceImages,
             'supplier_label' => $supplierLabel,
             'card_allocations' => $cardAllocations,
             'change_entries' => $changeEntries,
@@ -447,5 +461,31 @@ class PaymentAuthService
 
             $booking->update(['details_json' => $details]);
         }
+    }
+
+    protected function collectServiceImagesForSnapshot($bookings, string $serviceType): array
+    {
+        return collect($bookings)
+            ->flatMap(function ($booking) use ($serviceType) {
+                return collect($booking->services ?? [])
+                    ->filter(fn ($service) => strtolower(class_basename($service->serviceable_type ?? '')) === $serviceType)
+                    ->flatMap(function ($service) use ($booking) {
+                        return collect(data_get($service, 'details_json.images', []))
+                            ->filter()
+                            ->values()
+                            ->map(function ($path, $index) use ($booking) {
+                                return [
+                                    'booking_reference' => $booking->booking_reference,
+                                    'label' => 'Image ' . ($index + 1),
+                                    'path' => $path,
+                                    'url' => str_starts_with($path, 'data:image')
+                                        ? $path
+                                        : $this->mailContextBuilder->buildStorageUrl($path),
+                                ];
+                            });
+                    });
+            })
+            ->values()
+            ->all();
     }
 }

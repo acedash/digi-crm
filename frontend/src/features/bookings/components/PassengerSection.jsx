@@ -25,14 +25,14 @@ const PassengerSection = ({
 }) => {
   return (
     <Card style={{ padding: 0 }}>
-      <SectionHeader icon={User} title="1. Contact Person & Travelers" isActive={true} />
+      <SectionHeader icon={User} title="1. Card Holder & Travelers" isActive={true} />
       <div style={{ padding: '24px' }}>
         <div style={{ marginBottom: '18px' }}>
           <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-            Contact Person Profile
+            Card Holder Profile
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-            This person is the booking contact in the CRM. They are not added as a traveler automatically.
+            This person is the billing card holder in the CRM. They are not added as a traveler automatically.
           </div>
         </div>
 
@@ -123,10 +123,10 @@ const PassengerSection = ({
           <Input label="Alternate Email" value={newClient.alternate_email || ''} onChange={e => setNewClient({...newClient, alternate_email: e.target.value})} />
           <Input label="Alternate Phone" value={newClient.alternate_phone || ''} onChange={e => setNewClient({...newClient, alternate_phone: e.target.value})} />
           <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
-            <Input label="Address" value={newClient.address || ''} onChange={e => setNewClient({...newClient, address: e.target.value})} />
+            <Input label="Billing Address" value={newClient.address || ''} onChange={e => setNewClient({...newClient, address: e.target.value})} />
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-muted)' }}>
-                Gender <span style={{ color: '#ef4444' }}>*</span>
+                Gender
               </label>
               <select 
                 style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', outline: 'none', color: 'var(--text-main)' }}
@@ -144,10 +144,10 @@ const PassengerSection = ({
         <div style={{ marginTop: '18px', padding: '14px 16px', borderRadius: '12px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>
-              Contact also traveling?
+              Card holder also traveling?
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              Add the contact as a traveler in one click.
+              Add the card holder as a traveler in one click.
             </div>
           </div>
           <Button
