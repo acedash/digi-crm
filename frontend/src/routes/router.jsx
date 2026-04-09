@@ -7,26 +7,50 @@ import RoleDashboardLoader from '../components/RoleDashboardLoader';
 import RolePathRedirect from '../components/RolePathRedirect';
 import { RefreshCw } from 'lucide-react';
 
+// Helper to handle lazy loading with automatic retry on chunk load failures (deployment sync)
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    const pageHasAlreadyBeenForceRefreshed = JSON.parse(
+      window.localStorage.getItem('page-has-been-force-refreshed') || 'false'
+    );
+
+    try {
+      const component = await componentImport();
+      window.localStorage.setItem('page-has-been-force-refreshed', 'false');
+      return component;
+    } catch (error) {
+      if (!pageHasAlreadyBeenForceRefreshed) {
+        // Assume that the error is a "Failed to fetch dynamically imported module" 
+        // which happens after a new build has been pushed.
+        window.localStorage.setItem('page-has-been-force-refreshed', 'true');
+        return window.location.reload();
+      }
+
+      // If we've already tried and it still fails, bubble the error
+      throw error;
+    }
+  });
+
 // Lazy load heavy features
-const AdminDashboard = lazy(() => import('../features/dashboard/AdminDashboard'));
-const SupervisorDashboard = lazy(() => import('../features/dashboard/SupervisorDashboard'));
-const AgentDashboard = lazy(() => import('../features/dashboard/AgentDashboard'));
-const UserList = lazy(() => import('../features/users/UserList'));
-const ClientList = lazy(() => import('../features/clients/ClientList'));
-const ClientProfile = lazy(() => import('../features/clients/ClientProfile'));
-const ClientEditPage = lazy(() => import('../features/clients/ClientEditPage'));
-const BookingsPage = lazy(() => import('../features/bookings/BookingsPage'));
-const BookingDetailsPage = lazy(() => import('../features/bookings/BookingDetailsPage'));
-const AuthApprovalPage = lazy(() => import('../features/bookings/AuthApprovalPage'));
-const ConsentProofPage = lazy(() => import('../features/bookings/ConsentProofPage'));
-const ChargeQueuePage = lazy(() => import('../features/bookings/ChargeQueuePage'));
-const MasterList = lazy(() => import('../features/suppliers/MasterList'));
-const CallLoggingPage = lazy(() => import('../features/activity-tracker/CallLoggingPage'));
-const ReportsPage = lazy(() => import('../features/reports/ReportsPage'));
-const ActivityLogs = lazy(() => import('../features/activity-tracker/ActivityLogs'));
-const AgentMonitorPage = lazy(() => import('../features/activity-tracker/AgentMonitorPage'));
-const AuditTrailPage = lazy(() => import('../features/reports/AuditTrailPage'));
-const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
+const AdminDashboard = lazyWithRetry(() => import('../features/dashboard/AdminDashboard'));
+const SupervisorDashboard = lazyWithRetry(() => import('../features/dashboard/SupervisorDashboard'));
+const AgentDashboard = lazyWithRetry(() => import('../features/dashboard/AgentDashboard'));
+const UserList = lazyWithRetry(() => import('../features/users/UserList'));
+const ClientList = lazyWithRetry(() => import('../features/clients/ClientList'));
+const ClientProfile = lazyWithRetry(() => import('../features/clients/ClientProfile'));
+const ClientEditPage = lazyWithRetry(() => import('../features/clients/ClientEditPage'));
+const BookingsPage = lazyWithRetry(() => import('../features/bookings/BookingsPage'));
+const BookingDetailsPage = lazyWithRetry(() => import('../features/bookings/BookingDetailsPage'));
+const AuthApprovalPage = lazyWithRetry(() => import('../features/bookings/AuthApprovalPage'));
+const ConsentProofPage = lazyWithRetry(() => import('../features/bookings/ConsentProofPage'));
+const ChargeQueuePage = lazyWithRetry(() => import('../features/bookings/ChargeQueuePage'));
+const MasterList = lazyWithRetry(() => import('../features/suppliers/MasterList'));
+const CallLoggingPage = lazyWithRetry(() => import('../features/activity-tracker/CallLoggingPage'));
+const ReportsPage = lazyWithRetry(() => import('../features/reports/ReportsPage'));
+const ActivityLogs = lazyWithRetry(() => import('../features/activity-tracker/ActivityLogs'));
+const AgentMonitorPage = lazyWithRetry(() => import('../features/activity-tracker/AgentMonitorPage'));
+const AuditTrailPage = lazyWithRetry(() => import('../features/reports/AuditTrailPage'));
+const SettingsPage = lazyWithRetry(() => import('../features/settings/SettingsPage'));
 
 // Helper to wrap lazy components with Suspense
 const LazyPage = ({ children }) => (
