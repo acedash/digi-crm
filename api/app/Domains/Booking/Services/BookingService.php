@@ -41,7 +41,7 @@ class BookingService
                 'created_at',
             ])
             ->with([
-                'client:id,agent_id,first_name,last_name,name,phone',
+                'client:id,agent_id,first_name,last_name,name,phone,email',
                 'agent:id,name',
                 'services:id,booking_id,serviceable_type',
             ])
@@ -50,11 +50,16 @@ class BookingService
 
         if ($search !== '') {
             $query->where(function ($builder) use ($search) {
-                $builder->where('booking_reference', 'like', '%' . $search . '%')
+                $builder->where('booking_reference', $search)
+                    ->orWhere('booking_reference', 'like', '%' . $search)
+                    ->orWhere('id', $search)
                     ->orWhereHas('client', function ($clientQuery) use ($search) {
-                        $clientQuery->where('name', 'like', '%' . $search . '%')
-                            ->orWhere('first_name', 'like', '%' . $search . '%')
-                            ->orWhere('last_name', 'like', '%' . $search . '%');
+                        $clientQuery->where('first_name', 'like', '%' . $search . '%')
+                            ->orWhere('last_name', 'like', '%' . $search . '%')
+                            ->orWhere('email', 'like', '%' . $search . '%')
+                            ->orWhere('phone', 'like', '%' . $search . '%')
+                            ->orWhere('id', $search)
+                            ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", ['%' . $search . '%']);
                     });
             });
         }

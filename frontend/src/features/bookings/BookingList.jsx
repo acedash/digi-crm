@@ -352,7 +352,10 @@ const BookingList = ({ onCreate, onEdit }) => {
        '');
     const matchesSearch = 
       booking.booking_reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      clientName.toLowerCase().includes(searchTerm.toLowerCase());
+      clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.client?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.client?.phone?.includes(searchTerm) ||
+      booking.id.toString().includes(searchTerm);
       
     const matchesFilter = filterType === 'all' || booking.status?.toLowerCase() === (filterType || '').toLowerCase();
     
@@ -512,10 +515,11 @@ const BookingList = ({ onCreate, onEdit }) => {
       {/* Toolbar */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
         <Input 
-          placeholder="Search by reference or client name..." 
+          placeholder="Search by ID, reference, client name, or PNR..." 
           icon={Search}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
           style={{ marginBottom: 0, maxWidth: '500px' }}
         />
         

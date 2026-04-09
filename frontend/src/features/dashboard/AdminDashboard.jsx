@@ -10,21 +10,43 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('monthly');
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [period]);
 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const response = await dashboardService.getStats();
+      const response = await dashboardService.getStats(period);
       setStats(response.data.data);
     } catch (error) {
       console.error('Failed to fetch admin stats', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const Trend = ({ value }) => {
+    if (value === 0) return null;
+    const isPositive = value > 0;
+    return (
+      <span style={{ 
+        fontSize: '12px', 
+        fontWeight: 700, 
+        color: isPositive ? '#10b981' : '#ef4444',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '2px',
+        marginLeft: '8px',
+        background: isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+        padding: '2px 6px',
+        borderRadius: '6px'
+      }}>
+        {isPositive ? '↑' : '↓'} {Math.abs(value)}%
+      </span>
+    );
   };
 
   if (loading || !stats) {
@@ -38,61 +60,64 @@ const AdminDashboard = () => {
 
   const statCards = [
     {
-      title: 'Staff Members',
-      subtitle: `${stats.active_staff || 0} currently active`,
-      value: stats.total_staff || 0,
+      title: 'Total Staff Member',
+      subtitle: `${stats.staff.active} active right now`,
+      value: stats.staff.total,
+      growth: stats.staff.growth,
       icon: Users,
       color: 'var(--text-main)',
+      onClick: () => navigate('/admin/users')
     },
     {
       title: 'Clients',
-      subtitle: 'All client records',
-      value: stats.total_clients || 0,
+      subtitle: `${stats.clients.period_count} new this ${period}`,
+      value: stats.clients.total,
+      growth: stats.clients.growth,
       icon: Users,
       color: '#60a5fa',
+      onClick: () => navigate('/admin/clients')
     },
     {
       title: 'Bookings',
-      subtitle: `${stats.pending_approvals || 0} pending`,
-      value: stats.total_bookings || 0,
+      subtitle: `${stats.bookings.count_trend.current} created this ${period}`,
+      value: stats.bookings.total,
+      growth: stats.bookings.growth,
       icon: ClipboardList,
       color: '#10b981',
+      onClick: () => navigate('/admin/bookings')
     },
     {
       title: 'Call Logs',
-      subtitle: 'Recorded calls',
-      value: stats.total_calls || 0,
+      subtitle: `${stats.calls.period_count} logs this ${period}`,
+      value: stats.calls.total,
+      growth: stats.calls.growth,
       icon: PhoneCall,
       color: '#f59e0b',
+      onClick: () => navigate('/admin/call-logs')
     },
     {
-      title: 'Daily Revenue',
-      subtitle: 'Collected today by admin',
-      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.daily_revenue) || 0),
+      title: 'Period Revenue',
+      subtitle: `Revenue vs previous ${period}`,
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue.period_total) || 0),
+      growth: stats.revenue.growth,
       icon: CircleDollarSign,
       color: '#22c55e',
     },
     {
-      title: 'Monthly Revenue',
-      subtitle: `${stats.revenue_growth >= 0 ? '+' : ''}${stats.revenue_growth || 0}% vs last month`,
-      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.monthly_revenue) || 0),
+      title: 'Daily Revenue',
+      subtitle: 'Collected today by admin',
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue.daily) || 0),
       icon: CircleDollarSign,
       color: '#16a34a',
+      onClick: () => navigate('/admin/charge-queue')
     },
-    {
-      title: 'Pending Approvals',
-      subtitle: 'Needs attention',
-      value: stats.pending_approvals || 0,
-      icon: Clock,
-      color: '#ef4444',
-    },
-    {
-      title: 'Ready to Charge',
-      subtitle: 'Approved and waiting for admin collection',
-      value: stats.ready_to_charge || 0,
-      icon: CircleDollarSign,
-      color: '#f59e0b',
-    },
+  ];
+
+  const periods = [
+    { id: 'daily', label: 'Daily' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'yearly', label: 'Yearly' },
   ];
 
   return (
@@ -106,18 +131,47 @@ const AdminDashboard = () => {
             Real-time operational summary across staff, bookings, clients, and calls.
           </p>
         </div>
-        <Button variant="outline" icon={RefreshCw} size="sm" onClick={fetchStats}>
-          Refresh
-        </Button>
+
+        <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          {periods.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setPeriod(p.id)}
+              style={{
+                padding: '6px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: period === p.id ? 'var(--bg-card)' : 'transparent',
+                color: period === p.id ? 'var(--text-main)' : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: period === p.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
         {statCards.map((item) => (
-          <Card key={item.title} title={item.title} subtitle={item.subtitle} icon={item.icon}>
-            <div style={{ fontSize: '30px', fontWeight: 800, color: item.color }}>
-              {item.value}
-            </div>
-          </Card>
+          <div 
+            key={item.title} 
+            onClick={item.onClick}
+            style={{ cursor: item.onClick ? 'pointer' : 'default' }}
+          >
+            <Card title={item.title} subtitle={item.subtitle} icon={item.icon}>
+              <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                <div style={{ fontSize: '30px', fontWeight: 800, color: item.color }}>
+                  {item.value}
+                </div>
+                {item.growth !== undefined && <Trend value={item.growth} />}
+              </div>
+            </Card>
+          </div>
         ))}
       </div>
 

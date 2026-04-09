@@ -36,6 +36,7 @@ const ClientList = ({ isEmbedded = false }) => {
     phone: '',
     email: ''
   });
+  const isFetchingRef = React.useRef(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -46,6 +47,8 @@ const ClientList = ({ isEmbedded = false }) => {
   }, [search]);
 
   const fetchClients = useCallback(async (searchTerm = debouncedSearch, advancedFilters = filters) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setLoading(true);
     try {
       const params = { 
@@ -60,6 +63,7 @@ const ClientList = ({ isEmbedded = false }) => {
       setClients([]);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [filters, debouncedSearch]);
 
@@ -119,10 +123,11 @@ const ClientList = ({ isEmbedded = false }) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '16px', alignItems: 'center' }}>
           <Input 
-            placeholder="Search clients by name..." 
+            placeholder="Search by name, email, phone, or ID..." 
             icon={Search}
             value={search}
             onChange={handleSearch}
+            onClear={() => setSearch('')}
             style={{ marginBottom: 0 }}
           />
           <Button variant={showFilters ? 'primary' : 'glass'} icon={Filter} size="md" onClick={() => setShowFilters(!showFilters)}>

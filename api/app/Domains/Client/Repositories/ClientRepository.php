@@ -67,9 +67,11 @@ class ClientRepository extends BaseRepository
         $clientName = trim((string) ($filters['client_name'] ?? ''));
         if ($clientName !== '') {
             $query->where(function ($clientQuery) use ($clientName) {
-                $clientQuery->where('name', 'like', '%' . $clientName . '%')
-                    ->orWhere('first_name', 'like', '%' . $clientName . '%')
+                $clientQuery->where('first_name', 'like', '%' . $clientName . '%')
                     ->orWhere('last_name', 'like', '%' . $clientName . '%')
+                    ->orWhere('email', 'like', '%' . $clientName . '%')
+                    ->orWhere('phone', 'like', '%' . $clientName . '%')
+                    ->orWhere('id', 'like', '%' . $clientName . '%')
                     ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", ['%' . $clientName . '%']);
             });
         }
@@ -95,20 +97,27 @@ class ClientRepository extends BaseRepository
             });
         }
 
-        if (!empty($filters['booking_id']) || !empty($filters['pnr'])) {
-            $query->whereHas('bookings', function ($bookingQuery) use ($filters) {
-                if (!empty($filters['booking_id'])) {
-                    $bookingQuery->where('id', $filters['booking_id'])
-                        ->orWhere('booking_reference', 'like', '%' . $filters['booking_id'] . '%');
-                }
+        if (!empty($filters['booking_id'])) {
+            $searchValue = $filters['booking_id'];
+            $query->where(function ($q) use ($searchValue) {
+                // Search Client ID
+                $q->where('id', $searchValue)
+                  ->orWhereHas('bookings', function ($bookingQuery) use ($searchValue) {
+                      // Search Booking ID or Reference suffix
+                      $bookingQuery->where('id', $searchValue)
+                          ->orWhere('booking_reference', $searchValue)
+                          ->orWhere('booking_reference', 'like', '%' . $searchValue);
+                  });
+            });
+        }
 
-                if (!empty($filters['pnr'])) {
-                    $bookingQuery->whereHas('services', function ($serviceQuery) use ($filters) {
-                        $serviceQuery->whereHasMorph('serviceable', ['App\\Domains\\Booking\\Models\\Flight'], function ($flightQuery) use ($filters) {
-                            $flightQuery->where('pnr', 'like', '%' . $filters['pnr'] . '%');
-                        });
+        if (!empty($filters['pnr'])) {
+            $query->whereHas('bookings', function ($bookingQuery) use ($filters) {
+                $bookingQuery->whereHas('services', function ($serviceQuery) use ($filters) {
+                    $serviceQuery->whereHasMorph('serviceable', ['App\\Domains\\Booking\\Models\\Flight'], function ($flightQuery) use ($filters) {
+                        $flightQuery->where('pnr', 'like', '%' . $filters['pnr']);
                     });
-                }
+                });
             });
         }
 

@@ -1,8 +1,9 @@
 import React from 'react';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, X } from 'lucide-react';
 
-const Input = ({ label, icon: Icon, error, style, className, ...props }) => {
+const Input = ({ label, icon: Icon, error, style, className, onClear, ...props }) => {
   const isDateField = props.type === 'date' || props.type === 'datetime-local';
+  const showClear = onClear && props.value && props.value.toString().length > 0;
 
   return (
     <div className={className} style={{ marginBottom: '20px', ...style }}>
@@ -47,6 +48,32 @@ const Input = ({ label, icon: Icon, error, style, className, ...props }) => {
             <CalendarDays size={18} />
           </div>
         )}
+        {showClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              position: 'absolute',
+              right: isDateField ? '44px' : '14px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)',
+              background: 'none',
+              border: 'none',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              zIndex: 10,
+              opacity: 0.6
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+          >
+            <X size={16} />
+          </button>
+        )}
         <input
           className="crm-input"
           style={{
@@ -56,7 +83,7 @@ const Input = ({ label, icon: Icon, error, style, className, ...props }) => {
             borderRadius: '12px',
             padding: '12px 16px',
             paddingLeft: Icon ? '44px' : '16px',
-            paddingRight: isDateField ? '44px' : '16px',
+            paddingRight: (isDateField || showClear) ? '44px' : '16px',
             color: 'var(--text-main)',
             fontSize: '14px',
             outline: 'none',

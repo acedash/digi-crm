@@ -18,6 +18,7 @@ import {
   Trash2,
   ArrowUpRight,
   Car,
+  Ship,
 } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 
@@ -69,6 +70,7 @@ const getServiceIcon = (serviceableType) => {
   if (serviceableType.includes('Flight')) return Plane;
   if (serviceableType.includes('Hotel')) return Hotel;
   if (serviceableType.includes('Car')) return Car;
+  if (serviceableType.includes('Cruise')) return Ship;
   return Package;
 };
 

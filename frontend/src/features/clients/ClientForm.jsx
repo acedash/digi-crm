@@ -171,11 +171,11 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
 
   const selectStyle = {
     width: '100%',
-    background: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    background: 'var(--bg-input)',
+    border: '1px solid var(--border-color)',
     borderRadius: '10px',
     padding: '10px 12px',
-    color: 'white',
+    color: 'var(--text-main)',
     fontSize: '13px',
     outline: 'none',
     cursor: 'pointer'
@@ -186,7 +186,7 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
     fontSize: '12px',
     fontWeight: 600,
     marginBottom: '6px',
-    color: 'rgba(255, 255, 255, 0.45)',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   };
@@ -206,14 +206,14 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          background: isFullPage ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-card)',
-          border: isFullPage ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid var(--border-color)'
+          background: isFullPage ? 'transparent' : 'var(--bg-card)',
+          border: isFullPage ? '1px solid var(--border-color)' : '1px solid var(--border-color)'
         }}
       >
         {/* Modal Header */}
         <div style={{ 
           padding: '18px 24px', 
-          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
@@ -228,10 +228,10 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
               {step}
             </div>
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'white' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>
                 {client ? 'Update Client' : 'New Client'}
               </h2>
-              <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.35)', marginTop: '2px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
                 {step === 1 ? 'Step 1: Identity & Travelers' : 'Step 2: Payment Details'}
               </p>
             </div>
@@ -281,7 +281,7 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                         <User size={14} style={{ color: 'hsl(var(--primary))' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>Identity</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Identity</span>
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -320,7 +320,7 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                         <Phone size={14} style={{ color: 'hsl(var(--primary))' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>Communication</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Communication</span>
                       </div>
                       <Input label="Email" placeholder="name@example.com" icon={Mail} value={formData.email}
                         onChange={e => setFormData({...formData, email: e.target.value})} />
@@ -340,8 +340,8 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Users size={14} style={{ color: 'hsl(var(--primary))' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>Additional Travelers</span>
-                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginLeft: '4px' }}>({formData.passengers.length})</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Additional Travelers</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>({formData.passengers.length})</span>
                       </div>
                       <Button variant="outline" size="sm" icon={Plus} onClick={addPassenger}>Add</Button>
                     </div>
@@ -371,9 +371,9 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
                                 flexDirection: 'column',
                                 gap: '12px',
                                 padding: '16px',
-                                background: 'rgba(255, 255, 255, 0.02)',
+                                background: 'var(--bg-app)',
                                 borderRadius: '16px',
-                                border: '1px solid rgba(255, 255, 255, 0.05)'
+                                border: '1px solid var(--border-color)'
                               }}
                             >
                               {/* Row 1: Names */}
@@ -449,8 +449,8 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <CreditCard size={14} style={{ color: 'hsl(var(--primary))' }} />
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>Payment Methods</span>
-                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginLeft: '4px' }}>({formData.cards.length})</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Payment Methods</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>({formData.cards.length})</span>
                     </div>
                     <Button variant="outline" size="sm" icon={Plus} onClick={addCard}>Add Card</Button>
                   </div>
@@ -477,9 +477,9 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
                             exit={{ opacity: 0, x: 20 }}
                             style={{ 
                               padding: '16px',
-                              background: 'rgba(255, 255, 255, 0.02)',
+                              background: 'var(--bg-app)',
                               borderRadius: '16px',
-                              border: '1px solid rgba(255, 255, 255, 0.05)',
+                              border: '1px solid var(--border-color)',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '12px'
@@ -555,7 +555,7 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
         {/* Modal Footer */}
         <div style={{ 
           padding: '14px 24px', 
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+          borderTop: '1px solid var(--border-color)',
           display: 'flex',
           gap: '10px',
           justifyContent: 'space-between',

@@ -29,7 +29,7 @@ const AgentDashboard = lazyWithRetry(() => import('../features/dashboard/AgentDa
 const UserList = lazyWithRetry(() => import('../features/users/UserList'));
 const ClientList = lazyWithRetry(() => import('../features/clients/ClientList'));
 const ClientProfile = lazyWithRetry(() => import('../features/clients/ClientProfile'));
-const ClientEditPage = lazyWithRetry(() => import('../features/clients/ClientEditPage'));
+import ClientEditPage from '../features/clients/ClientEditPage';
 const BookingsPage = lazyWithRetry(() => import('../features/bookings/BookingsPage'));
 import BookingDetailsPage from '../features/bookings/BookingDetailsPage';
 const AuthApprovalPage = lazyWithRetry(() => import('../features/bookings/AuthApprovalPage'));
@@ -58,7 +58,7 @@ const LazyPage = ({ children }) => (
 const sharedRoutes = [
   { path: 'clients', element: <LazyPage><ClientList /></LazyPage> },
   { path: 'clients/new', element: <RolePathRedirect target="clients" /> },
-  { path: 'clients/:id/edit', element: <LazyPage><ClientEditPage /></LazyPage> },
+  { path: 'clients/:id/edit', element: <ClientEditPage /> },
   { path: 'clients/:id', element: <LazyPage><ClientProfile /></LazyPage> },
   { path: 'bookings', element: <LazyPage><BookingsPage /></LazyPage> },
   { path: 'bookings/new', element: <LazyPage><BookingsPage /></LazyPage> },

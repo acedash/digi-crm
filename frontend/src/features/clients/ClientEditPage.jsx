@@ -12,9 +12,12 @@ const ClientEditPage = () => {
     const basePath = '/' + location.pathname.split('/')[1];
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
+    const isFetchingRef = React.useRef(false);
 
     useEffect(() => {
         const fetchClient = async () => {
+            if (isFetchingRef.current) return;
+            isFetchingRef.current = true;
             try {
                 const res = await clientService.getClient(id);
                 setClient(res.data.data);
@@ -23,10 +26,11 @@ const ClientEditPage = () => {
                 navigate(`${basePath}/clients`);
             } finally {
                 setLoading(false);
+                isFetchingRef.current = false;
             }
         };
         fetchClient();
-    }, [basePath, id]);
+    }, [basePath, id, navigate]);
 
     const handleSuccess = () => {
         navigate(`${basePath}/clients/${id}`);

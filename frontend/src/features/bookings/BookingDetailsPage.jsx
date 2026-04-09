@@ -57,11 +57,14 @@ const BookingDetailsPage = () => {
 
   const resolveImagePath = (path) => {
     if (!path) return '';
-    if (path.toString().startsWith('data:image')) return path;
+    const pathStr = path.toString();
+    if (pathStr.startsWith('data:image') || pathStr.startsWith('http://') || pathStr.startsWith('https://')) {
+      return pathStr;
+    }
     
     // Cleanup any leading slashes and ensure it points to the direct storage path
     // Since symlinks don't work on this shared host, we hit the direct storage folder
-    const cleanPath = path.toString().replace(/^\/+/g, '').replace(/^storage\//, '');
+    const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^storage\//, '');
     return `${BACKEND_BASE_URL}/storage/app/public/${cleanPath}`;
   };
 

@@ -1,7 +1,7 @@
 import api from '../../services/api';
 
 const dashboardService = {
-    getStats: () => api.get('/dashboard/stats'),
+    getStats: (period = 'monthly') => api.get(`/dashboard/stats?period=${period}`),
     getAgentMonitor: () => api.get('/dashboard/agent-monitor'),
     getAdminMonitor: () => api.get('/dashboard/admin-monitor')
 };

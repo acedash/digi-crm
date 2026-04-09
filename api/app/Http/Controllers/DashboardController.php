@@ -19,7 +19,7 @@ class DashboardController extends Controller
         
         // Safer role check
         if ($user->hasRole('admin')) {
-            return $this->getAdminStats();
+            return $this->getAdminStats($request);
         } elseif ($user->hasRole('supervisor')) {
             return $this->getSupervisorStats($user);
         } else {
@@ -27,46 +27,69 @@ class DashboardController extends Controller
         }
     }
 
-    private function getAdminStats()
+    private function getAdminStats(Request $request)
     {
-        $cacheKey = 'dashboard.admin.stats.v2';
+        $period = $request->get('period', 'monthly');
+        $cacheKey = 'dashboard.admin.stats.v3.' . $period;
 
-        $data = Cache::remember($cacheKey, now()->addMinutes(15), function () {
-            $today = now()->toDateString();
-            
-            $startOfMonth = now()->startOfMonth()->toDateTimeString();
-            $endOfMonth = now()->endOfMonth()->toDateTimeString();
-            $startOfPrevMonth = now()->subMonth()->startOfMonth()->toDateTimeString();
-            $endOfPrevMonth = now()->subMonth()->endOfMonth()->toDateTimeString();
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($period) {
+            $now = now();
+            $currentStart = null;
+            $currentEnd = $now->toDateTimeString();
+            $prevStart = null;
+            $prevEnd = null;
 
-            $dailyRevenue = (float) PaymentAuth::query()
-                ->whereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                        ->from('booking_payment_auth')
-                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
-                })
-                ->whereNotNull('collected_at')
-                ->whereDate('collected_at', $today)
-                ->sum('total_amount');
+            switch ($period) {
+                case 'daily':
+                    $currentStart = $now->copy()->startOfDay()->toDateTimeString();
+                    $prevStart = $now->copy()->subDay()->startOfDay()->toDateTimeString();
+                    $prevEnd = $now->copy()->subDay()->endOfDay()->toDateTimeString();
+                    break;
+                case 'weekly':
+                    $currentStart = $now->copy()->subDays(7)->toDateTimeString();
+                    $prevStart = $now->copy()->subDays(14)->toDateTimeString();
+                    $prevEnd = $now->copy()->subDays(7)->toDateTimeString();
+                    break;
+                case 'yearly':
+                    $currentStart = $now->copy()->subYear()->toDateTimeString();
+                    $prevStart = $now->copy()->subYears(2)->toDateTimeString();
+                    $prevEnd = $now->copy()->subYear()->toDateTimeString();
+                    break;
+                case 'monthly':
+                default:
+                    $currentStart = $now->copy()->subDays(30)->toDateTimeString();
+                    $prevStart = $now->copy()->subDays(60)->toDateTimeString();
+                    $prevEnd = $now->copy()->subDays(30)->toDateTimeString();
+                    break;
+            }
 
-            $currentMonthRevenue = (float) Booking::query()
-                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                ->sum('total_amount');
+            $getTrend = function ($modelClass, $cStart, $cEnd, $pStart, $pEnd, $countOnly = true) {
+                $query = $modelClass::query();
+                $current = $countOnly 
+                    ? $query->whereBetween('created_at', [$cStart, $cEnd])->count()
+                    : (float) $query->whereBetween('created_at', [$cStart, $cEnd])->sum('total_amount');
 
-            $previousMonthRevenue = (float) Booking::query()
-                ->whereBetween('created_at', [$startOfPrevMonth, $endOfPrevMonth])
-                ->sum('total_amount');
+                // Fresh query for previous
+                $prevQuery = $modelClass::query();
+                $previous = $countOnly 
+                    ? $prevQuery->whereBetween('created_at', [$pStart, $pEnd])->count()
+                    : (float) $prevQuery->whereBetween('created_at', [$pStart, $pEnd])->sum('total_amount');
 
-            $revenueGrowth = $previousMonthRevenue > 0
-                ? round((($currentMonthRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100, 1)
-                : ($currentMonthRevenue > 0 ? 100.0 : 0.0);
+                $growth = $previous > 0
+                    ? round((($current - $previous) / $previous) * 100, 1)
+                    : ($current > 0 ? 100.0 : 0.0);
+
+                return ['current' => $current, 'previous' => $previous, 'growth' => $growth];
+            };
+
+            $bookingTrend = $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, false);
+            $clientTrend = $getTrend(Client::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
+            $callTrend = $getTrend(CallLog::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
+            $staffTrend = $getTrend(User::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
 
             $recentBookings = Booking::query()
                 ->select(['id', 'booking_reference', 'client_id', 'agent_id', 'status', 'total_amount', 'currency', 'created_at'])
-                ->with([
-                    'client:id,first_name,last_name,name',
-                    'agent:id,name',
-                ])
+                ->with(['client:id,first_name,last_name,name', 'agent:id,name'])
                 ->latest('created_at')
                 ->limit(5)
                 ->get();
@@ -74,47 +97,59 @@ class DashboardController extends Controller
             $chargeQueue = PaymentAuth::query()
                 ->select(['id', 'client_id', 'currency', 'total_amount', 'approved_at', 'metadata', 'consent_snapshot', 'status', 'collected_at'])
                 ->whereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                        ->from('booking_payment_auth')
-                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
+                    $query->select(DB::raw(1))->from('booking_payment_auth')->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
                 })
                 ->where('status', 'Approved')
                 ->whereNull('collected_at')
-                ->with([
-                    'client:id,first_name,last_name,name',
-                    'bookings:id,booking_reference',
-                ])
+                ->with(['client:id,first_name,last_name,name', 'bookings:id,booking_reference'])
                 ->latest('approved_at')
                 ->limit(5)
                 ->get();
 
             $summaryStats = DB::table('users')
                 ->selectRaw("
-                    (SELECT COUNT(*) FROM users) as total_staff,
+                    (SELECT COUNT(*) FROM users) as total_staff_all,
                     (SELECT COUNT(*) FROM users WHERE status IN ('Active', 'On Call', 'active', 'on call')) as active_staff,
-                    (SELECT COUNT(*) FROM clients) as total_clients,
-                    (SELECT COUNT(*) FROM bookings) as total_bookings,
-                    (SELECT COUNT(*) FROM call_logs WHERE log_scope = 'booking') as total_calls,
+                    (SELECT COUNT(*) FROM clients) as total_clients_all,
+                    (SELECT COUNT(*) FROM bookings) as total_bookings_all,
+                    (SELECT COUNT(*) FROM call_logs WHERE log_scope = 'booking') as total_calls_all,
                     (SELECT COUNT(*) FROM bookings WHERE status = 'Pending') as pending_approvals,
                     (SELECT COUNT(*) FROM payment_authorizations pa 
                         WHERE EXISTS (SELECT 1 FROM booking_payment_auth bpa WHERE bpa.payment_auth_id = pa.id)
-                        AND pa.status = 'Approved' 
-                        AND pa.collected_at IS NULL
+                        AND pa.status = 'Approved' AND pa.collected_at IS NULL
                     ) as ready_to_charge
-                ")
-                ->first();
+                ")->first();
 
             return [
-                'total_staff' => (int) $summaryStats->total_staff,
-                'active_staff' => (int) $summaryStats->active_staff,
-                'total_clients' => (int) $summaryStats->total_clients,
-                'total_bookings' => (int) $summaryStats->total_bookings,
-                'total_calls' => (int) $summaryStats->total_calls,
-                'daily_revenue' => $dailyRevenue,
-                'monthly_revenue' => $currentMonthRevenue,
+                'staff' => [
+                    'total' => (int) $summaryStats->total_staff_all,
+                    'active' => (int) $summaryStats->active_staff,
+                    'period_count' => $staffTrend['current'],
+                    'growth' => $staffTrend['growth']
+                ],
+                'clients' => [
+                    'total' => (int) $summaryStats->total_clients_all,
+                    'period_count' => $clientTrend['current'],
+                    'growth' => $clientTrend['growth']
+                ],
+                'bookings' => [
+                    'total' => (int) $summaryStats->total_bookings_all,
+                    'period_count' => (int) $bookingTrend['current'], // This is revenue for bookings card usually, but user asked for booking statics % change
+                    'count_trend' => $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, true),
+                    'growth' => $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, true)['growth']
+                ],
+                'calls' => [
+                    'total' => (int) $summaryStats->total_calls_all,
+                    'period_count' => $callTrend['current'],
+                    'growth' => $callTrend['growth']
+                ],
+                'revenue' => [
+                    'daily' => (float) PaymentAuth::whereNotNull('collected_at')->whereDate('collected_at', now()->toDateString())->sum('total_amount'),
+                    'period_total' => $bookingTrend['current'],
+                    'growth' => $bookingTrend['growth']
+                ],
                 'pending_approvals' => (int) $summaryStats->pending_approvals,
                 'ready_to_charge' => (int) $summaryStats->ready_to_charge,
-                'revenue_growth' => $revenueGrowth,
                 'recent_bookings' => $recentBookings,
                 'charge_queue' => $chargeQueue,
                 'cache_timestamp' => now()->toDateTimeString(),
