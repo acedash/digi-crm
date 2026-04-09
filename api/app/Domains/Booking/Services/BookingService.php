@@ -5,7 +5,6 @@ namespace App\Domains\Booking\Services;
 use App\Domains\Booking\Repositories\BookingRepository;
 use App\Domains\Booking\Services\BookingOrchestrator;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class BookingService
@@ -81,10 +80,7 @@ class BookingService
 
     public function getById($id)
     {
-        $cacheKey = 'booking.detail.' . $id;
-        $booking = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($id) {
-            return $this->bookingRepo->findDetailed($id);
-        });
+        $booking = $this->bookingRepo->findDetailed($id);
 
         if (! $booking) {
             return null;

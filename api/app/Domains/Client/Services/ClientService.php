@@ -5,7 +5,6 @@ namespace App\Domains\Client\Services;
 use App\Domains\Client\Repositories\ClientRepository;
 use App\Models\Client;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class ClientService
@@ -31,9 +30,7 @@ class ClientService
 
     public function getClient($id): Client
     {
-        return Cache::remember('client.detail.' . $id, now()->addSeconds(30), function () use ($id) {
-            return $this->clientRepository->find($id);
-        });
+        return $this->clientRepository->find($id);
     }
 
     public function createClient(array $data): Client

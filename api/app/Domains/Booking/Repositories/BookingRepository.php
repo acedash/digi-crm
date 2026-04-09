@@ -37,33 +37,11 @@ class BookingRepository extends BaseRepository
     public function findDetailed($id): ?Booking
     {
         return $this->model->query()
-            ->select([
-                'id',
-                'client_id',
-                'agent_id',
-                'booking_reference',
-                'status',
-                'total_amount',
-                'currency',
-                'details_json',
-                'created_at',
-            ])
             ->with([
-                'client:id,first_name,middle_name,last_name,name,email,alternate_email,phone,alternate_phone,date_of_birth,gender,address',
-                'agent:id,name',
-                'passengers:id,first_name,middle_name,last_name,date_of_birth,gender,type',
-                'services' => function ($query) {
-                    $query->select([
-                        'id',
-                        'booking_id',
-                        'serviceable_id',
-                        'serviceable_type',
-                        'cost_price',
-                        'sell_price',
-                        'markup',
-                        'details_json',
-                    ]);
-                },
+                'client',
+                'agent',
+                'passengers',
+                'services',
                 'services.serviceable',
             ])
             ->find($id);

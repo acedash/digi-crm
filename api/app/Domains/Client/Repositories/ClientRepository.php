@@ -125,59 +125,16 @@ class ClientRepository extends BaseRepository
     {
         /** @var Client $client */
         $client = $this->model->query()
-            ->select([
-                'id',
-                'agent_id',
-                'created_by',
-                'name',
-                'first_name',
-                'middle_name',
-                'last_name',
-                'email',
-                'alternate_email',
-                'phone',
-                'alternate_phone',
-                'date_of_birth',
-                'gender',
-                'address',
-                'type',
-                'created_at',
-            ])
             ->with([
-                'agent:id,name',
-                'creator:id,name',
-                'passengers:id,client_id,first_name,last_name,date_of_birth,gender,type',
-                'cards:id,client_id,card_holder_name,card_number,expiry_month,expiry_year,card_type,cvv,is_primary',
-                'bookings' => function ($query) {
-                    $query->select([
-                        'id',
-                        'client_id',
-                        'agent_id',
-                        'booking_reference',
-                        'status',
-                        'total_amount',
-                        'currency',
-                        'details_json',
-                        'created_at',
-                    ])->with([
-                        'services:id,booking_id,serviceable_id,serviceable_type',
-                        'services.serviceable',
-                    ]);
-                },
+                'agent',
+                'creator',
+                'passengers',
+                'cards',
+                'bookings.services.serviceable',
                 'callLogs' => function ($query) {
-                    $query->select([
-                        'id',
-                        'client_id',
-                        'agent_id',
-                        'call_type',
-                        'customer_outcome',
-                        'callback_required',
-                        'callback_datetime',
-                        'notes',
-                        'created_at',
-                    ])->latest('created_at');
+                    $query->latest('created_at');
                 },
-                'callLogs.agent:id,name',
+                'callLogs.agent',
             ])
             ->findOrFail($id);
         return $client;
