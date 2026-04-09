@@ -36,7 +36,7 @@ const buildStoredImagePreview = (path) => {
   if (!path) return '';
   if (String(path).startsWith('data:image')) return path;
   if (String(path).startsWith('http://') || String(path).startsWith('https://')) return path;
-  return `${BACKEND_BASE_URL}/storage/${String(path).replace(/^\/+/, '')}`;
+  return `${BACKEND_BASE_URL}/uploads/${String(path).replace(/^\/+/, '')}`;
 };
 
 const normalizeFlightSegments = (segments = []) => {

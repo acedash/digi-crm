@@ -163,6 +163,7 @@ class UserActivityController extends Controller
         $tz = config('app.timezone');
         
         $activities = UserActivity::where('user_id', $user->id)
+            ->where('created_at', '>=', now()->subDays(60)) // Limit to last 60 days for performance
             ->orderBy('created_at', 'asc')
             ->get()
             ->groupBy(function($act) use ($tz) {

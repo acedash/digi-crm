@@ -241,7 +241,7 @@ const BookingDetailsPage = () => {
 
                     {service.serviceable_type?.includes('Flight') && service.serviceable?.ticket_image ? (
                       <img
-                        src={`${BACKEND_BASE_URL}/storage/${service.serviceable.ticket_image}`}
+                        src={`${BACKEND_BASE_URL}/uploads/${service.serviceable.ticket_image}`}
                         alt="Ticket"
                         style={{ width: '100%', borderRadius: '14px', border: '1px solid var(--border-color)', marginBottom: '12px' }}
                       />
@@ -294,7 +294,7 @@ const BookingDetailsPage = () => {
                             </div>
                             {segment.ticket_image ? (
                               <img
-                                src={segment.ticket_image.startsWith('data:image') ? segment.ticket_image : `${BACKEND_BASE_URL}/storage/${segment.ticket_image}`}
+                                src={segment.ticket_image.startsWith('data:image') ? segment.ticket_image : `${BACKEND_BASE_URL}/uploads/${segment.ticket_image}`}
                                 alt={`Ticket segment ${index + 1}`}
                                 style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '10px' }}
                               />

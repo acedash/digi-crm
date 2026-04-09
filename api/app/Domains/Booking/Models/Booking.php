@@ -40,38 +40,24 @@ class Booking extends Model
 
     public function getTravelDateAttribute()
     {
+        // Check if services relation is loaded to avoid N+1 queries
         if ($this->relationLoaded('services')) {
             $flightService = $this->services->first(function ($service) {
-                return $service->serviceable_type === 'App\\Domains\\Booking\\Models\\Flight';
+                // Use class name directly or check part of the string to avoid FQCN mismatch issues
+                return str_contains($service->serviceable_type, 'Flight');
             });
 
             if ($flightService) {
-                $loadedFlight = $flightService->relationLoaded('serviceable')
-                    ? $flightService->serviceable
-                    : null;
-
-                if ($loadedFlight && isset($loadedFlight->departure_at)) {
-                    return $loadedFlight->departure_at;
+                // Check if the polymorphic manageable relation 'serviceable' is also loaded
+                if ($flightService->relationLoaded('serviceable') && $flightService->serviceable) {
+                    return $flightService->serviceable->departure_at ?? $this->created_at;
                 }
 
+                // Fallback to segments in details_json if serviceable is not loaded
                 $segmentDeparture = data_get($flightService->details_json, 'segments.0.departure_at');
                 if ($segmentDeparture) {
                     return $segmentDeparture;
                 }
-            }
-
-            return $this->created_at;
-        }
-
-        $flightService = $this->services()
-            ->where('serviceable_type', 'App\Domains\Booking\Models\Flight')
-            ->first();
-
-        if ($flightService) {
-            /** @var \App\Domains\Booking\Models\Flight|null $flight */
-            $flight = $flightService->serviceable;
-            if ($flight && isset($flight->departure_at)) {
-                return $flight->departure_at;
             }
         }
 

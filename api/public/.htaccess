@@ -21,5 +21,6 @@
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} !\.(?:css|js|jpe?g|gif|png|ico|svg|woff2?|webp|mp4|webm|pdf)$ [NC]
     RewriteRule ^ index.php [L]
 </IfModule>
