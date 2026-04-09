@@ -71,6 +71,7 @@ const router = createBrowserRouter([
           { path: 'call-logs', element: <RolePathRedirect target="call-logs" /> },
           { path: 'activity', element: <RolePathRedirect target="activity" /> },
           { path: 'team-monitor', element: <RolePathRedirect target="team-monitor" /> },
+          { path: 'settings', element: <RolePathRedirect target="settings" /> },
           {
             path: 'dashboard',
             element: <ProtectedRoute allowedRoles={['admin', 'supervisor', 'agent']} />,
@@ -103,6 +104,7 @@ const router = createBrowserRouter([
               { path: 'dashboard', element: <SupervisorDashboard /> },
               { path: 'activity', element: <ActivityLogs /> },
               { path: 'team-monitor', element: <AgentMonitorPage /> },
+              { path: 'settings', element: <SettingsPage /> },
               { path: 'masters', children: [{ index: true, element: <MasterList /> }] },
               ...sharedRoutes
             ]
@@ -113,6 +115,7 @@ const router = createBrowserRouter([
             children: [
               { path: 'dashboard', element: <AgentDashboard /> },
               { path: 'activity', element: <ActivityLogs /> },
+              { path: 'settings', element: <SettingsPage /> },
               ...sharedRoutes
             ]
           }

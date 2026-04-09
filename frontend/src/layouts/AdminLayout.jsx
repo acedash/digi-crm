@@ -134,7 +134,7 @@ const AdminLayout = () => {
     { label: 'Charge Queue', path: '/admin/charge-queue', icon: ClipboardList, roles: ['admin'] },
     { label: 'System Users', path: '/admin/users', icon: Settings, roles: ['admin'] },
     { label: 'System Audit', path: '/admin/system-audit', icon: Shield, roles: ['admin'] },
-    { label: 'Settings', path: '/admin/settings', icon: Mail, roles: ['admin'] },
+    { label: 'Settings', path: `${basePath}/settings`, icon: Mail, roles: ['admin', 'supervisor', 'agent'] },
   ];
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>

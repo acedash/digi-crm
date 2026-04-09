@@ -5,6 +5,7 @@ import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Toast from '../../components/ui/Toast';
 import settingsService from './settingsService';
+import { useAuthStore } from '../auth/useAuthStore';
 
 const defaultForm = {
   host: '',
@@ -38,6 +39,9 @@ const termsHtmlToPlainText = (value = '') => {
 };
 
 const SettingsPage = () => {
+  const { user } = useAuthStore();
+  const activeRole = typeof user?.roles?.[0] === 'object' ? user.roles[0].name : user?.roles?.[0];
+  const isAdmin = activeRole === 'admin';
   const [form, setForm] = useState(defaultForm);
   const [templates, setTemplates] = useState([]);
   const [activeTemplateKey, setActiveTemplateKey] = useState('authorization');
@@ -51,6 +55,11 @@ const SettingsPage = () => {
   }, []);
 
   const loadSettings = async () => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const [mailResponse, templatesResponse] = await Promise.all([
@@ -95,6 +104,7 @@ const SettingsPage = () => {
   };
 
   const handleSubmit = async () => {
+    if (!isAdmin) return;
     try {
       setSaving(true);
       await settingsService.updateMailSettings({
@@ -115,6 +125,7 @@ const SettingsPage = () => {
   };
 
   const handleTemplateSubmit = async () => {
+    if (!isAdmin) return;
     try {
       setSavingTemplates(true);
       const response = await settingsService.updateMailTemplates(templates);
@@ -147,10 +158,33 @@ const SettingsPage = () => {
           Settings
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          Configure SMTP so booking authorization emails can be sent from the CRM.
+          {isAdmin
+            ? 'Configure SMTP and email templates for the CRM.'
+            : 'Review your account and workspace preferences.'}
         </p>
       </div>
 
+      {!isAdmin ? (
+        <>
+          <Card title="Account Overview" subtitle="Your current CRM access" icon={ShieldCheck}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <Input label="Name" value={user?.name || ''} disabled />
+              <Input label="Email" value={user?.email || ''} disabled />
+              <Input label="Role" value={activeRole || 'User'} disabled />
+              <Input label="Status" value={user?.status || 'Active'} disabled />
+            </div>
+          </Card>
+
+          <Card title="Workspace Preferences" subtitle="Available settings for your role" icon={Mail}>
+            <div style={{ display: 'grid', gap: '12px', color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.7 }}>
+              <div>Theme mode can be changed anytime from the toggle in the top bar.</div>
+              <div>SMTP configuration and customer email templates are available only to admin users.</div>
+              <div>If you need email or system-setting changes, please contact your admin.</div>
+            </div>
+          </Card>
+        </>
+      ) : (
+        <>
       <Card title="SMTP Configuration" subtitle="Mail server used for customer approval emails" icon={Mail}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '16px' }}>
           <Input
@@ -414,6 +448,8 @@ const SettingsPage = () => {
           ) : null}
         </div>
       </Card>
+        </>
+      )}
 
       <Toast
         message={toast.message}
