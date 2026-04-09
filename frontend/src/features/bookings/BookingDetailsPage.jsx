@@ -31,11 +31,14 @@ const BookingDetailsPage = () => {
   const basePath = '/' + location.pathname.split('/')[1];
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isFetchingRef = React.useRef(false);
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const [showCards, setShowCards] = useState({});
 
   const fetchBooking = useCallback(async () => {
+    if (isFetchingRef.current) return;
     try {
+      isFetchingRef.current = true;
       setLoading(true);
       const response = await bookingService.getBooking(id);
       setBooking(response.data?.data || null);
@@ -44,12 +47,23 @@ const BookingDetailsPage = () => {
       setToast({ message: 'Failed to load booking details.', type: 'error' });
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [id]);
 
   useEffect(() => {
     fetchBooking();
-  }, [fetchBooking]);
+  }, [id, fetchBooking]);
+
+  const resolveImagePath = (path) => {
+    if (!path) return '';
+    if (path.toString().startsWith('data:image')) return path;
+    
+    // Cleanup any leading slashes and ensure it points to /uploads
+    // This handles legacy paths that might contain 'storage/' or just the filename
+    const cleanPath = path.toString().replace(/^\/+/g, '').replace(/^storage\//, '');
+    return `${BACKEND_BASE_URL}/uploads/${cleanPath}`;
+  };
 
   const getServiceIcon = (serviceableType = '') => {
     if (serviceableType.includes('Flight')) return Plane;
@@ -241,7 +255,7 @@ const BookingDetailsPage = () => {
 
                     {service.serviceable_type?.includes('Flight') && service.serviceable?.ticket_image ? (
                       <img
-                        src={`${BACKEND_BASE_URL}/uploads/${service.serviceable.ticket_image}`}
+                        src={resolveImagePath(service.serviceable.ticket_image)}
                         alt="Ticket"
                         style={{ width: '100%', borderRadius: '14px', border: '1px solid var(--border-color)', marginBottom: '12px' }}
                       />
@@ -294,7 +308,7 @@ const BookingDetailsPage = () => {
                             </div>
                             {segment.ticket_image ? (
                               <img
-                                src={segment.ticket_image.startsWith('data:image') ? segment.ticket_image : `${BACKEND_BASE_URL}/uploads/${segment.ticket_image}`}
+                                src={resolveImagePath(segment.ticket_image)}
                                 alt={`Ticket segment ${index + 1}`}
                                 style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '10px' }}
                               />
@@ -317,7 +331,7 @@ const BookingDetailsPage = () => {
                         {service.details_json.images.map((image, index) => (
                           <img
                             key={`${service.id}-hotel-image-${index}`}
-                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/uploads/${image}`}
+                            src={resolveImagePath(image)}
                             alt={`Hotel ${index + 1}`}
                             style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '12px', border: '1px solid var(--border-color)' }}
                           />
@@ -330,7 +344,7 @@ const BookingDetailsPage = () => {
                         {service.details_json.images.map((image, index) => (
                           <img
                             key={`${service.id}-car-image-${index}`}
-                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/uploads/${image}`}
+                            src={resolveImagePath(image)}
                             alt={`Car ${index + 1}`}
                             style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '12px', border: '1px solid var(--border-color)' }}
                           />
@@ -343,7 +357,7 @@ const BookingDetailsPage = () => {
                         {service.details_json.images.map((image, index) => (
                           <img
                             key={`${service.id}-cruise-image-${index}`}
-                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/uploads/${image}`}
+                            src={resolveImagePath(image)}
                             alt={`Cruise ${index + 1}`}
                             style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '12px', border: '1px solid var(--border-color)' }}
                           />

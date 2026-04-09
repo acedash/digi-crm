@@ -44,6 +44,18 @@ const SectionCard = ({ icon, title, children, iconColor = '#2563eb' }) => {
 const ConsentProofPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  
+  const BACKEND_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://127.0.0.1:8001'
+    : 'https://lightyellow-vulture-726958.hostingersite.com/api';
+
+  const resolveImagePath = (path) => {
+    if (!path) return '';
+    if (path.toString().startsWith('data:image')) return path;
+    const cleanPath = path.toString().replace(/^\/+/g, '').replace(/^storage\//, '');
+    return `${BACKEND_BASE_URL}/uploads/${cleanPath}`;
+  };
+
   const proofContentRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [proof, setProof] = useState(null);
@@ -314,7 +326,7 @@ const ConsentProofPage = () => {
           <SectionCard icon={Fingerprint} title="Digital Signature" iconColor="#d97706">
             {proof.digital_signature ? (
               <img
-                src={proof.digital_signature}
+                src={resolveImagePath(proof.digital_signature)}
                 alt="Digital signature"
                 style={{ width: '100%', borderRadius: '16px', border: '1px solid var(--border-color)', background: '#fff' }}
               />
@@ -422,7 +434,7 @@ const ConsentProofPage = () => {
             {(snapshot.ticket_images || []).length ? snapshot.ticket_images.map((ticket, index) => (
               <div key={`${ticket.booking_reference}-${index}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
                 <div style={{ fontWeight: 700, marginBottom: '12px' }}>{ticket.booking_reference}</div>
-                <img src={ticket.url} alt={ticket.booking_reference} style={{ width: '100%', borderRadius: '14px', border: '1px solid var(--border-color)' }} />
+                <img src={resolveImagePath(ticket.url || ticket.path)} alt={ticket.booking_reference} style={{ width: '100%', borderRadius: '14px', border: '1px solid var(--border-color)' }} />
               </div>
             )) : (
               <p style={{ color: 'var(--text-muted)' }}>No ticket images stored in this proof snapshot.</p>

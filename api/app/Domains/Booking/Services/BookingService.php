@@ -108,6 +108,16 @@ class BookingService
         $creatorId = (int) data_get($booking->details_json, 'created_by_id');
         $canViewSensitiveCards = $creatorId > 0 && $creatorId === (int) $user->id;
 
+        // Optimization: Reduce JSON payload size by stripping excessive history
+        // if it exceeds a certain complexity threshold.
+        $details = $booking->details_json ?? [];
+        if (isset($details['service_change_history']) && count($details['service_change_history']) > 10) {
+            // Keep only the last 3 entries in memory for the main view to keep response small
+            $details['service_change_history'] = array_slice($details['service_change_history'], -3);
+            $details['has_more_history'] = true;
+            $booking->details_json = $details;
+        }
+
         return $this->attachCardPermissions($booking, $canViewSensitiveCards);
     }
 

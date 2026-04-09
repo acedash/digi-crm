@@ -51,7 +51,7 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [availableAgents, setAvailableAgents] = useState([]);
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const [sendingApprovalId, setSendingApprovalId] = useState(null);
-  const [sendingTemplateAction, setSendingTemplateAction] = useState(null);
+  const isFetchingRef = React.useRef(false);
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
@@ -69,7 +69,9 @@ const BookingList = ({ onCreate, onEdit }) => {
   }, [searchTerm]);
 
   const fetchBookings = useCallback(async (page = 1) => {
+    if (isFetchingRef.current) return;
     try {
+      isFetchingRef.current = true;
       setLoading(true);
       const response = await bookingService.getBookings({ 
         page, 
@@ -93,12 +95,13 @@ const BookingList = ({ onCreate, onEdit }) => {
       console.error('Failed to fetch bookings:', error);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [pagination.per_page, debouncedSearchTerm]);
 
   useEffect(() => {
     fetchBookings(pagination.current_page);
-  }, [fetchBookings, pagination.current_page]);
+  }, [pagination.current_page, fetchBookings]);
 
   useEffect(() => {
     const flash = routeLocation.state?.flash;
