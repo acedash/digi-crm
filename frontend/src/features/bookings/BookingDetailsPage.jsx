@@ -59,10 +59,10 @@ const BookingDetailsPage = () => {
     if (!path) return '';
     if (path.toString().startsWith('data:image')) return path;
     
-    // Cleanup any leading slashes and ensure it points to /uploads
-    // This handles legacy paths that might contain 'storage/' or just the filename
+    // Cleanup any leading slashes and ensure it points to the direct storage path
+    // Since symlinks don't work on this shared host, we hit the direct storage folder
     const cleanPath = path.toString().replace(/^\/+/g, '').replace(/^storage\//, '');
-    return `${BACKEND_BASE_URL}/uploads/${cleanPath}`;
+    return `${BACKEND_BASE_URL}/storage/app/public/${cleanPath}`;
   };
 
   const getServiceIcon = (serviceableType = '') => {

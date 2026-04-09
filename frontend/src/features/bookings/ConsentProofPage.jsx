@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, ShieldCheck, Mail, Globe, Clock3, Fingerprint, RefreshCcw, CreditCard } from 'lucide-react';
 import paymentAuthService from './paymentAuthService';
+import { BACKEND_BASE_URL } from '../../services/api';
 import Button from '../../components/ui/Button';
 import sensitiveAuditService from '../../services/sensitiveAuditService';
 
@@ -45,15 +46,11 @@ const ConsentProofPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   
-  const BACKEND_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://127.0.0.1:8001'
-    : 'https://lightyellow-vulture-726958.hostingersite.com/api';
-
   const resolveImagePath = (path) => {
     if (!path) return '';
     if (path.toString().startsWith('data:image')) return path;
     const cleanPath = path.toString().replace(/^\/+/g, '').replace(/^storage\//, '');
-    return `${BACKEND_BASE_URL}/uploads/${cleanPath}`;
+    return `${BACKEND_BASE_URL}/storage/app/public/${cleanPath}`;
   };
 
   const proofContentRef = useRef(null);
