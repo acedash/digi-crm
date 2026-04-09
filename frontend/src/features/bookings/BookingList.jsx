@@ -51,6 +51,7 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [availableAgents, setAvailableAgents] = useState([]);
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const [sendingApprovalId, setSendingApprovalId] = useState(null);
+  const [sendingTemplateAction, setSendingTemplateAction] = useState(null);
   const isFetchingRef = React.useRef(false);
   const [pagination, setPagination] = useState({
     current_page: 1,
