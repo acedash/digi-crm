@@ -119,45 +119,42 @@ class DashboardController extends Controller
 
     private function getSupervisorStats($user)
     {
-        $agentIds = $user->supervisedAgents()->pluck('users.id')->toArray();
-        $teamIds = array_merge([$user->id], $agentIds);
-        $weeklyThreshold = now()->subDays(7);
-        $agents = User::role('agent')
-            ->whereHas('supervisors', function ($query) use ($user) {
-                $query->where('users.id', $user->id);
-            })
-            ->withCount([
-                'bookings',
-                'bookings as weekly_bookings_count' => function ($query) use ($weeklyThreshold) {
-                    $query->where('created_at', '>=', $weeklyThreshold);
-                },
-            ])
-            ->get();
+        $cacheKey = 'dashboard.supervisor.stats.' . $user->id;
 
-        $callCounts = CallLog::select('agent_id', DB::raw('COUNT(*) as total_calls'))
-            ->whereIn('agent_id', $agentIds)
-            ->where('log_scope', 'booking')
-            ->groupBy('agent_id')
-            ->pluck('total_calls', 'agent_id');
+        $data = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($user) {
+            $agentIds = $user->supervisedAgents()->pluck('users.id')->toArray();
+            $teamIds = array_values(array_unique(array_merge([$user->id], $agentIds)));
+            $weeklyThreshold = now()->subDays(7);
 
-        $airlineInquiryCounts = CallLog::select('agent_id', DB::raw('COUNT(*) as airline_inquiries'))
-            ->whereIn('agent_id', $agentIds)
-            ->where('log_scope', 'booking')
-            ->whereNotNull('airline_inquiry')
-            ->where('airline_inquiry', '!=', '')
-            ->groupBy('agent_id')
-            ->pluck('airline_inquiries', 'agent_id');
+            $agents = User::role('agent')
+                ->whereHas('supervisors', function ($query) use ($user) {
+                    $query->where('users.id', $user->id);
+                })
+                ->withCount([
+                    'bookings',
+                    'bookings as weekly_bookings_count' => function ($query) use ($weeklyThreshold) {
+                        $query->where('created_at', '>=', $weeklyThreshold);
+                    },
+                ])
+                ->get(['id', 'name', 'email', 'status']);
 
-        $recentInquiries = CallLog::with(['agent:id,name', 'client:id,name,first_name,last_name'])
-            ->whereIn('agent_id', $agentIds)
-            ->where('log_scope', 'booking')
-            ->latest()
-            ->take(5)
-            ->get();
+            $callCounts = CallLog::query()
+                ->select('agent_id', DB::raw('COUNT(*) as total_calls'))
+                ->whereIn('agent_id', $agentIds)
+                ->where('log_scope', 'booking')
+                ->groupBy('agent_id')
+                ->pluck('total_calls', 'agent_id');
 
-        return response()->json([
-            'success' => true,
-            'data' => [
+            $airlineInquiryCounts = CallLog::query()
+                ->select('agent_id', DB::raw('COUNT(*) as airline_inquiries'))
+                ->whereIn('agent_id', $agentIds)
+                ->where('log_scope', 'booking')
+                ->whereNotNull('airline_inquiry')
+                ->where('airline_inquiry', '!=', '')
+                ->groupBy('agent_id')
+                ->pluck('airline_inquiries', 'agent_id');
+
+            return [
                 'total_clients' => Client::whereIn('agent_id', $teamIds)
                     ->whereHas('bookings')
                     ->count(),
@@ -185,32 +182,58 @@ class DashboardController extends Controller
                         'airline_inquiries_count' => (int) ($airlineInquiryCounts[$agent->id] ?? 0),
                     ];
                 })->values(),
-                'recent_bookings' => Booking::with(['client', 'agent:id,name'])
+                'recent_bookings' => Booking::query()
+                    ->select(['id', 'booking_reference', 'client_id', 'agent_id', 'status', 'total_amount', 'currency', 'created_at'])
+                    ->with(['client:id,first_name,last_name,name', 'agent:id,name'])
                     ->whereIn('agent_id', $teamIds)
-                    ->latest()
+                    ->latest('created_at')
                     ->take(5)
                     ->get(),
-                'recent_inquiries' => $recentInquiries,
-            ]
+                'recent_inquiries' => CallLog::query()
+                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'airline_inquiry', 'call_type', 'outcome'])
+                    ->with(['agent:id,name', 'client:id,name,first_name,last_name'])
+                    ->whereIn('agent_id', $agentIds)
+                    ->where('log_scope', 'booking')
+                    ->latest('created_at')
+                    ->take(5)
+                    ->get(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
         ]);
     }
 
     private function getAgentStats($user)
     {
-        $dailyRevenue = (float) Booking::where('agent_id', $user->id)
-            ->whereDate('created_at', now()->toDateString())
-            ->sum('total_amount');
+        $cacheKey = 'dashboard.agent.stats.' . $user->id;
 
-        return response()->json([
-            'success' => true,
-            'data' => [
+        $data = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($user) {
+            $dailyRevenue = (float) Booking::where('agent_id', $user->id)
+                ->whereDate('created_at', now()->toDateString())
+                ->sum('total_amount');
+
+            return [
                 'my_bookings_count' => Booking::where('agent_id', $user->id)->count(),
                 'my_revenue' => (float) Booking::where('agent_id', $user->id)->sum('total_amount'),
                 'daily_revenue' => $dailyRevenue,
                 'my_calls' => CallLog::where('agent_id', $user->id)->where('log_scope', 'booking')->count(),
-                'recent_logs' => CallLog::where('agent_id', $user->id)->where('log_scope', 'booking')->latest()->take(5)->get(),
-                'daily_target' => 75
-            ]
+                'recent_logs' => CallLog::query()
+                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'call_type', 'outcome', 'airline_inquiry', 'notes'])
+                    ->where('agent_id', $user->id)
+                    ->where('log_scope', 'booking')
+                    ->latest('created_at')
+                    ->take(5)
+                    ->get(),
+                'daily_target' => 75,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
         ]);
     }
 
@@ -228,76 +251,90 @@ class DashboardController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $tz = config('app.timezone');
+        $cacheKey = 'dashboard.agent-monitor.' . ($user->hasRole('admin') ? 'admin' : 'supervisor.' . $user->id);
 
-        $activityData = $agents->map(function($agent) use ($tz) {
-            $activities = \App\Models\UserActivity::where('user_id', $agent->id)
-                ->whereDate('created_at', now()->timezone($tz)->format('Y-m-d'))
+        $activityData = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($agents) {
+            $tz = config('app.timezone');
+            $today = now()->timezone($tz)->format('Y-m-d');
+            $agentIds = $agents->pluck('id')->all();
+
+            $activitiesByUser = \App\Models\UserActivity::query()
+                ->whereIn('user_id', $agentIds)
+                ->whereDate('created_at', $today)
                 ->orderBy('created_at', 'asc')
-                ->get();
-            
-            $loginActivity = $activities->firstWhere('activity_type', 'login');
-            $loginTime = $loginActivity ? $loginActivity->created_at->timezone($tz)->format('h:i A') : '--';
+                ->get()
+                ->groupBy('user_id');
 
-            $breakSeconds = 0;
-            $currentSegmentStart = null;
-            $currentSegmentType = null;
+            $callCounts = CallLog::query()
+                ->select('agent_id', DB::raw('COUNT(*) as total_calls'))
+                ->whereIn('agent_id', $agentIds)
+                ->where('log_scope', 'booking')
+                ->whereDate('created_at', $today)
+                ->groupBy('agent_id')
+                ->pluck('total_calls', 'agent_id');
 
-            foreach ($activities as $activity) {
-                $type = $activity->activity_type;
-                $state = 'active';
-                if ($type === 'break_start') $state = 'break';
-                elseif ($type === 'on_call') $state = 'on_call';
-                elseif ($type === 'idle') $state = 'idle';
-                elseif ($type === 'logout') $state = 'offline';
+            $bookingStats = Booking::query()
+                ->select('agent_id', DB::raw('COUNT(*) as bookings_created'), DB::raw('COALESCE(SUM(total_amount), 0) as daily_revenue'))
+                ->whereIn('agent_id', $agentIds)
+                ->whereDate('created_at', $today)
+                ->groupBy('agent_id')
+                ->get()
+                ->keyBy('agent_id');
+
+            return $agents->map(function ($agent) use ($activitiesByUser, $callCounts, $bookingStats, $tz) {
+                $activities = $activitiesByUser->get($agent->id, collect());
+                $loginActivity = $activities->firstWhere('activity_type', 'login');
+                $loginTime = $loginActivity ? $loginActivity->created_at->timezone($tz)->format('h:i A') : '--';
+
+                $breakSeconds = 0;
+                $currentSegmentStart = null;
+                $currentSegmentType = null;
+
+                foreach ($activities as $activity) {
+                    $type = $activity->activity_type;
+                    $state = 'active';
+                    if ($type === 'break_start') $state = 'break';
+                    elseif ($type === 'on_call') $state = 'on_call';
+                    elseif ($type === 'idle') $state = 'idle';
+                    elseif ($type === 'logout') $state = 'offline';
+
+                    if ($currentSegmentStart && $currentSegmentType === 'break') {
+                        $breakSeconds += abs($activity->created_at->diffInSeconds($currentSegmentStart));
+                    }
+
+                    if ($state !== 'offline') {
+                        $currentSegmentStart = $activity->created_at;
+                        $currentSegmentType = $state;
+                    } else {
+                        $currentSegmentStart = null;
+                        $currentSegmentType = null;
+                    }
+                }
 
                 if ($currentSegmentStart && $currentSegmentType === 'break') {
-                    $breakSeconds += abs($activity->created_at->diffInSeconds($currentSegmentStart));
+                    $breakSeconds += abs(now()->diffInSeconds($currentSegmentStart));
                 }
 
-                if ($state !== 'offline') {
-                    $currentSegmentStart = $activity->created_at;
-                    $currentSegmentType = $state;
-                } else {
-                    $currentSegmentStart = null;
-                    $currentSegmentType = null;
+                $breakFormatted = $breakSeconds > 0 ? floor($breakSeconds / 60) . ' min' : '--';
+                if ($breakSeconds >= 3600) {
+                    $hours = floor($breakSeconds / 3600);
+                    $mins = floor(($breakSeconds % 3600) / 60);
+                    $breakFormatted = "{$hours}h {$mins}m";
                 }
-            }
 
-            if ($currentSegmentStart && $currentSegmentType === 'break') {
-                $breakSeconds += abs(now()->diffInSeconds($currentSegmentStart));
-            }
+                $stats = $bookingStats->get($agent->id);
 
-            $callsPicked = CallLog::where('agent_id', $agent->id)
-                ->where('log_scope', 'booking')
-                ->whereDate('created_at', now()->timezone($tz)->format('Y-m-d'))
-                ->count();
-
-            $bookingsCreated = Booking::where('agent_id', $agent->id)
-                ->whereDate('created_at', now()->timezone($tz)->format('Y-m-d'))
-                ->count();
-
-            $dailyRevenue = (float) Booking::where('agent_id', $agent->id)
-                ->whereDate('created_at', now()->timezone($tz)->format('Y-m-d'))
-                ->sum('total_amount');
-
-            $breakFormatted = $breakSeconds > 0 ? floor($breakSeconds / 60) . ' min' : '--';
-            if ($breakSeconds >= 3600) {
-                $hours = floor($breakSeconds / 3600);
-                $mins = floor(($breakSeconds % 3600) / 60);
-                $breakFormatted = "{$hours}h {$mins}m";
-            }
-
-            return [
-                'id' => $agent->id,
-                'agent_name' => $agent->name,
-                'login_time' => $loginTime,
-                'status' => $agent->status ?? 'Offline',
-                'calls_picked' => $callsPicked,
-                'bookings_created' => $bookingsCreated,
-                'daily_revenue' => $dailyRevenue,
-                'break_time' => $breakFormatted
-            ];
+                return [
+                    'id' => $agent->id,
+                    'agent_name' => $agent->name,
+                    'login_time' => $loginTime,
+                    'status' => $agent->status ?? 'Offline',
+                    'calls_picked' => (int) ($callCounts[$agent->id] ?? 0),
+                    'bookings_created' => (int) ($stats->bookings_created ?? 0),
+                    'daily_revenue' => (float) ($stats->daily_revenue ?? 0),
+                    'break_time' => $breakFormatted,
+                ];
+            })->values();
         });
 
         return response()->json([
@@ -313,27 +350,27 @@ class DashboardController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $supervisors = User::role('supervisor')->get();
-        
-        $data = $supervisors->map(function($sup) {
-            $agents = $sup->supervisedAgents()->get();
-            $totalAgents = $agents->count();
-            // Count active or on call
-            $active = $agents->filter(function($agent) {
-                return in_array(strtolower($agent->status), ['active', 'on call']);
-            })->count();
-            
-            $onBreak = $agents->filter(function($agent) {
-                return strtolower($agent->status) === 'break';
-            })->count();
-            
-            return [
-                'id' => $sup->id,
-                'supervisor_name' => $sup->name,
-                'total_agents' => $totalAgents,
-                'active_agents' => $active,
-                'on_break' => $onBreak,
-            ];
+        $data = Cache::remember('dashboard.admin-monitor', now()->addSeconds(30), function () {
+            $supervisors = User::role('supervisor')->get(['id', 'name']);
+
+            return $supervisors->map(function ($sup) {
+                $agents = $sup->supervisedAgents()->get(['users.id', 'users.status']);
+                $totalAgents = $agents->count();
+                $active = $agents->filter(function ($agent) {
+                    return in_array(strtolower((string) $agent->status), ['active', 'on call'], true);
+                })->count();
+                $onBreak = $agents->filter(function ($agent) {
+                    return strtolower((string) $agent->status) === 'break';
+                })->count();
+
+                return [
+                    'id' => $sup->id,
+                    'supervisor_name' => $sup->name,
+                    'total_agents' => $totalAgents,
+                    'active_agents' => $active,
+                    'on_break' => $onBreak,
+                ];
+            })->values();
         });
 
         return response()->json([

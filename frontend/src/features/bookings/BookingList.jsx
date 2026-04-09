@@ -41,6 +41,7 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [showCallLog, setShowCallLog] = useState(false);
   const [selectedBookingForCall, setSelectedBookingForCall] = useState(null);
@@ -58,13 +59,22 @@ const BookingList = ({ onCreate, onEdit }) => {
     total: 0
   });
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+      setPagination((current) => ({ ...current, current_page: 1 }));
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchTerm]);
+
   const fetchBookings = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const response = await bookingService.getBookings({ 
         page, 
         per_page: pagination.per_page,
-        search: searchTerm 
+        search: debouncedSearchTerm,
       });
       const result = response.data.data;
       
@@ -84,7 +94,7 @@ const BookingList = ({ onCreate, onEdit }) => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.per_page, searchTerm]);
+  }, [pagination.per_page, debouncedSearchTerm]);
 
   useEffect(() => {
     fetchBookings(pagination.current_page);
