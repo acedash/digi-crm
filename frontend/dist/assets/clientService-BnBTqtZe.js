@@ -1,0 +1,1 @@
+import{n as e}from"./api-DOob5DNg.js";var t={getClients:(t={})=>e.get(`/admin/clients`,{params:t}),getClient:t=>e.get(`/admin/clients/${t}`),createClient:t=>e.post(`/admin/clients`,t),updateClient:(t,n)=>e.put(`/admin/clients/${t}`,n),deleteClient:t=>e.delete(`/admin/clients/${t}`)};export{t};
