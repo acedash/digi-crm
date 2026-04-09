@@ -8,28 +8,19 @@ import RolePathRedirect from '../components/RolePathRedirect';
 import { RefreshCw } from 'lucide-react';
 
 // Helper to handle lazy loading with automatic retry on chunk load failures (deployment sync)
+// Helper to handle lazy loading with automatic retry on chunk load failures (deployment sync)
 const lazyWithRetry = (componentImport) =>
-  lazy(async () => {
-    const pageHasAlreadyBeenForceRefreshed = JSON.parse(
-      window.localStorage.getItem('page-has-been-force-refreshed') || 'false'
-    );
-
-    try {
-      const component = await componentImport();
-      window.localStorage.setItem('page-has-been-force-refreshed', 'false');
-      return component;
-    } catch (error) {
-      if (!pageHasAlreadyBeenForceRefreshed) {
-        // Assume that the error is a "Failed to fetch dynamically imported module" 
-        // which happens after a new build has been pushed.
-        window.localStorage.setItem('page-has-been-force-refreshed', 'true');
-        return window.location.reload();
-      }
-
-      // If we've already tried and it still fails, bubble the error
-      throw error;
+  lazy(() => componentImport().catch(error => {
+    const hasRetried = JSON.parse(window.localStorage.getItem('page-has-been-force-refreshed') || 'false');
+    
+    if (!hasRetried && (error.message?.includes('fetch') || error.name === 'TypeError')) {
+      window.localStorage.setItem('page-has-been-force-refreshed', 'true');
+      window.location.reload();
+      return new Promise(() => {}); // Stop execution and wait for reload
     }
-  });
+    
+    throw error;
+  }));
 
 // Lazy load heavy features
 const AdminDashboard = lazyWithRetry(() => import('../features/dashboard/AdminDashboard'));
