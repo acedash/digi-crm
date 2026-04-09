@@ -5,6 +5,7 @@ namespace App\Domains\Client\Services;
 use App\Domains\Client\Repositories\ClientRepository;
 use App\Models\Client;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class ClientService
@@ -23,9 +24,16 @@ class ClientService
         return $this->clientRepository->getAll($search);
     }
 
+    public function listClientDirectory(array $filters = [], $user = null, int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->clientRepository->getList($filters, $user, $perPage);
+    }
+
     public function getClient($id): Client
     {
-        return $this->clientRepository->find($id);
+        return Cache::remember('client.detail.' . $id, now()->addSeconds(30), function () use ($id) {
+            return $this->clientRepository->find($id);
+        });
     }
 
     public function createClient(array $data): Client

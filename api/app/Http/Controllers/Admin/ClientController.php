@@ -24,9 +24,13 @@ class ClientController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $searchService = app(\App\Services\SearchService::class);
-        $clients = $searchService->unifiedSearch($request->all());
-        return $this->success($clients, 'Clients and bookings retrieved successfully');
+        $clients = $this->clientService->listClientDirectory(
+            $request->all(),
+            $request->user(),
+            (int) $request->get('per_page', 15)
+        );
+
+        return $this->success($clients, 'Clients retrieved successfully');
     }
 
     public function store(CreateClientRequest $request): JsonResponse

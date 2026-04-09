@@ -27,6 +27,7 @@ const ClientList = ({ isEmbedded = false }) => {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     pnr: '',
@@ -36,10 +37,19 @@ const ClientList = ({ isEmbedded = false }) => {
     email: ''
   });
 
-  const fetchClients = useCallback(async (searchTerm = search, advancedFilters = filters) => {
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  const fetchClients = useCallback(async (searchTerm = debouncedSearch, advancedFilters = filters) => {
     setLoading(true);
     try {
       const params = { 
+        per_page: 15,
         client_name: searchTerm,
         ...Object.fromEntries(Object.entries(advancedFilters).filter(([, v]) => v !== ''))
       };
@@ -51,18 +61,14 @@ const ClientList = ({ isEmbedded = false }) => {
     } finally {
       setLoading(false);
     }
-  }, [filters, search]);
+  }, [filters, debouncedSearch]);
 
   useEffect(() => {
     fetchClients();
   }, [fetchClients]);
 
   const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearch(value);
-    if (value.length > 2 || value.length === 0) {
-      fetchClients(value);
-    }
+    setSearch(e.target.value);
   };
 
   const handleEditClient = (client) => {
@@ -249,7 +255,9 @@ const ClientList = ({ isEmbedded = false }) => {
                             <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '15px' }}>
                               {client.first_name} {client.last_name}
                             </p>
-                            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ID: C-{String(client.id).padStart(4, '0')}</p>
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                              ID: C-{String(client.id).padStart(4, '0')} • {client.bookings_count || 0} booking(s)
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -281,7 +289,7 @@ const ClientList = ({ isEmbedded = false }) => {
                       </td>
                       <td style={{ padding: '20px 24px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{client.passengers?.length || 1}</span>
+                          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{client.passengers_count || 0}</span>
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Persons</span>
                         </div>
                       </td>

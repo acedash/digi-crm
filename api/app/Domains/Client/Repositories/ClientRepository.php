@@ -35,10 +35,151 @@ class ClientRepository extends BaseRepository
         return $query->latest()->paginate(20);
     }
 
+    public function getList(array $filters = [], ?\App\Models\User $user = null, int $perPage = 15): LengthAwarePaginator
+    {
+        $query = $this->model->query()
+            ->select([
+                'id',
+                'agent_id',
+                'created_by',
+                'first_name',
+                'last_name',
+                'email',
+                'alternate_email',
+                'phone',
+                'alternate_phone',
+                'type',
+                'created_at',
+            ])
+            ->with([
+                'creator:id,name',
+            ])
+            ->withCount(['passengers', 'bookings']);
+
+        if ($user?->hasRole('agent')) {
+            $query->where('agent_id', $user->id);
+        } elseif ($user?->hasRole('supervisor')) {
+            $query->whereHas('agent.supervisors', function ($agentQuery) use ($user) {
+                $agentQuery->where('users.id', $user->id);
+            });
+        }
+
+        $clientName = trim((string) ($filters['client_name'] ?? ''));
+        if ($clientName !== '') {
+            $query->where(function ($clientQuery) use ($clientName) {
+                $clientQuery->where('name', 'like', '%' . $clientName . '%')
+                    ->orWhere('first_name', 'like', '%' . $clientName . '%')
+                    ->orWhere('last_name', 'like', '%' . $clientName . '%')
+                    ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", ['%' . $clientName . '%']);
+            });
+        }
+
+        $phone = trim((string) ($filters['phone'] ?? ''));
+        if ($phone !== '') {
+            $normalizedPhone = preg_replace('/\D+/', '', $phone);
+            $query->where(function ($phoneQuery) use ($normalizedPhone) {
+                $phoneQuery->whereRaw("
+                    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') LIKE ?
+                ", ['%' . $normalizedPhone . '%'])
+                ->orWhereRaw("
+                    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(alternate_phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') LIKE ?
+                ", ['%' . $normalizedPhone . '%']);
+            });
+        }
+
+        $email = strtolower(trim((string) ($filters['email'] ?? '')));
+        if ($email !== '') {
+            $query->where(function ($emailQuery) use ($email) {
+                $emailQuery->whereRaw('LOWER(email) LIKE ?', ['%' . $email . '%'])
+                    ->orWhereRaw('LOWER(alternate_email) LIKE ?', ['%' . $email . '%']);
+            });
+        }
+
+        if (!empty($filters['booking_id']) || !empty($filters['pnr'])) {
+            $query->whereHas('bookings', function ($bookingQuery) use ($filters) {
+                if (!empty($filters['booking_id'])) {
+                    $bookingQuery->where('id', $filters['booking_id'])
+                        ->orWhere('booking_reference', 'like', '%' . $filters['booking_id'] . '%');
+                }
+
+                if (!empty($filters['pnr'])) {
+                    $bookingQuery->whereHas('services', function ($serviceQuery) use ($filters) {
+                        $serviceQuery->whereHasMorph('serviceable', ['App\\Domains\\Booking\\Models\\Flight'], function ($flightQuery) use ($filters) {
+                            $flightQuery->where('pnr', 'like', '%' . $filters['pnr'] . '%');
+                        });
+                    });
+                }
+            });
+        }
+
+        if (!empty($filters['card_last_4'])) {
+            $query->whereHas('cards', function ($cardQuery) use ($filters) {
+                $cardQuery->where('last_4', (string) $filters['card_last_4']);
+            });
+        }
+
+        return $query->latest('created_at')->paginate($perPage);
+    }
+
     public function find($id): ?Client
     {
         /** @var Client $client */
-        $client = $this->model->with(['agent', 'creator', 'passengers', 'cards', 'bookings.services.serviceable', 'callLogs.agent'])->findOrFail($id);
+        $client = $this->model->query()
+            ->select([
+                'id',
+                'agent_id',
+                'created_by',
+                'name',
+                'first_name',
+                'middle_name',
+                'last_name',
+                'email',
+                'alternate_email',
+                'phone',
+                'alternate_phone',
+                'date_of_birth',
+                'gender',
+                'address',
+                'type',
+                'created_at',
+            ])
+            ->with([
+                'agent:id,name',
+                'creator:id,name',
+                'passengers:id,client_id,first_name,last_name,date_of_birth,gender,type',
+                'cards:id,client_id,card_holder_name,card_number,expiry_month,expiry_year,card_type,cvv,is_primary',
+                'bookings' => function ($query) {
+                    $query->select([
+                        'id',
+                        'client_id',
+                        'agent_id',
+                        'booking_reference',
+                        'status',
+                        'total_amount',
+                        'currency',
+                        'details_json',
+                        'created_at',
+                    ])->with([
+                        'services:id,booking_id,serviceable_id,serviceable_type',
+                        'services.serviceable',
+                    ]);
+                },
+                'callLogs' => function ($query) {
+                    $query->select([
+                        'id',
+                        'client_id',
+                        'agent_id',
+                        'call_type',
+                        'customer_outcome',
+                        'callback_required',
+                        'callback_datetime',
+                        'notes',
+                        'created_at',
+                    ])->latest('created_at');
+                },
+                'callLogs.agent:id,name',
+            ])
+            ->findOrFail($id);
         return $client;
     }
 
