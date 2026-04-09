@@ -369,4 +369,4 @@ const BookingRow = ({
   );
 };
 
-export default BookingRow;
+export default React.memo(BookingRow);

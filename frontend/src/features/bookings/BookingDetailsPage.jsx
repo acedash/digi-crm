@@ -317,7 +317,7 @@ const BookingDetailsPage = () => {
                         {service.details_json.images.map((image, index) => (
                           <img
                             key={`${service.id}-hotel-image-${index}`}
-                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/storage/${image}`}
+                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/uploads/${image}`}
                             alt={`Hotel ${index + 1}`}
                             style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '12px', border: '1px solid var(--border-color)' }}
                           />
@@ -330,7 +330,7 @@ const BookingDetailsPage = () => {
                         {service.details_json.images.map((image, index) => (
                           <img
                             key={`${service.id}-car-image-${index}`}
-                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/storage/${image}`}
+                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/uploads/${image}`}
                             alt={`Car ${index + 1}`}
                             style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '12px', border: '1px solid var(--border-color)' }}
                           />
@@ -343,7 +343,7 @@ const BookingDetailsPage = () => {
                         {service.details_json.images.map((image, index) => (
                           <img
                             key={`${service.id}-cruise-image-${index}`}
-                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/storage/${image}`}
+                            src={image.startsWith('data:image') ? image : `${BACKEND_BASE_URL}/uploads/${image}`}
                             alt={`Cruise ${index + 1}`}
                             style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '12px', border: '1px solid var(--border-color)' }}
                           />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { XCircle, PhoneCall, CheckCircle2 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import api from '../../../services/api';

@@ -32,9 +32,9 @@ const AuditTrailPage = () => {
 
   const filteredLogs = logs.filter(log => {
     const matchesSearch = 
-      log.event_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.causer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.module.toLowerCase().includes(searchTerm.toLowerCase());
+      (log.event_type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.causer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.module || '').toLowerCase().includes(searchTerm.toLowerCase());
       
     const matchesSource = filterSource === 'all' || log.source === filterSource;
     return matchesSearch && matchesSource;

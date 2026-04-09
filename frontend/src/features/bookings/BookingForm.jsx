@@ -293,7 +293,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           }
 
           b.services?.forEach(s => {
-            const type = s.serviceable_type.split('\\').pop().toLowerCase();
+            const type = (s.serviceable_type || '').split('\\').pop().toLowerCase();
             const details = s.serviceable || {};
             const cost = s.cost_price ?? 0;
             const markup = s.markup ?? 0;

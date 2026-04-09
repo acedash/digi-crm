@@ -54,8 +54,7 @@ class BookingService
                     ->orWhereHas('client', function ($clientQuery) use ($search) {
                         $clientQuery->where('name', 'like', '%' . $search . '%')
                             ->orWhere('first_name', 'like', '%' . $search . '%')
-                            ->orWhere('last_name', 'like', '%' . $search . '%')
-                            ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", ['%' . $search . '%']);
+                            ->orWhere('last_name', 'like', '%' . $search . '%');
                     });
             });
         }

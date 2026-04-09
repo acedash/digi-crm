@@ -31,10 +31,13 @@ class DashboardController extends Controller
     {
         $cacheKey = 'dashboard.admin.stats.v2';
 
-        $data = Cache::remember($cacheKey, now()->addSeconds(45), function () {
+        $data = Cache::remember($cacheKey, now()->addMinutes(15), function () {
             $today = now()->toDateString();
-            $currentMonth = now();
-            $previousMonth = now()->copy()->subMonth();
+            
+            $startOfMonth = now()->startOfMonth()->toDateTimeString();
+            $endOfMonth = now()->endOfMonth()->toDateTimeString();
+            $startOfPrevMonth = now()->subMonth()->startOfMonth()->toDateTimeString();
+            $endOfPrevMonth = now()->subMonth()->endOfMonth()->toDateTimeString();
 
             $dailyRevenue = (float) PaymentAuth::query()
                 ->whereExists(function ($query) {
@@ -47,13 +50,11 @@ class DashboardController extends Controller
                 ->sum('total_amount');
 
             $currentMonthRevenue = (float) Booking::query()
-                ->whereMonth('created_at', $currentMonth->month)
-                ->whereYear('created_at', $currentMonth->year)
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
                 ->sum('total_amount');
 
             $previousMonthRevenue = (float) Booking::query()
-                ->whereMonth('created_at', $previousMonth->month)
-                ->whereYear('created_at', $previousMonth->year)
+                ->whereBetween('created_at', [$startOfPrevMonth, $endOfPrevMonth])
                 ->sum('total_amount');
 
             $revenueGrowth = $previousMonthRevenue > 0
@@ -87,27 +88,36 @@ class DashboardController extends Controller
                 ->limit(5)
                 ->get();
 
+            $summaryStats = DB::table('users')
+                ->selectRaw("
+                    (SELECT COUNT(*) FROM users) as total_staff,
+                    (SELECT COUNT(*) FROM users WHERE status IN ('Active', 'On Call', 'active', 'on call')) as active_staff,
+                    (SELECT COUNT(*) FROM clients) as total_clients,
+                    (SELECT COUNT(*) FROM bookings) as total_bookings,
+                    (SELECT COUNT(*) FROM call_logs WHERE log_scope = 'booking') as total_calls,
+                    (SELECT COUNT(*) FROM bookings WHERE status = 'Pending') as pending_approvals,
+                    (SELECT COUNT(*) FROM payment_authorizations pa 
+                        WHERE EXISTS (SELECT 1 FROM booking_payment_auth bpa WHERE bpa.payment_auth_id = pa.id)
+                        AND pa.status = 'Approved' 
+                        AND pa.collected_at IS NULL
+                    ) as ready_to_charge
+                ")
+                ->first();
+
             return [
-                'total_staff' => User::count(),
-                'active_staff' => User::whereIn('status', ['Active', 'On Call', 'active', 'on call'])->count(),
-                'total_clients' => Client::count(),
-                'total_bookings' => Booking::count(),
-                'total_calls' => CallLog::where('log_scope', 'booking')->count(),
+                'total_staff' => (int) $summaryStats->total_staff,
+                'active_staff' => (int) $summaryStats->active_staff,
+                'total_clients' => (int) $summaryStats->total_clients,
+                'total_bookings' => (int) $summaryStats->total_bookings,
+                'total_calls' => (int) $summaryStats->total_calls,
                 'daily_revenue' => $dailyRevenue,
                 'monthly_revenue' => $currentMonthRevenue,
-                'pending_approvals' => Booking::where('status', 'Pending')->count(),
-                'ready_to_charge' => PaymentAuth::query()
-                    ->whereExists(function ($query) {
-                        $query->select(DB::raw(1))
-                            ->from('booking_payment_auth')
-                            ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
-                    })
-                    ->where('status', 'Approved')
-                    ->whereNull('collected_at')
-                    ->count(),
+                'pending_approvals' => (int) $summaryStats->pending_approvals,
+                'ready_to_charge' => (int) $summaryStats->ready_to_charge,
                 'revenue_growth' => $revenueGrowth,
                 'recent_bookings' => $recentBookings,
                 'charge_queue' => $chargeQueue,
+                'cache_timestamp' => now()->toDateTimeString(),
             ];
         });
 
@@ -124,7 +134,9 @@ class DashboardController extends Controller
         $data = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($user) {
             $agentIds = $user->supervisedAgents()->pluck('users.id')->toArray();
             $teamIds = array_values(array_unique(array_merge([$user->id], $agentIds)));
-            $weeklyThreshold = now()->subDays(7);
+            $startOfToday = now()->startOfDay()->toDateTimeString();
+            $endOfToday = now()->endOfDay()->toDateTimeString();
+            $weeklyThreshold = now()->subDays(7)->toDateTimeString();
 
             $agents = User::role('agent')
                 ->whereHas('supervisors', function ($query) use ($user) {
@@ -142,6 +154,7 @@ class DashboardController extends Controller
                 ->select('agent_id', DB::raw('COUNT(*) as total_calls'))
                 ->whereIn('agent_id', $agentIds)
                 ->where('log_scope', 'booking')
+                ->whereBetween('created_at', [$startOfToday, $endOfToday])
                 ->groupBy('agent_id')
                 ->pluck('total_calls', 'agent_id');
 
@@ -149,6 +162,7 @@ class DashboardController extends Controller
                 ->select('agent_id', DB::raw('COUNT(*) as airline_inquiries'))
                 ->whereIn('agent_id', $agentIds)
                 ->where('log_scope', 'booking')
+                ->where('created_at', '>=', $weeklyThreshold)
                 ->whereNotNull('airline_inquiry')
                 ->where('airline_inquiry', '!=', '')
                 ->groupBy('agent_id')
@@ -159,7 +173,7 @@ class DashboardController extends Controller
                     ->whereHas('bookings')
                     ->count(),
                 'daily_revenue' => (float) Booking::whereIn('agent_id', $teamIds)
-                    ->whereDate('created_at', now()->toDateString())
+                    ->whereBetween('created_at', [$startOfToday, $endOfToday])
                     ->sum('total_amount'),
                 'weekly_bookings' => Booking::whereIn('agent_id', $teamIds)->where('created_at', '>=', $weeklyThreshold)->count(),
                 'team_calls' => CallLog::whereIn('agent_id', $teamIds)->where('log_scope', 'booking')->where('created_at', '>=', $weeklyThreshold)->count(),
@@ -255,12 +269,14 @@ class DashboardController extends Controller
 
         $activityData = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($agents) {
             $tz = config('app.timezone');
-            $today = now()->timezone($tz)->format('Y-m-d');
+            $startOfToday = now()->timezone($tz)->startOfDay()->toDateTimeString();
+            $endOfToday = now()->timezone($tz)->endOfDay()->toDateTimeString();
             $agentIds = $agents->pluck('id')->all();
 
             $activitiesByUser = \App\Models\UserActivity::query()
+                ->select(['id', 'user_id', 'activity_type', 'created_at'])
                 ->whereIn('user_id', $agentIds)
-                ->whereDate('created_at', $today)
+                ->whereBetween('created_at', [$startOfToday, $endOfToday])
                 ->orderBy('created_at', 'asc')
                 ->get()
                 ->groupBy('user_id');
@@ -269,14 +285,14 @@ class DashboardController extends Controller
                 ->select('agent_id', DB::raw('COUNT(*) as total_calls'))
                 ->whereIn('agent_id', $agentIds)
                 ->where('log_scope', 'booking')
-                ->whereDate('created_at', $today)
+                ->whereBetween('created_at', [$startOfToday, $endOfToday])
                 ->groupBy('agent_id')
                 ->pluck('total_calls', 'agent_id');
 
             $bookingStats = Booking::query()
                 ->select('agent_id', DB::raw('COUNT(*) as bookings_created'), DB::raw('COALESCE(SUM(total_amount), 0) as daily_revenue'))
                 ->whereIn('agent_id', $agentIds)
-                ->whereDate('created_at', $today)
+                ->whereBetween('created_at', [$startOfToday, $endOfToday])
                 ->groupBy('agent_id')
                 ->get()
                 ->keyBy('agent_id');

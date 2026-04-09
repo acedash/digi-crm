@@ -185,4 +185,4 @@ const AgentActivityTable = () => {
   );
 };
 
-export default AgentActivityTable;
+export default React.memo(AgentActivityTable);

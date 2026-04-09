@@ -120,4 +120,4 @@ const AdminMonitoringTable = () => {
   );
 };
 
-export default AdminMonitoringTable;
+export default React.memo(AdminMonitoringTable);

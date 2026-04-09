@@ -350,7 +350,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       booking.booking_reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       clientName.toLowerCase().includes(searchTerm.toLowerCase());
       
-    const matchesFilter = filterType === 'all' || booking.status?.toLowerCase() === filterType.toLowerCase();
+    const matchesFilter = filterType === 'all' || booking.status?.toLowerCase() === (filterType || '').toLowerCase();
     
     return matchesSearch && matchesFilter;
   });

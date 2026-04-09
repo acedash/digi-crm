@@ -45,8 +45,8 @@ const ReportsPage = () => {
 
   const filteredData = data.filter(item => {
     const matchesSearch = !filters.search || 
-      item.booking_reference.toLowerCase().includes(filters.search.toLowerCase()) ||
-      (item.client?.first_name + ' ' + item.client?.last_name).toLowerCase().includes(filters.search.toLowerCase());
+      (item.booking_reference || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+      ((item.client?.first_name || '') + ' ' + (item.client?.last_name || '')).toLowerCase().includes(filters.search.toLowerCase());
     
     const matchesStatus = !filters.status || item.status === filters.status;
     
