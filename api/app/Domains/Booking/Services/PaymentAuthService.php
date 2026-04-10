@@ -168,7 +168,7 @@ class PaymentAuthService
             ];
             $booking->update([
                 'details_json' => $details,
-                'status' => 'Confirmed',
+                'status' => 'Work Pending',
             ]);
         }
 

@@ -5,6 +5,27 @@ import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import SectionHeader from './SectionHeader';
 
+const CURRENCIES = [
+  { code: 'USD', label: 'USD - US Dollar' },
+  { code: 'EUR', label: 'EUR - Euro' },
+  { code: 'GBP', label: 'GBP - British Pound' },
+  { code: 'CAD', label: 'CAD - Canadian Dollar' },
+  { code: 'AUD', label: 'AUD - Australian Dollar' },
+  { code: 'AED', label: 'AED - UAE Dirham' },
+  { code: 'SAR', label: 'SAR - Saudi Riyal' },
+  { code: 'INR', label: 'INR - Indian Rupee' },
+  { code: 'PKR', label: 'PKR - Pakistani Rupee' },
+  { code: 'PHP', label: 'PHP - Philippine Peso' },
+  { code: 'NZD', label: 'NZD - New Zealand Dollar' },
+  { code: 'SGD', label: 'SGD - Singapore Dollar' },
+  { code: 'HKD', label: 'HKD - Hong Kong Dollar' },
+  { code: 'JPY', label: 'JPY - Japanese Yen' },
+  { code: 'OMR', label: 'OMR - Omani Rial' },
+  { code: 'QAR', label: 'QAR - Qatari Rial' },
+  { code: 'KWD', label: 'KWD - Kuwaiti Dinar' },
+  { code: 'BHD', label: 'BHD - Bahraini Dinar' },
+];
+
 const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
   const totalAllocated = paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
   
@@ -52,43 +73,73 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
             borderRadius: '12px', 
             border: '1px solid var(--border-color)',
             marginBottom: '16px',
-            position: 'relative'
+            position: 'relative',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)'
           }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr auto', gap: '12px', alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr auto', gap: '12px', alignItems: 'start' }}>
               <Input 
                 label="Holder Name" 
                 value={card.holder_name || ''} 
                 onChange={e => updatePaymentCard(index, 'holder_name', e.target.value)} 
+                style={{ marginBottom: 0 }}
               />
               <Input 
                 label="Card Number" 
                 value={card.number || ''} 
                 onChange={e => updatePaymentCard(index, 'number', e.target.value)} 
+                style={{ marginBottom: 0 }}
               />
               <Input 
                 label="Expiry" 
                 placeholder="MM/YY"
                 value={card.exp || ''} 
                 onChange={e => updatePaymentCard(index, 'exp', e.target.value)} 
+                style={{ marginBottom: 0 }}
               />
               <Input 
                 label="CVV" 
                 type="password"
                 value={card.cvv || ''} 
                 onChange={e => updatePaymentCard(index, 'cvv', e.target.value)} 
+                style={{ marginBottom: 0 }}
               />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)' }}>Currency</label>
+                <select
+                  value={card.currency || 'USD'}
+                  onChange={e => updatePaymentCard(index, 'currency', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-main)',
+                    fontSize: '14px',
+                    outline: 'none',
+                    height: '45px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {CURRENCIES.map(curr => (
+                    <option key={curr.code} value={curr.code}>{curr.code}</option>
+                  ))}
+                </select>
+              </div>
               <Input 
-                label="Debit Amount" 
+                label="Amount" 
                 type="number"
                 value={card.amount ?? ''} 
                 placeholder="0.00"
                 onChange={e => updatePaymentCard(index, 'amount', e.target.value)} 
+                style={{ marginBottom: 0 }}
               />
               <Button 
                 variant="ghost" 
                 icon={Trash2} 
                 onClick={() => { const arr = [...paymentCards]; arr.splice(index, 1); setPaymentCards(arr); }}
-                style={{ color: '#ef4444', height: '42px' }}
+                style={{ color: '#ef4444', height: '45px', marginTop: '27px' }}
                 disabled={paymentCards.length === 1}
               />
             </div>
@@ -120,7 +171,7 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={() => setPaymentCards([...paymentCards, { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '' }])}
+          onClick={() => setPaymentCards([...paymentCards, { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '', currency: 'USD' }])}
           icon={Plus}
         >
           + Add Another Card

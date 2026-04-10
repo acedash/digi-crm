@@ -92,7 +92,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   const [existingClientsLoading, setExistingClientsLoading] = useState(false);
   const [newPassengers, setNewPassengers] = useState([]);
   const [paymentCards, setPaymentCards] = useState([
-    { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '' }
+    { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '', currency: 'USD' }
   ]);
   const [changeChargeCards, setChangeChargeCards] = useState([]);
   
@@ -278,7 +278,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
               exp: c.exp ?? '',
               cvv: c.cvv ?? '',
               amount: c.amount ?? '',
-              remarks: c.remarks ?? ''
+              remarks: c.remarks ?? '',
+              currency: c.currency ?? 'USD'
             }));
             setPaymentCards(mappedCards);
             setChangeChargeCards(mappedCards.map((card) => ({
@@ -288,6 +289,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
               cvv: card.cvv,
               amount: '',
               remarks: '',
+              currency: card.currency,
               isNew: false,
             })));
           }
@@ -767,6 +769,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           number: card.number,
           exp: card.exp,
           cvv: card.cvv || '',
+          currency: card.currency || 'USD',
         })),
     };
 
@@ -1116,7 +1119,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                         ) : null}
                       </div>
                       <div style={{ fontSize: '18px', fontWeight: 900, color: '#4ade80' }}>
-                        USD {(parseFloat(card.amount) || 0).toFixed(2)}
+                        {card.currency || 'USD'} {(parseFloat(card.amount) || 0).toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -1159,6 +1162,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
       </div>
 
       <BookingFooter 
+        currency={flight.currency || 'USD'}
         calculateTotal={isChangeWorkflow ? calculateAdditionalChargeTotal : calculateTotal}
         totalAllocated={isChangeWorkflow ? calculateChangeChargeAllocated() : paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)} 
         handleSubmit={handleSubmit} 

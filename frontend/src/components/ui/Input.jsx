@@ -1,9 +1,17 @@
-import React from 'react';
-import { CalendarDays, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { CalendarDays, X, Eye, EyeOff } from 'lucide-react';
 
 const Input = ({ label, icon: Icon, error, style, className, onClear, ...props }) => {
+  const [showPassword, setShowPassword] = useState(false);
   const isDateField = props.type === 'date' || props.type === 'datetime-local';
+  const isPasswordField = props.type === 'password';
   const showClear = onClear && props.value && props.value.toString().length > 0;
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const inputType = isPasswordField ? (showPassword ? 'text' : 'password') : props.type;
 
   return (
     <div className={className} style={{ marginBottom: '20px', ...style }}>
@@ -48,7 +56,7 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, ...props }
             <CalendarDays size={18} />
           </div>
         )}
-        {showClear && (
+        {showClear && !isPasswordField && (
           <button
             type="button"
             onClick={onClear}
@@ -74,8 +82,37 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, ...props }
             <X size={16} />
           </button>
         )}
+        {isPasswordField && (
+          <button
+            type="button"
+            onClick={togglePasswordVisibility}
+            style={{
+              position: 'absolute',
+              right: '14px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)',
+              background: 'none',
+              border: 'none',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              zIndex: 10,
+              opacity: 0.85,
+              transition: 'opacity 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.85'}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
         <input
           className="crm-input"
+          {...props}
+          type={inputType}
           style={{
             width: '100%',
             background: 'var(--bg-input)',
@@ -83,21 +120,23 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, ...props }
             borderRadius: '12px',
             padding: '12px 16px',
             paddingLeft: Icon ? '44px' : '16px',
-            paddingRight: (isDateField || showClear) ? '44px' : '16px',
+            paddingRight: (isDateField || showClear || isPasswordField) ? '44px' : '16px',
             color: 'var(--text-main)',
             fontSize: '14px',
             outline: 'none',
             transition: 'var(--transition-smooth)',
+            ...props.style
           }}
           onFocus={(e) => {
             e.target.style.borderColor = 'hsl(var(--primary))';
             e.target.style.boxShadow = '0 0 0 4px hsla(var(--primary), 0.1)';
+            if (props.onFocus) props.onFocus(e);
           }}
           onBlur={(e) => {
             e.target.style.borderColor = error ? '#ef4444' : 'var(--border-color)';
             e.target.style.boxShadow = 'none';
+            if (props.onBlur) props.onBlur(e);
           }}
-          {...props}
           value={props.value ?? ''}
         />
       </div>

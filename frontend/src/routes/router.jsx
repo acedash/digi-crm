@@ -27,8 +27,8 @@ const AdminDashboard = lazyWithRetry(() => import('../features/dashboard/AdminDa
 const SupervisorDashboard = lazyWithRetry(() => import('../features/dashboard/SupervisorDashboard'));
 const AgentDashboard = lazyWithRetry(() => import('../features/dashboard/AgentDashboard'));
 const UserList = lazyWithRetry(() => import('../features/users/UserList'));
-const ClientList = lazyWithRetry(() => import('../features/clients/ClientList'));
-const ClientProfile = lazyWithRetry(() => import('../features/clients/ClientProfile'));
+import ClientList from '../features/clients/ClientList';
+import ClientProfile from '../features/clients/ClientProfile';
 import ClientEditPage from '../features/clients/ClientEditPage';
 const BookingsPage = lazyWithRetry(() => import('../features/bookings/BookingsPage'));
 import BookingDetailsPage from '../features/bookings/BookingDetailsPage';
@@ -56,10 +56,10 @@ const LazyPage = ({ children }) => (
 );
 
 const sharedRoutes = [
-  { path: 'clients', element: <LazyPage><ClientList /></LazyPage> },
+  { path: 'clients', element: <ClientList /> },
   { path: 'clients/new', element: <RolePathRedirect target="clients" /> },
   { path: 'clients/:id/edit', element: <ClientEditPage /> },
-  { path: 'clients/:id', element: <LazyPage><ClientProfile /></LazyPage> },
+  { path: 'clients/:id', element: <ClientProfile /> },
   { path: 'bookings', element: <LazyPage><BookingsPage /></LazyPage> },
   { path: 'bookings/new', element: <LazyPage><BookingsPage /></LazyPage> },
   { path: 'bookings/:id', element: <BookingDetailsPage /> },
@@ -91,18 +91,6 @@ const router = createBrowserRouter([
             index: true,
             element: <Navigate to="/dashboard" replace />
           },
-          { path: 'bookings', element: <RolePathRedirect target="bookings" /> },
-          { path: 'bookings/new', element: <RolePathRedirect target="bookings/new" /> },
-          { path: 'bookings/:id', element: <RolePathRedirect target={({ id }) => `bookings/${id}`} /> },
-          { path: 'bookings/:id/edit', element: <RolePathRedirect target={({ id }) => `bookings/${id}/edit`} /> },
-          { path: 'bookings/:id/consent-proof', element: <RolePathRedirect target={({ id }) => `bookings/${id}/consent-proof`} /> },
-          { path: 'clients', element: <RolePathRedirect target="clients" /> },
-          { path: 'clients/:id', element: <RolePathRedirect target={({ id }) => `clients/${id}`} /> },
-          { path: 'clients/:id/edit', element: <RolePathRedirect target={({ id }) => `clients/${id}/edit`} /> },
-          { path: 'call-logs', element: <RolePathRedirect target="call-logs" /> },
-          { path: 'activity', element: <RolePathRedirect target="activity" /> },
-          { path: 'team-monitor', element: <RolePathRedirect target="team-monitor" /> },
-          { path: 'settings', element: <RolePathRedirect target="settings" /> },
           {
             path: 'dashboard',
             element: <ProtectedRoute allowedRoles={['admin', 'supervisor', 'agent']} />,
@@ -149,7 +137,20 @@ const router = createBrowserRouter([
               { path: 'settings', element: <LazyPage><SettingsPage /></LazyPage> },
               ...sharedRoutes
             ]
-          }
+          },
+          // Global Fallback Redirects (Catch-all for naked routes)
+          { path: 'bookings', element: <RolePathRedirect target="bookings" /> },
+          { path: 'bookings/new', element: <RolePathRedirect target="bookings/new" /> },
+          { path: 'bookings/:id', element: <RolePathRedirect target={({ id }) => `bookings/${id}`} /> },
+          { path: 'bookings/:id/edit', element: <RolePathRedirect target={({ id }) => `bookings/${id}/edit`} /> },
+          { path: 'bookings/:id/consent-proof', element: <RolePathRedirect target={({ id }) => `bookings/${id}/consent-proof`} /> },
+          { path: 'clients', element: <RolePathRedirect target="clients" /> },
+          { path: 'clients/:id', element: <RolePathRedirect target={({ id }) => `clients/${id}`} /> },
+          { path: 'clients/:id/edit', element: <RolePathRedirect target={({ id }) => `clients/${id}/edit`} /> },
+          { path: 'call-logs', element: <RolePathRedirect target="call-logs" /> },
+          { path: 'activity', element: <RolePathRedirect target="activity" /> },
+          { path: 'team-monitor', element: <RolePathRedirect target="team-monitor" /> },
+          { path: 'settings', element: <RolePathRedirect target="settings" /> }
         ]
       }
     ]

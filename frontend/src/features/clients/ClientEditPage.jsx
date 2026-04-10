@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import clientService from './clientService';
 import ClientForm from './ClientForm';
+import Button from '../../components/ui/Button';
 import { motion } from 'framer-motion';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 
@@ -12,12 +13,9 @@ const ClientEditPage = () => {
     const basePath = '/' + location.pathname.split('/')[1];
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
-    const isFetchingRef = React.useRef(false);
-
     useEffect(() => {
         const fetchClient = async () => {
-            if (isFetchingRef.current) return;
-            isFetchingRef.current = true;
+            setLoading(true);
             try {
                 const res = await clientService.getClient(id);
                 setClient(res.data.data);
@@ -26,7 +24,6 @@ const ClientEditPage = () => {
                 navigate(`${basePath}/clients`);
             } finally {
                 setLoading(false);
-                isFetchingRef.current = false;
             }
         };
         fetchClient();
@@ -38,8 +35,18 @@ const ClientEditPage = () => {
 
     if (loading) {
         return (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '100px', color: 'hsl(var(--primary))' }}>
                 <RefreshCw className="animate-spin" size={32} />
+                <p style={{ marginTop: '16px', fontSize: '14px', color: 'var(--text-muted)' }}>Loading Client Data...</p>
+            </div>
+        );
+    }
+
+    if (!client && !loading) {
+        return (
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+                <p style={{ color: '#f87171', marginBottom: '16px' }}>Failed to load client details.</p>
+                <Button variant="primary" onClick={() => window.location.reload()}>Try Refreshing Page</Button>
             </div>
         );
     }
@@ -60,11 +67,10 @@ const ClientEditPage = () => {
                         fontSize: '14px'
                     }}
                 >
-                    <ArrowLeft size={16} /> Back to Profile
+                    <ArrowLeft size={16} /> Back to Client Profile
                 </button>
             </div>
             
-            {/* We will update ClientForm to support isFullPage prop */}
             <ClientForm 
                 client={client} 
                 isFullPage={true}

@@ -140,10 +140,10 @@ const AdminLayout = () => {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       {/* Sidebar */}
       <MotionAside 
-        initial={{ x: -280 }}
+        initial={{ x: -240 }}
         animate={{ x: 0 }}
         style={{
-          width: '280px',
+          width: '240px',
           height: '100%',
           background: 'var(--bg-card)',
           backdropFilter: 'blur(10px)',
@@ -168,7 +168,7 @@ const AdminLayout = () => {
               background: 'linear-gradient(135deg, #016040, #028a5c)', 
               borderRadius: '9999px' 
             }} />
-            <span className="premium-gradient-text">Travel CRM</span>
+            <span className="premium-gradient-text">Digi CRM</span>
           </h2>
         </div>
 
@@ -223,6 +223,8 @@ const AdminLayout = () => {
             fontSize: '14px',
             fontWeight: 600,
             cursor: 'pointer',
+            zIndex: 10,
+            opacity: 0.8,
             transition: 'var(--transition-smooth)'
           }}
           onMouseEnter={(e) => {
@@ -253,7 +255,12 @@ const AdminLayout = () => {
           zIndex: 40
         }}>
           <div style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700 }}>
-            {navItems.find(item => item.path === location.pathname)?.label || 'Profile'}
+            {(() => {
+              const activeItem = navItems.find(item => item.path === location.pathname);
+              if (activeItem) return activeItem.label;
+              if (location.pathname.includes('/clients/')) return 'Client Profile';
+              return 'Profile';
+            })()}
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -295,17 +302,11 @@ const AdminLayout = () => {
               transition: 'filter 0.18s ease'
             }}
           >
-            <AnimatePresence mode="wait">
-              <MotionPage
-                key={location.pathname}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Outlet />
-              </MotionPage>
-            </AnimatePresence>
+            <div
+              key={location.pathname}
+            >
+              <Outlet />
+            </div>
           </div>
         </main>
         {shieldActive && (

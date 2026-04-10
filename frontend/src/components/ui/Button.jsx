@@ -33,7 +33,7 @@ const Button = ({
     if (variant === 'primary') {
       styles.background = 'hsl(var(--primary))';
       styles.color = 'white';
-      styles.boxShadow = '0 10px 15px -3px hsla(var(--primary), 0.2)';
+      styles.boxShadow = '0 10px 15px -3px hsla(var(--primary), 0.3), 0 4px 6px -2px hsla(var(--primary), 0.1), 0 0 15px 1px hsla(var(--primary), 0.2)';
     } else if (variant === 'secondary') {
       styles.background = 'var(--text-muted)';
       styles.color = 'var(--bg-app)';

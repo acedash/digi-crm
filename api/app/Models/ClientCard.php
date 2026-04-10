@@ -19,6 +19,7 @@ class ClientCard extends Model
         'card_type',
         'cvv',
         'billing_address',
+        'currency',
         'is_primary',
     ];
 

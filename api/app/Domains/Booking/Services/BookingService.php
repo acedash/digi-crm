@@ -43,7 +43,8 @@ class BookingService
             ->with([
                 'client:id,agent_id,first_name,last_name,name,phone,email',
                 'agent:id,name',
-                'services:id,booking_id,serviceable_type',
+                'services:id,booking_id,serviceable_type,serviceable_id',
+                'services.serviceable',
             ])
             ->withCount('passengers')
             ->orderBy('created_at', 'desc');
@@ -143,6 +144,18 @@ class BookingService
         }
 
         $updateMode = $data['update_mode'] ?? 'standard';
+        if ($updateMode === 'status_only') {
+            $details = $booking->details_json ?? [];
+            $details['status_remark'] = $data['status_remark'] ?? null;
+            
+            $booking->update([
+                'status' => $data['status'],
+                'details_json' => $details
+            ]);
+            
+            return $booking->fresh()->load(['client', 'agent', 'passengers', 'services.serviceable']);
+        }
+
         $isApprovedBooking = in_array($booking->status, [
             'Approved',
             'Confirmed',
@@ -277,14 +290,42 @@ class BookingService
                         'name' => $booking->agent->name,
                     ] : null,
                     'services' => collect($booking->services ?? [])->map(function ($service) {
+                        $type = str_replace('App\\Domains\\Booking\\Models\\', '', (string)$service->serviceable_type);
+                        $type = str_replace('App\\Domains\\Supplier\\Models\\', '', $type);
+                        
+                        $detail = '';
+                        $serviceable = $service->serviceable;
+                        
+                        if ($serviceable) {
+                            switch ($type) {
+                                case 'Flight':
+                                    $detail = ($serviceable->airline_code ?: 'Unknown Airline') . ' (' . $serviceable->departure_city . '-' . $serviceable->arrival_city . ')';
+                                    break;
+                                case 'Hotel':
+                                    $detail = $serviceable->name ?: 'Unnamed Hotel';
+                                    break;
+                                case 'Car':
+                                    $detail = ($serviceable->vendor_name ?: 'Car Rental') . ' (' . ($serviceable->car_type ?: 'Standard') . ')';
+                                    break;
+                                case 'Cruise':
+                                    $detail = ($serviceable->cruise_line ?: 'Cruise') . ' - ' . ($serviceable->ship_name ?: 'Vessel');
+                                    break;
+                                default:
+                                    $detail = $type;
+                            }
+                        }
+
                         return [
                             'id' => $service->id,
+                            'type' => $type,
+                            'detail' => $detail,
                             'serviceable_type' => $service->serviceable_type,
                         ];
                     })->values()->all(),
                     'created_by_name' => $details['created_by_name']
-                        ?? ($latestReassignment['from_agent_name'] ?? null)
-                        ?? ($booking->agent->name ?? null),
+                        ?? ($details['created_by_user_name'] ?? null)
+                        ?? ($history->first()['from_agent_name'] ?? null)
+                        ?? ($booking->agent->name ?? 'System'),
                     'latest_handoff_remark' => $latestReassignment['remark']
                         ?? ($details['latest_reassignment_remark'] ?? null),
                     'was_reassigned' => $history->isNotEmpty(),

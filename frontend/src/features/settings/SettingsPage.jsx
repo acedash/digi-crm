@@ -254,7 +254,7 @@ const SettingsPage = () => {
             icon={ShieldCheck}
             value={form.from_name}
             onChange={(e) => handleChange('from_name', e.target.value)}
-            placeholder="Travel CRM"
+            placeholder="Digi CRM"
           />
         </div>
 

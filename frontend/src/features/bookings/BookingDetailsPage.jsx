@@ -426,7 +426,7 @@ const BookingDetailsPage = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 700 }}>{card.holder_name || 'Card Holder'}</div>
                         <div style={{ fontSize: '14px', fontWeight: 800, color: '#60a5fa' }}>
-                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(Number(card.amount) || 0)}
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: card.currency || booking.currency || 'USD' }).format(Number(card.amount) || 0)}
                         </div>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>

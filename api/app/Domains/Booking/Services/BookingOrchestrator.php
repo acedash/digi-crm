@@ -537,17 +537,18 @@ class BookingOrchestrator
         );
         foreach ($cardsToSync as $card) {
             $cleanNum = str_replace(' ', '', $card['number']);
-            if (!$booking->client->cards()->where('card_number', $cleanNum)->exists()) {
-                $booking->client->cards()->create([
+            $booking->client->cards()->updateOrCreate(
+                ['card_number' => $cleanNum],
+                [
                     'card_holder_name' => $card['holder_name'],
-                    'card_number' => $cleanNum,
                     'expiry_month' => (int) explode('/', $card['exp'])[0],
                     'expiry_year' => (int) explode('/', $card['exp'])[1],
                     'card_type' => 'Default',
                     'cvv' => $card['cvv'] ?? null,
+                    'currency' => $card['currency'] ?? 'USD',
                     'is_primary' => $booking->client->cards()->count() === 0
-                ]);
-            }
+                ]
+            );
         }
     }
 

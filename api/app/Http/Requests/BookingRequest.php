@@ -16,14 +16,15 @@ class BookingRequest extends FormRequest
         return [
             'client_id' => 'nullable|exists:clients,id',
             'agent_id' => 'nullable|exists:users,id',
-            'update_mode' => 'nullable|string|in:standard,service_change',
-            'status' => 'nullable|string|in:Pending,Awaiting Approval,Approved,Rejected,Confirmed,Cancelled,Completed,Awaiting Change Approval,Change Approved,Change Rejected',
+            'update_mode' => 'nullable|string|in:standard,service_change,status_only',
+            'status' => 'nullable|string|in:Pending,Awaiting Approval,Approved,Rejected,Confirmed,Cancelled,Completed,Awaiting Change Approval,Change Approved,Change Rejected,Work Pending',
+            'status_remark' => 'nullable|string|max:2000',
             'currency' => 'nullable|string|size:3',
             'passengers' => 'nullable|array',
             'passengers.*' => 'exists:passengers,id',
             'new_client' => 'nullable|array',
             'new_passengers' => 'nullable|array',
-            'services' => 'required|array|min:1',
+            'services' => 'required_unless:update_mode,status_only|array|min:1',
             'services.*.type' => 'required|string|in:flight,hotel,car,cruise',
             'services.*.cost_price' => 'nullable|numeric|min:0',
             'services.*.sell_price' => 'required|numeric|min:0',
@@ -49,6 +50,7 @@ class BookingRequest extends FormRequest
             ],
             'payment_cards.*.cvv' => 'nullable|string|min:3|max:4',
             'payment_cards.*.amount' => 'required_with:payment_cards|numeric|min:0.01',
+            'payment_cards.*.currency' => 'nullable|string|size:3',
             'change_charge_cards_to_sync' => 'nullable|array',
             'change_charge_cards_to_sync.*.holder_name' => 'required_with:change_charge_cards_to_sync|string|max:255',
             'change_charge_cards_to_sync.*.number' => 'required_with:change_charge_cards_to_sync|string|min:13|max:19',
@@ -58,6 +60,7 @@ class BookingRequest extends FormRequest
                 'regex:/^(0[1-9]|1[0-2])\/\d{2}$/'
             ],
             'change_charge_cards_to_sync.*.cvv' => 'nullable|string|min:3|max:4',
+            'change_charge_cards_to_sync.*.currency' => 'nullable|string|size:3',
         ];
     }
 }

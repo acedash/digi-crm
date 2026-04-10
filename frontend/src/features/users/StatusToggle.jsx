@@ -9,6 +9,22 @@ import activityService from '../activity-tracker/activityService';
 const StatusToggle = () => {
   const { user, setUser } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const statuses = [
     { name: 'Active', color: '#4ade80', icon: Circle, activityType: 'break_end' },
@@ -31,7 +47,7 @@ const StatusToggle = () => {
   const Icon = currentStatus.icon;
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={containerRef} style={{ position: 'relative' }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{

@@ -7,6 +7,7 @@ import authService from './authService';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import logo from '../../assets/logo.jpg';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -41,14 +42,15 @@ const LoginPage = () => {
       justifyContent: 'center', 
       padding: '24px',
       position: 'relative',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      background: 'var(--bg-app)'
     }}>
       {/* Animated Background Orbs */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
         <motion.div
           animate={{
             scale: [1, 1.2, 1],
-            opacity: [0.1, 0.2, 0.1],
+            opacity: [0.15, 0.25, 0.15],
           }}
           transition={{ duration: 10, repeat: Infinity }}
           style={{
@@ -57,14 +59,14 @@ const LoginPage = () => {
             left: '-10%',
             width: '50%',
             height: '50%',
-            background: 'radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, #a4ff7d 0%, transparent 70%)',
             filter: 'blur(100px)',
           }}
         />
         <motion.div
           animate={{
             scale: [1, 1.3, 1],
-            opacity: [0.05, 0.15, 0.05],
+            opacity: [0.1, 0.2, 0.1],
           }}
           transition={{ duration: 15, repeat: Infinity, delay: 2 }}
           style={{
@@ -73,7 +75,7 @@ const LoginPage = () => {
             right: '-10%',
             width: '60%',
             height: '60%',
-            background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)',
+            background: 'radial-gradient(circle, #0a8b24 0%, transparent 70%)',
             filter: 'blur(100px)',
           }}
         />
@@ -87,30 +89,23 @@ const LoginPage = () => {
       >
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{ 
-            width: '64px', 
-            height: '64px', 
-            borderRadius: '20px', 
-            background: 'hsl(var(--primary))',
+            width: '120px', 
+            height: '120px', 
+            borderRadius: '28px', 
+            background: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 24px',
-            color: 'white',
-            boxShadow: '0 20px 40px -10px hsla(var(--primary), 0.5)'
+            margin: '0 auto 12px',
+            boxShadow: '0 25px 50px -12px rgba(10, 139, 36, 0.25)',
+            overflow: 'hidden',
+            padding: '16px',
+            border: '1px solid var(--border-color)'
           }}>
-            <LogIn size={32} />
+            <img src={logo} alt="Kreyton Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <h1 style={{ 
-            fontSize: '36px', 
-            fontWeight: 800, 
-            letterSpacing: '-1px',
-            color: 'var(--text-main)',
-            marginBottom: '12px'
-          }}>
-            Digi <span className="premium-gradient-text">CRM</span>
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '16px' }}>
-            Elevating your travel management experience.
+          <p style={{ color: 'var(--text-muted)', fontSize: '18px', fontWeight: 600, letterSpacing: '-0.3px' }}>
+            Smarter travel management starts here.
           </p>
         </div>
 
@@ -164,7 +159,13 @@ const LoginPage = () => {
               type="submit" 
               variant="primary" 
               size="lg" 
-              style={{ width: '100%', marginTop: '8px' }}
+              style={{ 
+                width: '100%', 
+                marginTop: '8px',
+                background: 'linear-gradient(135deg, #a4ff7d, #0a8b24)',
+                border: 'none',
+                boxShadow: '0 10px 20px -5px rgba(10, 139, 36, 0.4)'
+              }}
               isLoading={loading}
             >
               Secure Login
@@ -174,7 +175,7 @@ const LoginPage = () => {
           <div style={{ marginTop: '32px', textAlign: 'center' }}>
             <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
               Authorized personal only. <br/>
-              © 2026 Digi CRM Global
+              © 2026 Kreyton Travel Management
             </p>
           </div>
         </Card>

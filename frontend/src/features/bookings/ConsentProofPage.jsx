@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, ShieldCheck, Mail, Globe, Clock3, Fingerprint, RefreshCcw, CreditCard } from 'lucide-react';
+import { ArrowLeft, Download, ShieldCheck, Mail, Globe, Clock3, Fingerprint, RefreshCcw, CreditCard, FileText, Image as ImageIcon } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import paymentAuthService from './paymentAuthService';
 import { BACKEND_BASE_URL } from '../../services/api';
 import Button from '../../components/ui/Button';
@@ -206,27 +208,111 @@ const ConsentProofPage = () => {
       printWindow.print();
     };
   };
+  
+  const exportJpeg = async () => {
+    const content = proofContentRef.current;
+    if (!content) return;
+    
+    try {
+      setLoading(true);
+      const canvas = await html2canvas(content, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#f8fafc',
+        windowWidth: 1200
+      });
+      
+      const link = document.createElement('a');
+      link.download = `consent-proof-${bookingReference}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.9);
+      link.click();
+      
+      sensitiveAuditService.logEvent({
+        event_type: 'Sensitive Export',
+        module: 'Consent Proof',
+        description: 'Exported consent proof JPEG',
+        details: { booking_id: Number(id), authorization_id: proof.id },
+      }).catch(() => {});
+    } catch (err) {
+      console.error('JPEG Export failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const exportDirectPdf = async () => {
+    const content = proofContentRef.current;
+    if (!content) return;
+    
+    try {
+      setLoading(true);
+      const canvas = await html2canvas(content, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#f8fafc',
+        windowWidth: 1200
+      });
+      
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`consent-proof-${bookingReference}.pdf`);
+      
+      sensitiveAuditService.logEvent({
+        event_type: 'Sensitive Export',
+        module: 'Consent Proof',
+        description: 'Exported consent proof PDF (Direct)',
+        details: { booking_id: Number(id), authorization_id: proof.id },
+      }).catch(() => {});
+    } catch (err) {
+      console.error('PDF Export failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{ padding: '32px', maxWidth: '1080px', margin: '0 auto', display: 'grid', gap: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
-        <div>
-          <Button variant="ghost" icon={ArrowLeft} onClick={() => navigate(-1)}>Back</Button>
-          <h1 style={{ fontSize: '32px', fontWeight: 800, marginTop: '12px' }}>Consent Proof</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '6px' }}>
-            This is the stored approval evidence for booking {bookingReference}.
-          </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+          <Button 
+            variant="ghost" 
+            icon={ArrowLeft} 
+            onClick={() => navigate(-1)}
+            style={{ marginTop: '8px' }}
+          >
+            Back
+          </Button>
+          <div>
+            <h1 style={{ fontSize: '32px', fontWeight: 800 }}>Consent Proof</h1>
+            <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
+              Approval evidence for booking {bookingReference}.
+            </p>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Button
             variant="outline"
-            icon={Download}
-            onClick={exportPdf}
+            icon={FileText}
+            onClick={exportDirectPdf}
+            disabled={loading}
           >
-            Export PDF
+            PDF Export
           </Button>
           <Button
             variant="outline"
+            icon={ImageIcon}
+            onClick={exportJpeg}
+            disabled={loading}
+          >
+            JPEG Export
+          </Button>
+          <Button
+            variant="ghost"
             icon={Download}
             onClick={() => {
               sensitiveAuditService.logEvent({
@@ -241,7 +327,7 @@ const ConsentProofPage = () => {
               downloadJson(proof, `consent-proof-booking-${id}.json`);
             }}
           >
-            Export JSON
+            JSON
           </Button>
         </div>
       </div>

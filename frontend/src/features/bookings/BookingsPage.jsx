@@ -41,23 +41,6 @@ const BookingsPage = () => {
         {view === 'form' && (
           <div key="form">
             <div style={{ padding: '24px' }}>
-              <div style={{ marginBottom: '24px', maxWidth: '900px', margin: '0 auto 24px' }}>
-                <button 
-                  onClick={() => navigate(`${basePath}/bookings`)}
-                  style={{ 
-                    color: 'hsl(var(--muted-foreground))', 
-                    fontSize: '14px', 
-                    background: 'none', 
-                    border: 'none', 
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  ← Back to Bookings
-                </button>
-              </div>
               <BookingForm 
                 bookingId={editingId} 
                 onSuccess={handleSuccess} 

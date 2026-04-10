@@ -17,7 +17,11 @@ import {
   Package,
   Mail,
   ArrowRightLeft,
-  ShieldCheck
+  ShieldCheck,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  FileJson
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -29,6 +33,7 @@ import CallLogModal from './components/CallLogModal';
 import BookingRow from './components/BookingRow';
 import { useAuthStore } from '../auth/useAuthStore';
 import api, { BACKEND_BASE_URL } from '../../services/api';
+import { exportToExcel, exportToPDF, exportToJSON } from './utils/bookingExport';
 
 const BookingList = ({ onCreate, onEdit }) => {
   const { user } = useAuthStore();
@@ -52,6 +57,8 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const [sendingApprovalId, setSendingApprovalId] = useState(null);
   const [sendingTemplateAction, setSendingTemplateAction] = useState(null);
+  const [statusModal, setStatusModal] = useState({ open: false, bookingId: null, targetStatus: '' });
+  const [statusRemark, setStatusRemark] = useState('');
   const isFetchingRef = React.useRef(false);
   const [pagination, setPagination] = useState({
     current_page: 1,
@@ -59,6 +66,29 @@ const BookingList = ({ onCreate, onEdit }) => {
     per_page: 15,
     total: 0
   });
+
+  const filteredBookings = bookings.filter(booking => {
+    const clientName = booking.client?.name || 
+      (booking.client?.first_name || booking.client?.last_name ? 
+       `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim() : 
+       '');
+    const matchesSearch = 
+      booking.booking_reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.client?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.client?.phone?.includes(searchTerm) ||
+      booking.id.toString().includes(searchTerm);
+      
+    const matchesFilter = filterType === 'all' || booking.status?.toLowerCase() === (filterType || '').toLowerCase();
+    
+    return matchesSearch && matchesFilter;
+  });
+
+  const exportHandlers = {
+    excel: () => exportToExcel(filteredBookings, `bookings_${filterType}_${new Date().toISOString().split('T')[0]}.xlsx`),
+    pdf: () => exportToPDF(filteredBookings, `bookings_${filterType}_${new Date().toISOString().split('T')[0]}.pdf`),
+    json: () => exportToJSON(filteredBookings, `bookings_${filterType}_${new Date().toISOString().split('T')[0]}.json`),
+  };
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -276,12 +306,13 @@ const BookingList = ({ onCreate, onEdit }) => {
     'Approved': { icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shadow: 'rgba(16, 185, 129, 0.2)' },
     'Change Approved': { icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shadow: 'rgba(16, 185, 129, 0.2)' },
     'Confirmed': { icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shadow: 'rgba(16, 185, 129, 0.2)' },
+    'Work Pending': { icon: Clock, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)', shadow: 'rgba(236, 72, 153, 0.2)' },
     'Awaiting Approval': { icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', shadow: 'rgba(139, 92, 246, 0.2)' },
     'Awaiting Change Approval': { icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', shadow: 'rgba(139, 92, 246, 0.2)' },
     'Pending': { icon: Clock, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', shadow: 'rgba(245, 158, 11, 0.2)' },
-    'Cancelled': { icon: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
-    'Rejected': { icon: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
-    'Change Rejected': { icon: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
+    'Cancelled': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
+    'Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
+    'Change Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' }
   };
 
@@ -345,23 +376,6 @@ const BookingList = ({ onCreate, onEdit }) => {
     );
   };
 
-  const filteredBookings = bookings.filter(booking => {
-    const clientName = booking.client?.name || 
-      (booking.client?.first_name || booking.client?.last_name ? 
-       `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim() : 
-       '');
-    const matchesSearch = 
-      booking.booking_reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.client?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.client?.phone?.includes(searchTerm) ||
-      booking.id.toString().includes(searchTerm);
-      
-    const matchesFilter = filterType === 'all' || booking.status?.toLowerCase() === (filterType || '').toLowerCase();
-    
-    return matchesSearch && matchesFilter;
-  });
-
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this booking?')) return;
     
@@ -372,6 +386,81 @@ const BookingList = ({ onCreate, onEdit }) => {
       console.error('Failed to delete booking:', error);
       setToast({ message: 'Failed to delete booking', type: 'error' });
     }
+  };
+
+  const handleStatusUpdate = async () => {
+    if (!statusModal.bookingId || !statusModal.targetStatus) return;
+    
+    setLoading(true);
+    try {
+      await bookingService.updateBooking(statusModal.bookingId, {
+        status: statusModal.targetStatus,
+        status_remark: statusRemark,
+        update_mode: 'status_only'
+      });
+      
+      setToast({ message: `Booking marked as ${statusModal.targetStatus}`, type: 'success' });
+      setStatusModal({ open: false, bookingId: null, targetStatus: '' });
+      setStatusRemark('');
+      fetchBookings(pagination.current_page);
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      setToast({ message: error.response?.data?.message || 'Failed to update status', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderStatusModal = () => {
+    if (!statusModal.open) return null;
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(2, 6, 23, 0.9)', backdropFilter: 'blur(12px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '24px'
+      }}>
+        <div style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={18} color="#3b82f6" /> Mark as {statusModal.targetStatus}
+          </h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+            Please provide a {statusModal.targetStatus === 'Completed' ? 'final completion' : 'work'} remark for this booking.
+          </p>
+          
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Remark / Note
+            </label>
+            <textarea
+              value={statusRemark}
+              onChange={(e) => setStatusRemark(e.target.value)}
+              placeholder={`Enter details about why this is being marked as ${statusModal.targetStatus.toLowerCase()}...`}
+              style={{
+                width: '100%',
+                minHeight: '110px',
+                padding: '12px 14px',
+                borderRadius: '14px',
+                background: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-main)',
+                outline: 'none',
+                resize: 'none',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <Button variant="ghost" onClick={() => { setStatusModal({ open: false, bookingId: null, targetStatus: '' }); setStatusRemark(''); }}>
+              Cancel
+            </Button>
+            <Button onClick={handleStatusUpdate} disabled={!statusRemark.trim() || loading}>
+              Confirm {statusModal.targetStatus}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderReassignModal = () => {
@@ -393,9 +482,9 @@ const BookingList = ({ onCreate, onEdit }) => {
           <select 
             value={selectedReassignAgent}
             onChange={e => setSelectedReassignAgent(e.target.value)}
-            style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', marginBottom: '24px', fontSize: '14px' }}
+            style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', marginBottom: '24px', fontSize: '14px' }}
           >
-            <option value="" disabled>-- Select New Agent --</option>
+            <option value="" disabled>Select Agent</option>
             {user?.id !== reassignModal.currentAgentId && (
               <option value={user?.id}>Assign to myself ({user?.name})</option>
             )}
@@ -406,7 +495,7 @@ const BookingList = ({ onCreate, onEdit }) => {
 
           <div style={{ marginBottom: '24px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              Final Handoff Remark
+              Handover Notes
             </label>
             <textarea
               value={handoffRemark}
@@ -439,7 +528,7 @@ const BookingList = ({ onCreate, onEdit }) => {
               Cancel
             </Button>
             <Button variant="primary" onClick={executeReassign}>
-              Reassign
+              Reassign Booking
             </Button>
           </div>
         </div>
@@ -467,7 +556,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       {/* Stats Quick View */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
         {[
-          { label: 'Total Bookings', value: bookings.length, icon: Package, color: 'blue' },
+          { label: 'Total Bookings', value: bookings.length, icon: Package, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' },
           {
             label: 'Approved',
             value: bookings.filter(
@@ -498,7 +587,7 @@ const BookingList = ({ onCreate, onEdit }) => {
               <div style={{ 
                 padding: '12px', 
                 borderRadius: '12px', 
-                background: `rgba(var(--${stat.color}-rgb), 0.1)`,
+                background: stat.bg || `rgba(var(--${stat.color}-rgb), 0.1)`,
                 color: stat.color 
               }}>
                 <stat.icon size={24} />
@@ -513,63 +602,86 @@ const BookingList = ({ onCreate, onEdit }) => {
       </div>
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-        <Input 
-          placeholder="Search by ID, reference, client name, or PNR..." 
-          icon={Search}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onClear={() => setSearchTerm('')}
-          style={{ marginBottom: 0, maxWidth: '500px' }}
-        />
-        
-        {/* Status Filter Tabs */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {[
-            'all',
-            'Pending',
-            'Awaiting Approval',
-            'Awaiting Change Approval',
-            'Approved',
-            'Change Approved',
-            'Rejected',
-            'Change Rejected',
-            'Completed',
-            'Cancelled',
-          ].map(status => (
-            <button 
-              key={status}
-              onClick={() => setFilterType(status)}
-              style={{ 
-                padding: '6px 16px', 
-                borderRadius: '100px', 
-                background: filterType === status ? 'hsl(var(--primary))' : 'var(--bg-card)', 
-                color: filterType === status ? 'white' : 'var(--text-main)',
-                border: '1px solid var(--border-color)',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                textTransform: status === 'all' ? 'uppercase' : 'none'
-              }}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '300px', maxWidth: '600px' }}>
+          <Input 
+            placeholder="Search by ID, reference, client name, or PNR..." 
+            icon={Search}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onClear={() => setSearchTerm('')}
+            style={{ marginBottom: '24px' }}
+          />
+          
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '20px' }}>
+            {['all', 'Pending', 'Awaiting Approval', 'Approved', 'Completed', 'Cancelled'].map(status => (
+              <button 
+                key={status}
+                onClick={() => setFilterType(status)}
+                style={{ 
+                  padding: '6px 14px', 
+                  borderRadius: '100px', 
+                  background: filterType === status ? 'hsl(var(--primary))' : 'var(--bg-card)', 
+                  color: filterType === status ? 'white' : 'var(--text-muted)',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Button variant="outline" size="sm" icon={RefreshCw} onClick={() => fetchBookings(pagination.current_page)}>Refresh</Button>
+          <div style={{ height: '32px', width: '1px', background: 'var(--border-color)', margin: '0 8px' }} />
+          
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              icon={FileSpreadsheet} 
+              onClick={() => exportHandlers.excel()}
+              style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.05)' }}
             >
-              {status}
-            </button>
-          ))}
+              Excel
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              icon={FileText} 
+              onClick={() => exportHandlers.pdf()}
+              style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.05)' }}
+            >
+              PDF
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              icon={FileJson} 
+              onClick={() => exportHandlers.json()}
+              style={{ color: '#3b82f6', background: 'rgba(59, 130, 246, 0.05)' }}
+            >
+              JSON
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Bookings Grid */}
-      <div style={{ display: 'grid', gap: '12px' }}>
+      <div style={{ display: 'grid', gap: '8px' }}>
         <div style={{ overflowX: 'auto' }}>
           <div
             style={{
-              minWidth: '1180px',
+              minWidth: '1000px',
               display: 'grid',
-              gridTemplateColumns: 'minmax(280px, 1.8fr) minmax(150px, 0.9fr) minmax(160px, 1fr) minmax(180px, 1fr) minmax(260px, 1.4fr)',
-              gap: '16px',
-              padding: '0 18px 10px',
-              fontSize: '11px',
+              gridTemplateColumns: '25% 25% 15% 15% 20%',
+              gap: '12px',
+              padding: '0 16px 10px',
+              fontSize: '10px',
               fontWeight: 800,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
@@ -577,7 +689,7 @@ const BookingList = ({ onCreate, onEdit }) => {
             }}
           >
             <div>Booking / Client</div>
-            <div>Travel</div>
+            <div>Travel Details</div>
             <div>Assigned To</div>
             <div>Amount / Status</div>
             <div>Actions</div>
@@ -585,7 +697,7 @@ const BookingList = ({ onCreate, onEdit }) => {
         </div>
 
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: '1180px', display: 'grid', gap: '12px' }}>
+          <div style={{ minWidth: '1200px', display: 'grid', gap: '8px' }}>
         <AnimatePresence mode="popLayout">
           {filteredBookings.map((booking, index) => {
             const statusColor = statusIcons[booking.status]?.color || (typeof statusIcons[booking.status]?.icon === 'string' ? statusIcons[booking.status]?.icon : '#f59e0b');
@@ -620,6 +732,8 @@ const BookingList = ({ onCreate, onEdit }) => {
                   setShowCallLog(true);
                 }}
                 onReassign={() => handleReassignClick(booking)}
+                onMarkCompleted={() => setStatusModal({ open: true, bookingId: booking.id, targetStatus: 'Completed' })}
+                onMarkPending={() => setStatusModal({ open: true, bookingId: booking.id, targetStatus: 'Work Pending' })}
                 onEdit={() => handleEditBooking(booking)}
                 onDelete={() => handleDelete(booking.id)}
               />
@@ -708,6 +822,7 @@ const BookingList = ({ onCreate, onEdit }) => {
 
       <AnimatePresence>
         {renderReassignModal()}
+        {renderStatusModal()}
       </AnimatePresence>
 
       <Toast 

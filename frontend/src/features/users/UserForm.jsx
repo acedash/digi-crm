@@ -200,9 +200,9 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                     required 
                   />
                   <Input 
-                    label="Phone" 
+                    label="Phone Number" 
                     icon={Phone}
-                    placeholder="+1..."
+                    placeholder="Enter full number with country code"
                     value={formData.phone} 
                     onChange={e => setFormData({...formData, phone: e.target.value})}
                   />
@@ -249,7 +249,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                 </div>
 
                 <Input 
-                  label={user ? 'New Password (leave blank to keep current)' : <RequiredLabel text="Account Passcode" />}
+                  label={user ? 'New Password (leave blank to keep current)' : <RequiredLabel text="Account Password" />}
                   icon={Lock}
                   type="password"
                   placeholder="••••••••"
