@@ -197,9 +197,9 @@ const AuthApprovalPage = () => {
             }}>
               <div style={{
                 width: 56, height: 56, borderRadius: '18px',
-                background: 'rgba(1, 96, 64, 0.05)',
+                background: 'linear-gradient(135deg, #06B68A 0%, #059669 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#016040', flexShrink: 0
+                color: '#ffffff', flexShrink: 0
               }}>
                 {(booking.services?.some(service => service.serviceable_type?.includes('Flight'))) ? <Plane size={24} /> : <Package size={24} />}
               </div>
@@ -218,7 +218,7 @@ const AuthApprovalPage = () => {
                   )}
                 </div>
               </div>
-              <div style={{ textAlign: 'right', fontWeight: 900, fontSize: 18, color: '#016040' }}>
+              <div style={{ textAlign: 'right', fontWeight: 900, fontSize: 18, color: '#06B68A' }}>
                 {new Intl.NumberFormat('en-US', {
                   style: 'currency',
                   currency: booking.currency || 'USD'
@@ -230,14 +230,14 @@ const AuthApprovalPage = () => {
 
         {/* Total Summary Bar */}
         <div style={{
-          background: '#016040',
+          background: '#06B68A',
           borderRadius: '24px',
           padding: '28px 32px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 40,
-          boxShadow: '0 12px 24px rgba(1, 96, 64, 0.2)'
+          boxShadow: '0 12px 24px rgba(6, 182, 138, 0.2)'
         }}>
           <span style={{ fontSize: 17, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
             {authorizationType === 'change_charge' ? 'Total Additional Charge' : 'Total Authorization Amount'}
@@ -272,7 +272,7 @@ const AuthApprovalPage = () => {
                     </div>
                   ) : null}
                   {Number(change.additional_charge || 0) > 0 ? (
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#016040' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#06B68A' }}>
                       Additional Charge: {new Intl.NumberFormat('en-US', {
                         style: 'currency',
                         currency: auth?.currency || 'USD'
@@ -307,7 +307,7 @@ const AuthApprovalPage = () => {
                       </div>
                     ) : null}
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#016040' }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#06B68A' }}>
                     {new Intl.NumberFormat('en-US', {
                       style: 'currency',
                       currency: auth?.currency || 'USD'

@@ -190,12 +190,12 @@ const ReportsPage = () => {
                   <td style={{ padding: '20px 24px', color: 'var(--text-muted)', fontSize: '13px' }}>{new Date(item.created_at).toLocaleDateString()}</td>
                   <td style={{ padding: '20px 24px', fontSize: '14px' }}>{item.client?.first_name} {item.client?.last_name}</td>
                   <td style={{ padding: '20px 24px', fontSize: '14px' }}>{item.agent?.name || '---'}</td>
-                  <td style={{ padding: '20px 24px', fontWeight: 800, color: '#4ade80' }}>${item.total_amount}</td>
+                  <td style={{ padding: '20px 24px', fontWeight: 800, color: '#06B68A' }}>${item.total_amount}</td>
                   <td style={{ padding: '20px 24px' }}>
                     <span style={{ 
                       padding: '4px 10px', borderRadius: '100px', fontSize: '11px', fontWeight: 800,
-                      background: item.status === 'Confirmed' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(250, 204, 21, 0.1)',
-                      color: item.status === 'Confirmed' ? '#4ade80' : '#facc15'
+                      background: item.status === 'Confirmed' ? 'rgba(6, 182, 138, 0.1)' : 'rgba(250, 204, 21, 0.1)',
+                      color: item.status === 'Confirmed' ? '#06B68A' : '#facc15'
                     }}>
                       {item.status}
                     </span>

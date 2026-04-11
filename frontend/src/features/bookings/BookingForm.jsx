@@ -28,8 +28,8 @@ const createEmptyFlightSegment = () => ({
   destination: '',
   departure_at: '',
   arrival_at: '',
-  ticket_image: '',
-  ticket_preview: '',
+  ticket_images: [],
+  ticket_previews: [],
 });
 
 const buildStoredImagePreview = (path) => {
@@ -44,16 +44,19 @@ const normalizeFlightSegments = (segments = []) => {
     return [createEmptyFlightSegment()];
   }
 
-  return segments.map((segment) => ({
-    airline: segment.airline || segment.airline_code || '',
-    flight_number: segment.flight_number || '',
-    origin: segment.origin || segment.departure_city || '',
-    destination: segment.destination || segment.arrival_city || '',
-    departure_at: segment.departure_at || '',
-    arrival_at: segment.arrival_at || '',
-    ticket_image: segment.ticket_image || '',
-    ticket_preview: segment.ticket_preview || buildStoredImagePreview(segment.ticket_image),
-  }));
+  return segments.map((segment) => {
+    const images = Array.isArray(segment.ticket_images) ? segment.ticket_images : (segment.ticket_image ? [segment.ticket_image] : []);
+    return {
+      airline: segment.airline || segment.airline_code || '',
+      flight_number: segment.flight_number || '',
+      origin: segment.origin || segment.departure_city || '',
+      destination: segment.destination || segment.arrival_city || '',
+      departure_at: segment.departure_at || '',
+      arrival_at: segment.arrival_at || '',
+      ticket_images: images,
+      ticket_previews: images.map(img => buildStoredImagePreview(img)),
+    };
+  });
 };
 
 const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
@@ -101,8 +104,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     trip_type: 'one_way',
     pnr: '',
     segments: [createEmptyFlightSegment()],
-    ticket_image: '',
-    ticket_preview: '',
+    ticket_images: [],
+    ticket_previews: [],
     remarks: '',
     change_type: '',
     change_summary: '',
@@ -324,8 +327,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 pnr: details.pnr ?? '',
                 trip_type: s.details_json?.trip_type || (normalizedSegments.length > 2 ? 'multi_city' : normalizedSegments.length === 2 ? 'round_trip' : 'one_way'),
                 segments: normalizedSegments,
-                ticket_image: imgPath ?? '',
-                ticket_preview: preview,
+                ticket_images: normalizedSegments[0]?.ticket_images || [],
+                ticket_previews: normalizedSegments[0]?.ticket_previews || [],
                 remarks: s.details_json?.remarks ?? '',
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
@@ -570,28 +573,60 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   };
 
   const handleTicketUpload = (e, segmentIndex = 0) => {
-    const file = e.target.files[0];
-    if (file) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setFlight((current) => {
           const nextSegments = normalizeFlightSegments(current.segments);
+          const segment = nextSegments[segmentIndex];
+          
+          const updatedImages = [...(segment.ticket_images || []), reader.result];
+          const updatedPreviews = [...(segment.ticket_previews || []), reader.result];
+
           nextSegments[segmentIndex] = {
-            ...nextSegments[segmentIndex],
-            ticket_image: reader.result,
-            ticket_preview: reader.result,
+            ...segment,
+            ticket_images: updatedImages,
+            ticket_previews: updatedPreviews,
           };
 
           return {
             ...current,
-            ticket_image: segmentIndex === 0 ? reader.result : current.ticket_image,
-            ticket_preview: segmentIndex === 0 ? reader.result : current.ticket_preview,
+            ticket_images: segmentIndex === 0 ? updatedImages : current.ticket_images,
+            ticket_previews: segmentIndex === 0 ? updatedPreviews : current.ticket_previews,
             segments: nextSegments,
           };
         });
       };
       reader.readAsDataURL(file);
-    }
+    });
+    
+    e.target.value = '';
+  };
+
+  const removeTicketImage = (segmentIndex, imageIndex) => {
+    setFlight((current) => {
+      const nextSegments = normalizeFlightSegments(current.segments);
+      const segment = nextSegments[segmentIndex];
+
+      const updatedImages = (segment.ticket_images || []).filter((_, i) => i !== imageIndex);
+      const updatedPreviews = (segment.ticket_previews || []).filter((_, i) => i !== imageIndex);
+
+      nextSegments[segmentIndex] = {
+        ...segment,
+        ticket_images: updatedImages,
+        ticket_previews: updatedPreviews,
+      };
+
+      return {
+        ...current,
+        ticket_images: segmentIndex === 0 ? updatedImages : current.ticket_images,
+        ticket_previews: segmentIndex === 0 ? updatedPreviews : current.ticket_previews,
+        segments: nextSegments,
+      };
+    });
   };
 
   const isValidLuhn = (number) => {
@@ -604,121 +639,159 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     return (sum % 10) === 0;
   };
 
-  const handleSubmit = async () => {
-    if (!selectedClientId) {
-      const missingPrimary = [];
-      if (!newClient.first_name) missingPrimary.push("First Name");
-      if (!newClient.last_name) missingPrimary.push("Last Name");
-      if (!newClient.email) missingPrimary.push("Email");
-      if (!newClient.phone) missingPrimary.push("Phone");
-      if (!newClient.date_of_birth) missingPrimary.push("Date of Birth");
+  const handleSubmit = async (forcedStatus = null) => {
+    // Determine the status. If forcedStatus is provided (e.g. from handleSaveDraft), use it.
+    // Otherwise, if it's currently a Draft, transition it to 'Pending' on confirm.
+    const statusToSubmit = forcedStatus || (bookingStatus === 'Draft' ? 'Pending' : (bookingStatus || 'Pending'));
 
-      if (missingPrimary.length > 0) return setToast({ message: `Missing fields: ${missingPrimary.join(', ')}`, type: 'error' });
+    if (!selectedClientId) {
+      if (statusToSubmit === 'Draft') {
+        // For draft, only require first OR last name
+        if (!newClient.first_name && !newClient.last_name) {
+          return setToast({ message: "Please enter at least a First or Last Name to save a draft.", type: 'error' });
+        }
+      } else {
+        // Full validation for non-drafts
+        const missingPrimary = [];
+        if (!newClient.first_name) missingPrimary.push("First Name");
+        if (!newClient.last_name) missingPrimary.push("Last Name");
+        if (!newClient.email) missingPrimary.push("Email");
+        if (!newClient.phone) missingPrimary.push("Phone");
+        if (!newClient.date_of_birth) missingPrimary.push("Date of Birth");
+
+        if (missingPrimary.length > 0) {
+          return setToast({ message: `Missing fields: ${missingPrimary.join(', ')}`, type: 'error' });
+        }
+      }
     }
 
     const servicesPayload = [];
     if (flight.active) {
       const normalizedSegments = normalizeFlightSegments(flight.segments);
       const firstSegment = normalizedSegments[0] || createEmptyFlightSegment();
-
-      servicesPayload.push({
-      type: 'flight',
-      flight_details: {
-        ticket_image: normalizedSegments[0]?.ticket_image || flight.ticket_image,
-        pnr: flight.pnr,
-        airline_code: firstSegment.airline,
-        flight_number: firstSegment.flight_number,
-        departure_city: firstSegment.origin,
-        arrival_city: firstSegment.destination,
-        departure_at: firstSegment.departure_at,
-        arrival_at: firstSegment.arrival_at,
-      },
-      details: {
-        trip_type: flight.trip_type,
-        segments: normalizedSegments.map((segment) => ({
-          airline: segment.airline,
-          flight_number: segment.flight_number,
-          origin: segment.origin,
-          destination: segment.destination,
-          departure_at: segment.departure_at,
-          arrival_at: segment.arrival_at,
-          ticket_image: segment.ticket_image,
-        })),
-        remarks: flight.remarks,
-        change_type: flight.change_type,
-        change_summary: flight.change_summary,
-        additional_charge: flight.additional_charge
-      },
-      cost_price: flight.cost,
-      markup: flight.markup,
-      sell_price: flight.sell
-    });
+      
+      const hasFlightData = flight.pnr || firstSegment.airline || firstSegment.origin || firstSegment.destination || (parseFloat(flight.sell) > 0) || (flight.ticket_previews?.length > 0) || (firstSegment.ticket_images?.length > 0);
+      
+      if (statusToSubmit !== 'Draft' || hasFlightData) {
+        servicesPayload.push({
+          type: 'flight',
+          flight_details: {
+            ticket_image: normalizedSegments[0]?.ticket_image || flight.ticket_image,
+            ticket_images: [
+              ...(normalizedSegments[0]?.ticket_images || flight.ticket_images || []),
+              ...normalizedSegments.slice(1).flatMap(s => s.ticket_images || [])
+            ],
+            pnr: flight.pnr,
+            airline_code: firstSegment.airline,
+            flight_number: firstSegment.flight_number,
+            departure_city: firstSegment.origin,
+            arrival_city: firstSegment.destination,
+            departure_at: firstSegment.departure_at,
+            arrival_at: firstSegment.arrival_at,
+          },
+          details: {
+            trip_type: flight.trip_type,
+            segments: normalizedSegments.map((segment) => ({
+              airline: segment.airline,
+              flight_number: segment.flight_number,
+              origin: segment.origin,
+              destination: segment.destination,
+              departure_at: segment.departure_at,
+              arrival_at: segment.arrival_at,
+              ticket_image: segment.ticket_image,
+            })),
+            remarks: flight.remarks,
+            change_type: flight.change_type,
+            change_summary: flight.change_summary,
+            additional_charge: flight.additional_charge
+          },
+          cost_price: flight.cost,
+          markup: flight.markup,
+          sell_price: flight.sell
+        });
+      }
     }
-    if (hotel.active) servicesPayload.push({
-      type: 'hotel',
-      hotel_details: { name: hotel.name, city: hotel.city, address: hotel.address, room_type: hotel.room_type },
-      details: {
-        images: hotel.images || [],
-        checkin: hotel.checkin,
-        checkout: hotel.checkout,
-        remarks: hotel.remarks,
-        change_type: hotel.change_type,
-        change_summary: hotel.change_summary,
-        additional_charge: hotel.additional_charge
-      },
-      cost_price: hotel.cost,
-      markup: hotel.markup,
-      sell_price: hotel.sell
-    });
-    if (vehicle.active) servicesPayload.push({
-      type: 'car',
-      car_details: { company: vehicle.company, car_type: vehicle.model },
-      details: {
-        images: vehicle.images || [],
-        pickup_loc: vehicle.pickup_loc,
-        drop_loc: vehicle.drop_loc,
-        pickup_date: vehicle.pickup_date,
-        dropoff_date: vehicle.dropoff_date,
-        remarks: vehicle.remarks,
-        change_type: vehicle.change_type,
-        change_summary: vehicle.change_summary,
-        additional_charge: vehicle.additional_charge
-      },
-      cost_price: vehicle.cost,
-      markup: vehicle.markup,
-      sell_price: vehicle.sell
-    });
-    if (cruise.active) servicesPayload.push({
-      type: 'cruise',
-      cruise_details: { operator: cruise.line, cruise_name: cruise.ship },
-      details: {
-        images: cruise.images || [],
-        departure_date: cruise.departure_date,
-        arrival_date: cruise.arrival_date,
-        deposit_amount: cruise.deposit_amount,
-        remarks: cruise.remarks,
-        change_type: cruise.change_type,
-        change_summary: cruise.change_summary,
-        additional_charge: cruise.additional_charge
-      },
-      cost_price: cruise.cost,
-      markup: cruise.markup,
-      sell_price: cruise.sell
-    });
+    if (hotel.active) {
+      const hasHotelData = (hotel.name?.trim()) || (parseFloat(hotel.sell) > 0);
+      // For draft, still require a name if we choose to send this hotel
+      if (statusToSubmit !== 'Draft' || hotel.name?.trim()) {
+        servicesPayload.push({
+          type: 'hotel',
+          hotel_details: { name: hotel.name, city: hotel.city, address: hotel.address, room_type: hotel.room_type },
+          details: {
+            images: hotel.images || [],
+            checkin: hotel.checkin,
+            checkout: hotel.checkout,
+            remarks: hotel.remarks,
+            change_type: hotel.change_type,
+            change_summary: hotel.change_summary,
+            additional_charge: hotel.additional_charge
+          },
+          cost_price: hotel.cost,
+          markup: hotel.markup,
+          sell_price: hotel.sell
+        });
+      }
+    }
+    if (vehicle.active) {
+      const hasVehicleData = (vehicle.company?.trim()) || (parseFloat(vehicle.sell) > 0);
+      if (statusToSubmit !== 'Draft' || vehicle.company?.trim()) {
+        servicesPayload.push({
+          type: 'car',
+          car_details: { company: vehicle.company, car_type: vehicle.model },
+          details: {
+            images: vehicle.images || [],
+            pickup_loc: vehicle.pickup_loc,
+            drop_loc: vehicle.drop_loc,
+            pickup_date: vehicle.pickup_date,
+            dropoff_date: vehicle.dropoff_date,
+            remarks: vehicle.remarks,
+            change_type: vehicle.change_type,
+            change_summary: vehicle.change_summary,
+            additional_charge: vehicle.additional_charge
+          },
+          cost_price: vehicle.cost,
+          markup: vehicle.markup,
+          sell_price: vehicle.sell
+        });
+      }
+    }
+    if (cruise.active) {
+      const hasCruiseData = (cruise.line?.trim()) || (parseFloat(cruise.sell) > 0);
+      if (statusToSubmit !== 'Draft' || cruise.line?.trim()) {
+        servicesPayload.push({
+          type: 'cruise',
+          cruise_details: { operator: cruise.line, cruise_name: cruise.ship },
+          details: {
+            images: cruise.images || [],
+            departure_date: cruise.departure_date,
+            arrival_date: cruise.arrival_date,
+            deposit_amount: cruise.deposit_amount,
+            remarks: cruise.remarks,
+            change_type: cruise.change_type,
+            change_summary: cruise.change_summary,
+            additional_charge: cruise.additional_charge
+          },
+          cost_price: cruise.cost,
+          markup: cruise.markup,
+          sell_price: cruise.sell
+        });
+      }
+    }
 
-    if (servicesPayload.length === 0) return setToast({ message: "Add at least one service.", type: 'error' });
+    if (statusToSubmit !== 'Draft' && servicesPayload.length === 0) return setToast({ message: "Add at least one service.", type: 'error' });
 
     const grandTotal = calculateTotal();
     const totalAllocated = paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
 
-    if (!isChangeWorkflow) {
-      if (Math.abs(totalAllocated - grandTotal) > 0.01) return setToast({ message: "Payment allocation mismatch.", type: 'error' });
+    if (!isChangeWorkflow && statusToSubmit !== 'Draft') {
+      if (Math.abs(totalAllocated - grandTotal) > 0.01) return setToast({ message: "The total amount assigned to your payment cards must equal the booking's Grand Total.", type: 'error' });
 
       for (let i = 0; i < paymentCards.length; i++) {
           const card = paymentCards[i];
           const cardNumClean = (card.number || '').replace(/\s/g, '');
-          if (!card.holder_name || !card.number || !card.exp || !card.amount) return setToast({ message: `Card #${i + 1} incomplete.`, type: 'error' });
-          if (!isValidLuhn(cardNumClean)) return setToast({ message: `Card #${i + 1} invalid (Luhn).`, type: 'error' });
+          if (!card.holder_name || !card.number || !card.exp || !card.amount) return setToast({ message: `Please complete all required fields for Card #${i + 1} (Name, Number, Expiry, and Amount).`, type: 'error' });
+          if (!isValidLuhn(cardNumClean)) return setToast({ message: `The number for Card #${i + 1} is not a valid credit card number. Please double-check it.`, type: 'error' });
       }
     }
 
@@ -732,7 +805,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
       if (Math.abs(changeChargeAllocated - additionalChargeTotal) > 0.01) {
         return setToast({
-          message: `Change charge allocation mismatch. Allocate exactly USD ${additionalChargeTotal.toFixed(2)} across the selected cards.`,
+          message: `The amount allocated to cards must match the Total Additional Charge (USD ${additionalChargeTotal.toFixed(2)}) exactly.`,
           type: 'error'
         });
       }
@@ -744,16 +817,17 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
         const cardNumClean = (card.number || '').replace(/\s/g, '');
         if (!card.holder_name || !card.number || !card.exp) {
-          return setToast({ message: `Change charge card #${i + 1} is incomplete.`, type: 'error' });
+          return setToast({ message: `Change charge Card #${i + 1} is incomplete. Please fill in Name, Number, and Expiry.`, type: 'error' });
         }
 
         if (!isValidLuhn(cardNumClean)) {
-          return setToast({ message: `Change charge card #${i + 1} is invalid (Luhn).`, type: 'error' });
+          return setToast({ message: `The number for change charge Card #${i + 1} is not a valid credit card number.`, type: 'error' });
         }
       }
     }
 
     const payload = {
+      status: statusToSubmit,
       agent_id: selectedAgentId,
       client_id: selectedClientId,
       update_mode: bookingId ? (isChangeWorkflow ? 'service_change' : 'standard') : 'standard',
@@ -838,7 +912,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
         }
 
         onSuccess({
-          message: 'Tracked change saved successfully.',
+          message: 'Adjustment saved successfully.',
           type: 'success',
         });
         return;
@@ -849,11 +923,27 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
         type: 'success',
       });
     } catch (error) {
+      const errorData = error?.response?.data;
+      let displayMsg = errorData?.message || 'Error saving booking.';
+      
+      if (errorData?.errors) {
+        // Collect all error messages from the object
+        const allErrors = Object.values(errorData.errors).flat();
+        if (allErrors.length > 0) {
+          displayMsg = allErrors.join(' | ');
+        }
+      }
+
       setToast({
-        message: error?.response?.data?.message || 'Error saving booking.',
+        message: displayMsg,
         type: 'error'
       });
     } finally { setLoading(false); }
+  };
+
+  const handleSaveDraft = () => {
+    // Save as draft skips standard field validations inside handleSubmit
+    handleSubmit('Draft');
   };
 
   return (
@@ -870,7 +960,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
               Standard Edit Locked After Approval
             </div>
             <div style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '18px' }}>
-              This booking is already {bookingStatus}. To protect the approval record, normal edit is no longer allowed. Any post-approval update should go through tracked change mode so we can record what changed and charge the client properly if needed.
+              This booking is already {bookingStatus}. To protect the approval record, normal edit is no longer allowed. Any update should go through modification mode so we can record what changed and handle any additional charges.
             </div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <Button variant="secondary" onClick={onCancel}>Back to Bookings</Button>
@@ -878,7 +968,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 variant="primary"
                 onClick={() => navigate(`${basePath}/bookings/${bookingId}/edit?workflow=service-change`)}
               >
-                Open Tracked Change
+                Modify Booking
               </Button>
             </div>
           </Card>
@@ -932,7 +1022,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Additional Charge Total</div>
-                <div style={{ fontSize: '24px', fontWeight: 900, color: '#016040' }}>USD {calculateAdditionalChargeTotal().toFixed(2)}</div>
+                <div style={{ fontSize: '24px', fontWeight: 900, color: '#06B68A' }}>USD {calculateAdditionalChargeTotal().toFixed(2)}</div>
               </div>
             </div>
 
@@ -1037,7 +1127,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
             <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-muted)' }}>
               <span>Allocated</span>
-              <strong style={{ color: Math.abs(calculateChangeChargeAllocated() - calculateAdditionalChargeTotal()) < 0.01 ? '#016040' : '#dc2626' }}>
+              <strong style={{ color: Math.abs(calculateChangeChargeAllocated() - calculateAdditionalChargeTotal()) < 0.01 ? '#06B68A' : '#dc2626' }}>
                 USD {calculateChangeChargeAllocated().toFixed(2)}
               </strong>
             </div>
@@ -1087,13 +1177,17 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
             setSelectedClientId(null);
             setExistingClientSearch('');
             setExistingClientResults([]);
+            setNewClient({ 
+              first_name: '', middle_name: '', last_name: '', 
+              email: '', alternate_email: '', phone: '', alternate_phone: '', address: '', date_of_birth: '', gender: '' 
+            });
           }}
         />
         {isChangeWorkflow ? (
           <Card style={{ padding: 0 }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '8px', background: 'rgba(74, 222, 128, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontWeight: 900 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '8px', background: 'rgba(6, 182, 138, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#06B68A', fontWeight: 900 }}>
                   2
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>Original Payment Cards</div>
@@ -1118,7 +1212,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                           <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.6 }}>{card.remarks}</div>
                         ) : null}
                       </div>
-                      <div style={{ fontSize: '18px', fontWeight: 900, color: '#4ade80' }}>
+                      <div style={{ fontSize: '18px', fontWeight: 900, color: '#06B68A' }}>
                         {card.currency || 'USD'} {(parseFloat(card.amount) || 0).toFixed(2)}
                       </div>
                     </div>
@@ -1134,6 +1228,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           flight={flight} 
           setFlight={setFlight} 
           handleTicketUpload={handleTicketUpload} 
+          removeTicketImage={removeTicketImage}
           isEditMode={Boolean(bookingId)}
           showChangeTracking={isChangeWorkflow && existingServiceFlags.flight}
           updateFlightSegmentsForTripType={updateFlightSegmentsForTripType}
@@ -1165,9 +1260,10 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
         currency={flight.currency || 'USD'}
         calculateTotal={isChangeWorkflow ? calculateAdditionalChargeTotal : calculateTotal}
         totalAllocated={isChangeWorkflow ? calculateChangeChargeAllocated() : paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)} 
-        handleSubmit={handleSubmit} 
+        handleSubmit={() => handleSubmit()} 
+        onSaveDraft={handleSaveDraft}
         loading={loading} 
-        submitLabel={isChangeWorkflow ? 'Save Change' : 'Save Booking'}
+        showDraft={!isChangeWorkflow && bookingStatus !== 'Approved' && bookingStatus !== 'Confirmed' && bookingStatus !== 'Completed'}
       />
 
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />

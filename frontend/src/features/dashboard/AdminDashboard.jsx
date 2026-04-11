@@ -35,12 +35,12 @@ const AdminDashboard = () => {
       <span style={{ 
         fontSize: '12px', 
         fontWeight: 700, 
-        color: isPositive ? '#10b981' : '#ef4444',
+        color: isPositive ? '#06B68A' : '#ef4444',
         display: 'inline-flex',
         alignItems: 'center',
         gap: '2px',
         marginLeft: '8px',
-        background: isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+        background: isPositive ? 'rgba(6, 182, 138, 0.1)' : 'rgba(239, 68, 68, 0.1)',
         padding: '2px 6px',
         borderRadius: '6px'
       }}>
@@ -83,7 +83,7 @@ const AdminDashboard = () => {
       value: stats.bookings.total,
       growth: stats.bookings.growth,
       icon: ClipboardList,
-      color: '#10b981',
+      color: '#06B68A',
       onClick: () => navigate('/admin/bookings')
     },
     {
@@ -96,19 +96,19 @@ const AdminDashboard = () => {
       onClick: () => navigate('/admin/call-logs')
     },
     {
-      title: 'Period Revenue',
+      title: 'Revenue Overview',
       subtitle: `Revenue vs previous ${period}`,
       value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue.period_total) || 0),
       growth: stats.revenue.growth,
       icon: CircleDollarSign,
-      color: '#22c55e',
+      color: '#06B68A',
     },
     {
       title: 'Daily Revenue',
       subtitle: 'Collected today by admin',
       value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue.daily) || 0),
       icon: CircleDollarSign,
-      color: '#16a34a',
+      color: '#06B68A',
       onClick: () => navigate('/admin/charge-queue')
     },
   ];

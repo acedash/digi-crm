@@ -114,12 +114,12 @@ const PassengerSection = ({
         ) : null}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-          <Input label={<span>First Name <span style={{ color: '#ef4444' }}>*</span></span>} value={newClient.first_name || ''} onChange={e => setNewClient({...newClient, first_name: e.target.value})} />
+          <Input label="First Name" required value={newClient.first_name || ''} onChange={e => setNewClient({...newClient, first_name: e.target.value})} />
           <Input label="Middle Name" value={newClient.middle_name || ''} onChange={e => setNewClient({...newClient, middle_name: e.target.value})} />
-          <Input label={<span>Last Name <span style={{ color: '#ef4444' }}>*</span></span>} value={newClient.last_name || ''} onChange={e => setNewClient({...newClient, last_name: e.target.value})} />
-          <Input label={<span>Email <span style={{ color: '#ef4444' }}>*</span></span>} value={newClient.email || ''} onChange={e => setNewClient({...newClient, email: e.target.value})} />
-          <Input label={<span>Phone <span style={{ color: '#ef4444' }}>*</span></span>} value={newClient.phone || ''} onChange={e => setNewClient({...newClient, phone: e.target.value})} />
-          <Input label={<span>Date of Birth <span style={{ color: '#ef4444' }}>*</span></span>} type="date" value={newClient.date_of_birth || ''} onChange={e => setNewClient({...newClient, date_of_birth: e.target.value})} />
+          <Input label="Last Name" required value={newClient.last_name || ''} onChange={e => setNewClient({...newClient, last_name: e.target.value})} />
+          <Input label="Email" required value={newClient.email || ''} onChange={e => setNewClient({...newClient, email: e.target.value})} />
+          <Input label="Phone" required value={newClient.phone || ''} onChange={e => setNewClient({...newClient, phone: e.target.value})} />
+          <Input label="Date of Birth" required type="date" value={newClient.date_of_birth || ''} onChange={e => setNewClient({...newClient, date_of_birth: e.target.value})} />
           <Input label="Alternate Email" value={newClient.alternate_email || ''} onChange={e => setNewClient({...newClient, alternate_email: e.target.value})} />
           <Input label="Alternate Phone" value={newClient.alternate_phone || ''} onChange={e => setNewClient({...newClient, alternate_phone: e.target.value})} />
           <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
@@ -211,7 +211,7 @@ const PassengerSection = ({
           {newPassengers.map((np, index) => (
             <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr auto', gap: '12px', alignItems: 'end', marginBottom: '16px' }}>
               <Input 
-                label={<span>First Name <span style={{ color: '#ef4444' }}>*</span></span>}
+                label="First Name" required
                 value={np.first_name || ''} 
                 onChange={e => { const arr = [...newPassengers]; arr[index].first_name = e.target.value; setNewPassengers(arr); }} 
               />
@@ -221,12 +221,12 @@ const PassengerSection = ({
                 onChange={e => { const arr = [...newPassengers]; arr[index].middle_name = e.target.value; setNewPassengers(arr); }} 
               />
               <Input 
-                label={<span>Last Name <span style={{ color: '#ef4444' }}>*</span></span>}
+                label="Last Name" required
                 value={np.last_name || ''} 
                 onChange={e => { const arr = [...newPassengers]; arr[index].last_name = e.target.value; setNewPassengers(arr); }} 
               />
               <Input 
-                label={<span>Date of Birth <span style={{ color: '#ef4444' }}>*</span></span>}
+                label="Date of Birth" required
                 type="date"
                 value={np.date_of_birth || ''} 
                 onChange={e => { const arr = [...newPassengers]; arr[index].date_of_birth = e.target.value; setNewPassengers(arr); }} 

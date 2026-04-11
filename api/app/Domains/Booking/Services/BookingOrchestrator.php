@@ -69,7 +69,7 @@ class BookingOrchestrator
                 'client_id' => $clientId,
                 'agent_id' => $data['agent_id'] ?? auth()->id(),
                 'booking_reference' => $this->bookingRepo->generateReference(),
-                'status' => 'Pending',
+                'status' => $data['status'] ?? 'Pending',
                 'currency' => $data['currency'] ?? 'USD',
                 'total_amount' => 0,
                 'details_json' => [
@@ -217,6 +217,8 @@ class BookingOrchestrator
             'flight' => [
                 'trip_type' => $details['trip_type'] ?? 'one_way',
                 'ticket_image' => $serviceable?->ticket_image,
+                'ticket_images' => $serviceable?->ticket_images,
+                'image_count' => count($serviceable?->ticket_images ?? ($serviceable?->ticket_image ? [$serviceable->ticket_image] : [])),
                 'pnr' => $serviceable?->pnr,
                 'route_summary' => $this->buildFlightRouteSummary($this->buildFlightSegmentsFromModel($serviceable, $details)),
                 'segment_count' => count($this->buildFlightSegmentsFromModel($serviceable, $details)),
@@ -279,6 +281,8 @@ class BookingOrchestrator
             'flight' => [
                 'trip_type' => $details['trip_type'] ?? 'one_way',
                 'ticket_image' => $serviceDetails['ticket_image'] ?? null,
+                'ticket_images' => $serviceDetails['ticket_images'] ?? [],
+                'image_count' => count($serviceDetails['ticket_images'] ?? (($serviceDetails['ticket_image'] ?? null) ? [1] : [])),
                 'pnr' => $serviceDetails['pnr'] ?? null,
                 'route_summary' => $this->buildFlightRouteSummary($details['segments'] ?? []),
                 'segment_count' => count($details['segments'] ?? []),
@@ -490,8 +494,23 @@ class BookingOrchestrator
         if ($type === 'flight') {
             $details['segments'] = collect($details['segments'] ?? [])
                 ->map(function ($segment) {
+                    if (!empty($segment['ticket_images']) && is_array($segment['ticket_images'])) {
+                        $segment['ticket_images'] = collect($segment['ticket_images'])
+                            ->map(function($img) {
+                                if (is_string($img) && str_starts_with($img, 'data:image')) {
+                                    return $this->uploadTicketImage($img);
+                                }
+                                return $img;
+                            })
+                            ->filter()
+                            ->values()
+                            ->all();
+                    }
+
+                    // Backwards compatibility for single image if present
                     if (!empty($segment['ticket_image']) && is_string($segment['ticket_image']) && str_starts_with($segment['ticket_image'], 'data:image')) {
                         $segment['ticket_image'] = $this->uploadTicketImage($segment['ticket_image']);
+                        if (empty($segment['ticket_images'])) $segment['ticket_images'] = [$segment['ticket_image']];
                     }
 
                     return $segment;
@@ -499,7 +518,11 @@ class BookingOrchestrator
                 ->values()
                 ->all();
 
-            if (empty(data_get($serviceData, 'flight_details.ticket_image')) && !empty($details['segments'][0]['ticket_image'])) {
+            if (empty(data_get($serviceData, 'flight_details.ticket_images')) && !empty($details['segments'][0]['ticket_images'])) {
+                $serviceData['flight_details']['ticket_images'] = $details['segments'][0]['ticket_images'];
+            }
+            
+            if (empty(data_get($serviceData, 'flight_details.ticket_image')) && !empty($details['segments'][0]['ticket_image'] ?? null)) {
                 $serviceData['flight_details']['ticket_image'] = $details['segments'][0]['ticket_image'];
             }
 
@@ -557,6 +580,19 @@ class BookingOrchestrator
         $type = strtolower($serviceData['type']);
         $details = $serviceData[$type . '_details'] ?? [];
 
+        if ($type === 'flight' && !empty($details['ticket_images']) && is_array($details['ticket_images'])) {
+            $details['ticket_images'] = collect($details['ticket_images'])
+                ->map(function($img) {
+                    if (is_string($img) && str_starts_with($img, 'data:image')) {
+                        return $this->uploadTicketImage($img);
+                    }
+                    return $img;
+                })
+                ->filter()
+                ->values()
+                ->all();
+        }
+
         if ($type === 'flight' && !empty($details['ticket_image']) && str_starts_with($details['ticket_image'], 'data:image')) {
             $details['ticket_image'] = $this->uploadTicketImage($details['ticket_image']);
         }
@@ -564,6 +600,7 @@ class BookingOrchestrator
         if ($type === 'flight') {
             $details = [
                 'ticket_image' => $details['ticket_image'] ?? null,
+                'ticket_images' => $details['ticket_images'] ?? [],
                 'pnr' => $details['pnr'] ?? null,
                 'airline_code' => $details['airline_code'] ?? null,
                 'flight_number' => $details['flight_number'] ?? null,

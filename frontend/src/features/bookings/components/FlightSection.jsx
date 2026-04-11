@@ -21,6 +21,7 @@ const FlightSection = ({
   updateFlightSegment,
   addFlightSegment,
   removeFlightSegment,
+  removeTicketImage,
 }) => {
   return (
     <Card style={{ padding: 0, opacity: flight.active ? 1 : 0.7 }}>
@@ -83,7 +84,10 @@ const FlightSection = ({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Flight Segment {index + 1}
+                    {flight.trip_type === 'round_trip' 
+                      ? (index === 0 ? 'Departure Flight' : (index === 1 ? 'Return Flight' : `Flight Segment ${index + 1}`))
+                      : `Flight Segment ${index + 1}`
+                    }
                   </div>
                   {((flight.trip_type === 'one_way' && flight.segments.length > 1) || (flight.trip_type !== 'one_way' && flight.segments.length > 2)) && (
                     <button
@@ -137,7 +141,7 @@ const FlightSection = ({
 
                 <div style={{ marginTop: '18px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '10px', color: 'var(--text-muted)' }}>
-                    Ticket Screenshot / Picture
+                    Ticket Screenshot / Picture <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <div
                     onClick={() => document.getElementById(`ticket-upload-${index}`).click()}
@@ -148,7 +152,7 @@ const FlightSection = ({
                       textAlign: 'center',
                       cursor: 'pointer',
                       transition: '0.2s',
-                      background: segment.ticket_preview ? 'none' : 'rgba(255,255,255,0.02)',
+                      background: 'rgba(255,255,255,0.02)',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = 'hsl(var(--primary))';
@@ -161,42 +165,66 @@ const FlightSection = ({
                       id={`ticket-upload-${index}`}
                       type="file"
                       accept="image/*"
+                      multiple
                       onChange={(e) => handleTicketUpload(e, index)}
                       style={{ display: 'none' }}
                     />
-                    {segment.ticket_preview ? (
-                      <div style={{ position: 'relative' }}>
-                        <img
-                          src={segment.ticket_preview}
-                          alt={`Ticket Preview ${index + 1}`}
-                          style={{ maxWidth: '100%', maxHeight: '240px', borderRadius: '12px', boxShadow: 'var(--shadow-lg)' }}
-                        />
-                        <div style={{ marginTop: '12px', fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: 700 }}>
-                          Click to change image
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div
-                          style={{
-                            width: '44px',
-                            height: '44px',
-                            borderRadius: '50%',
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            color: 'hsl(var(--primary))',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 14px',
-                          }}
-                        >
-                          <Plus size={22} />
-                        </div>
-                        <p style={{ fontWeight: 700, marginBottom: '4px' }}>Upload Ticket Image</p>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>JPG, PNG or Screenshot for this segment</p>
-                      </>
-                    )}
+                    <div
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '50%',
+                        background: 'rgba(59, 130, 246, 0.1)',
+                        color: 'hsl(var(--primary))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 14px',
+                      }}
+                    >
+                      <Plus size={22} />
+                    </div>
+                    <p style={{ fontWeight: 700, marginBottom: '4px' }}>Upload Ticket Images</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>JPG, PNG or Screenshot (Select multiple if needed)</p>
                   </div>
+
+                  {segment.ticket_previews?.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px', marginTop: '16px' }}>
+                      {segment.ticket_previews.map((preview, imgIndex) => (
+                        <div key={`${preview}-${imgIndex}`} style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                          <img
+                            src={preview}
+                            alt={`Segment ${index + 1} Ticket ${imgIndex + 1}`}
+                            style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeTicketImage(index, imgIndex);
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              border: 'none',
+                              borderRadius: '999px',
+                              background: 'rgba(17,24,39,0.82)',
+                              color: '#fff',
+                              width: '28px',
+                              height: '28px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

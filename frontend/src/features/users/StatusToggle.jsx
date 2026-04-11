@@ -27,7 +27,7 @@ const StatusToggle = () => {
   }, [isOpen]);
 
   const statuses = [
-    { name: 'Active', color: '#4ade80', icon: Circle, activityType: 'break_end' },
+    { name: 'Active', color: '#06B68A', icon: Circle, activityType: 'break_end' },
     { name: 'On Call', color: '#facc15', icon: Phone, activityType: 'on_call' },
     { name: 'Break', color: '#f87171', icon: Coffee, activityType: 'break_start' },
     { name: 'Idle', color: '#94a3b8', icon: Clock, activityType: 'idle' },

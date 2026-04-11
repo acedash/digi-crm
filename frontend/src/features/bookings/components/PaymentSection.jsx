@@ -1,5 +1,4 @@
-import React from 'react';
-import { CreditCard, Trash2, Plus } from 'lucide-react';
+import { CreditCard, Trash2, Plus, CheckCircle2 } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
@@ -60,7 +59,7 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
             Total Booking: <strong style={{ color: 'var(--text-main)' }}>${grandTotal}</strong>
           </span>
           <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            Total Allocated: <strong style={{ color: Math.abs(totalAllocated - grandTotal) < 0.01 ? '#4ade80' : '#f87171' }}>
+            Total Allocated: <strong style={{ color: Math.abs(totalAllocated - grandTotal) < 0.01 ? '#06B68A' : '#f87171' }}>
               ${totalAllocated.toFixed(2)}
             </strong>
           </span>
@@ -77,21 +76,37 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
             background: 'var(--bg-card)',
             border: '1px solid var(--border-color)'
           }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr auto', gap: '12px', alignItems: 'start' }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '16px', 
+              marginBottom: '16px' 
+            }}>
               <Input 
-                label="Holder Name" 
+                label="Card Holder" required
+                placeholder="Full name as on card"
                 value={card.holder_name || ''} 
                 onChange={e => updatePaymentCard(index, 'holder_name', e.target.value)} 
                 style={{ marginBottom: 0 }}
               />
               <Input 
-                label="Card Number" 
+                label="Card Number" required
+                placeholder="XXXX XXXX XXXX XXXX"
                 value={card.number || ''} 
                 onChange={e => updatePaymentCard(index, 'number', e.target.value)} 
                 style={{ marginBottom: 0 }}
               />
+            </div>
+
+            {/* Row 2: Crucial Details */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr 1fr 1.2fr auto', 
+              gap: '16px', 
+              alignItems: 'end' 
+            }}>
               <Input 
-                label="Expiry" 
+                label="Expiry" required
                 placeholder="MM/YY"
                 value={card.exp || ''} 
                 onChange={e => updatePaymentCard(index, 'exp', e.target.value)} 
@@ -100,6 +115,7 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
               <Input 
                 label="CVV" 
                 type="password"
+                placeholder="***"
                 value={card.cvv || ''} 
                 onChange={e => updatePaymentCard(index, 'cvv', e.target.value)} 
                 style={{ marginBottom: 0 }}
@@ -111,15 +127,20 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
                   onChange={e => updatePaymentCard(index, 'currency', e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '12px',
+                    padding: '12px 32px 12px 12px',
                     borderRadius: '12px',
                     background: 'var(--bg-input)',
+                    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2394a3b8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'m6 9 6 6 6-6\'/%3E%3C/svg%3E")',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 12px center',
                     border: '1px solid var(--border-color)',
                     color: 'var(--text-main)',
                     fontSize: '14px',
                     outline: 'none',
-                    height: '45px',
-                    cursor: 'pointer'
+                    height: '46px',
+                    cursor: 'pointer',
+                    appearance: 'none',
+                    WebkitAppearance: 'none'
                   }}
                 >
                   {CURRENCIES.map(curr => (
@@ -128,7 +149,7 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
                 </select>
               </div>
               <Input 
-                label="Amount" 
+                label="Amount" required
                 type="number"
                 value={card.amount ?? ''} 
                 placeholder="0.00"
@@ -139,12 +160,16 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
                 variant="ghost" 
                 icon={Trash2} 
                 onClick={() => { const arr = [...paymentCards]; arr.splice(index, 1); setPaymentCards(arr); }}
-                style={{ color: '#ef4444', height: '45px', marginTop: '27px' }}
+                style={{ color: '#ef4444', height: '46px' }}
                 disabled={paymentCards.length === 1}
               />
             </div>
 
             <div style={{ marginTop: '14px' }}>
+              <div style={{ color: '#06B68A', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={12} />
+                Primary Card
+              </div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
                 Remarks
               </label>

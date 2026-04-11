@@ -291,7 +291,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       navigate(`${basePath}/bookings/${booking.id}/edit?workflow=service-change`, {
         state: {
           flash: {
-            message: 'This booking is already approved. Normal edit is locked, so we opened tracked change mode instead.',
+            message: 'This booking is already approved. Normal edit is locked, so we opened modification mode instead.',
             type: 'success',
           },
         },
@@ -303,9 +303,9 @@ const BookingList = ({ onCreate, onEdit }) => {
   };
 
   const statusIcons = {
-    'Approved': { icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shadow: 'rgba(16, 185, 129, 0.2)' },
-    'Change Approved': { icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shadow: 'rgba(16, 185, 129, 0.2)' },
-    'Confirmed': { icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shadow: 'rgba(16, 185, 129, 0.2)' },
+    'Approved': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
+    'Change Approved': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
+    'Confirmed': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
     'Work Pending': { icon: Clock, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)', shadow: 'rgba(236, 72, 153, 0.2)' },
     'Awaiting Approval': { icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', shadow: 'rgba(139, 92, 246, 0.2)' },
     'Awaiting Change Approval': { icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', shadow: 'rgba(139, 92, 246, 0.2)' },
@@ -313,7 +313,8 @@ const BookingList = ({ onCreate, onEdit }) => {
     'Cancelled': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Change Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
-    'Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' }
+    'Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' },
+    'Draft': { icon: FileText, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)', shadow: 'rgba(148, 163, 184, 0.2)' }
   };
 
   const getStatusGuidance = (status) => {
@@ -337,6 +338,8 @@ const BookingList = ({ onCreate, onEdit }) => {
         return 'Booking has been cancelled and is no longer active.';
       case 'Completed':
         return 'Trip workflow has been completed successfully.';
+      case 'Draft':
+        return 'Booking is an incomplete draft. Finish client and service details to confirm.';
       default:
         return 'Review the booking details and continue the workflow.';
     }
@@ -482,7 +485,23 @@ const BookingList = ({ onCreate, onEdit }) => {
           <select 
             value={selectedReassignAgent}
             onChange={e => setSelectedReassignAgent(e.target.value)}
-            style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', marginBottom: '24px', fontSize: '14px' }}
+            style={{ 
+              width: '100%', 
+              padding: '12px 40px 12px 16px', 
+              borderRadius: '12px', 
+              background: 'var(--bg-app)', 
+              backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2394a3b8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'m6 9 6 6 6-6\'/%3E%3C/svg%3E")',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 16px center',
+              border: '1px solid var(--border-color)', 
+              color: 'var(--text-main)', 
+              outline: 'none', 
+              cursor: 'pointer', 
+              marginBottom: '24px', 
+              fontSize: '14px',
+              appearance: 'none',
+              WebkitAppearance: 'none'
+            }}
           >
             <option value="" disabled>Select Agent</option>
             {user?.id !== reassignModal.currentAgentId && (
@@ -563,15 +582,24 @@ const BookingList = ({ onCreate, onEdit }) => {
               (b) => b.status === 'Approved' || b.status === 'Confirmed' || b.status === 'Change Approved'
             ).length,
             icon: CheckCircle2,
-            color: 'green',
+            color: '#06B68A',
+            bg: 'rgba(6, 182, 138, 0.1)'
           },
           {
-            label: 'Awaiting Approval',
+            label: 'Drafts',
+            value: bookings.filter((b) => b.status === 'Draft').length,
+            icon: FileText,
+            color: '#94a3b8',
+            bg: 'rgba(148, 163, 184, 0.1)'
+          },
+          {
+            label: 'Awaiting',
             value: bookings.filter(
               (b) => b.status === 'Awaiting Approval' || b.status === 'Awaiting Change Approval'
             ).length,
             icon: Clock,
-            color: 'yellow',
+            color: '#8b5cf6',
+            bg: 'rgba(139, 92, 246, 0.1)'
           },
           {
             label: 'Rejected',
@@ -579,7 +607,8 @@ const BookingList = ({ onCreate, onEdit }) => {
               (b) => b.status === 'Rejected' || b.status === 'Change Rejected' || b.status === 'Cancelled'
             ).length,
             icon: XCircle,
-            color: 'red',
+            color: '#ef4444',
+            bg: 'rgba(239, 68, 68, 0.1)'
           }
         ].map((stat, i) => (
           <Card key={i} style={{ padding: '20px' }}>
@@ -614,7 +643,7 @@ const BookingList = ({ onCreate, onEdit }) => {
           />
           
           <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '20px' }}>
-            {['all', 'Pending', 'Awaiting Approval', 'Approved', 'Completed', 'Cancelled'].map(status => (
+            {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Completed', 'Cancelled'].map(status => (
               <button 
                 key={status}
                 onClick={() => setFilterType(status)}
@@ -676,11 +705,10 @@ const BookingList = ({ onCreate, onEdit }) => {
         <div style={{ overflowX: 'auto' }}>
           <div
             style={{
-              minWidth: '1000px',
               display: 'grid',
-              gridTemplateColumns: '25% 25% 15% 15% 20%',
-              gap: '12px',
-              padding: '0 16px 10px',
+              gridTemplateColumns: '20% 18% 13% 13% 36%',
+              gap: '8px',
+              padding: '0 12px 10px',
               fontSize: '10px',
               fontWeight: 800,
               letterSpacing: '0.08em',
@@ -696,8 +724,8 @@ const BookingList = ({ onCreate, onEdit }) => {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: '1200px', display: 'grid', gap: '8px' }}>
+        <div style={{ width: '100%', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gap: '6px', width: '100%' }}>
         <AnimatePresence mode="popLayout">
           {filteredBookings.map((booking, index) => {
             const statusColor = statusIcons[booking.status]?.color || (typeof statusIcons[booking.status]?.icon === 'string' ? statusIcons[booking.status]?.icon : '#f59e0b');

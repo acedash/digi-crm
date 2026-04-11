@@ -42,6 +42,7 @@ const BookingsPage = () => {
           <div key="form">
             <div style={{ padding: '24px' }}>
               <BookingForm 
+                key={editingId || 'new'}
                 bookingId={editingId} 
                 onSuccess={handleSuccess} 
                 onCancel={() => navigate(`${basePath}/bookings`)} 

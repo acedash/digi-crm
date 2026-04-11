@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarDays, X, Eye, EyeOff } from 'lucide-react';
 
-const Input = ({ label, icon: Icon, error, style, className, onClear, ...props }) => {
+const Input = ({ label, icon: Icon, error, style, className, onClear, required, ...props }) => {
   const [showPassword, setShowPassword] = useState(false);
   const isDateField = props.type === 'date' || props.type === 'datetime-local';
   const isPasswordField = props.type === 'password';
@@ -24,6 +24,7 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, ...props }
           color: 'var(--text-muted)'
         }}>
           {label}
+          {required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
         </label>
       )}
       <div style={{ position: 'relative' }}>

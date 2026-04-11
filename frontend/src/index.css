@@ -2,8 +2,8 @@
 
 :root {
   /* Digi Circle Theme Tokens */
-  --primary: 160 98% 19%; /* Forest Green #016040 */
-  --primary-hover: 160 98% 14%;
+  --primary: 165 94% 37%; /* Vibrant Teal Green #06B68A */
+  --primary-hover: 165 94% 32%;
   --radius: 1rem;
   --radius-pill: 9999px;
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -95,7 +95,7 @@ body {
 }
 
 .premium-gradient-text {
-  background: linear-gradient(to right, #016040, #028a5c);
+  background: linear-gradient(to right, #06B68A, #059669);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -189,7 +189,7 @@ button {
 }
 
 .premium-gradient-text {
-  background: linear-gradient(135deg, #016040 0%, #028a5c 100%);
+  background: linear-gradient(135deg, #06B68A 0%, #059669 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

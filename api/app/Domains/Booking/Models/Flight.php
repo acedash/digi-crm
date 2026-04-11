@@ -18,11 +18,13 @@ class Flight extends Model
         'departure_at',
         'arrival_at',
         'ticket_image',
+        'ticket_images',
     ];
 
     protected $casts = [
         'departure_at' => 'datetime',
         'arrival_at' => 'datetime',
+        'ticket_images' => 'array',
     ];
 
     /**

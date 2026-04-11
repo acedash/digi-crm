@@ -165,7 +165,7 @@ const AdminLayout = () => {
             <div style={{ 
               width: '32px', 
               height: '32px', 
-              background: 'linear-gradient(135deg, #016040, #028a5c)', 
+              background: 'linear-gradient(135deg, #06B68A, #059669)', 
               borderRadius: '9999px' 
             }} />
             <span className="premium-gradient-text">Digi CRM</span>

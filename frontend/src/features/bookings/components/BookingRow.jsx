@@ -41,9 +41,9 @@ const actionPalette = {
     border: '1px solid rgba(37, 99, 235, 0.18)',
   },
   success: {
-    color: '#059669',
-    background: 'rgba(5, 150, 105, 0.08)',
-    border: '1px solid rgba(5, 150, 105, 0.18)',
+    color: '#06B68A',
+    background: 'rgba(6, 182, 138, 0.08)',
+    border: '1px solid rgba(6, 182, 138, 0.18)',
   },
   warning: {
     color: '#d97706',
@@ -88,18 +88,33 @@ function ActionChip({ icon: Icon, label, onClick, tone = 'default', title, disab
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: hideLabel ? '0' : '6px',
-        width: hideLabel ? '32px' : 'auto',
+        gap: '8px',
+        width: 'auto',
         height: '32px',
-        padding: hideLabel ? '0' : '6px 12px',
-        borderRadius: '8px',
-        fontSize: '10px',
+        padding: '4px 10px',
+        borderRadius: '100px',
+        fontSize: '11px',
         fontWeight: 700,
-        transition: 'all 0.2s ease',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         whiteSpace: 'nowrap',
         opacity: disabled ? 0.55 : 1,
         cursor: disabled ? 'not-allowed' : 'pointer',
+        boxShadow: `0 4px 12px ${styles.color}15`,
         ...styles,
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = `0 8px 18px ${styles.color}40`;
+          e.currentTarget.style.filter = 'brightness(1.05)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = `0 4px 12px ${styles.color}15`;
+          e.currentTarget.style.filter = 'brightness(1)';
+        }
       }}
     >
       {React.createElement(Icon, { size: hideLabel ? 16 : 14 })}
@@ -173,10 +188,10 @@ const BookingRow = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '25% 25% 15% 15% 20%',
+            gridTemplateColumns: '20% 18% 13% 13% 36%',
             alignItems: 'center',
-            padding: '12px 16px',
-            gap: '12px',
+            padding: '8px 12px',
+            gap: '8px',
           }}
         >
           {/* Group 1: Booking / Client */}
@@ -191,7 +206,7 @@ const BookingRow = ({
                 style={{ 
                   fontSize: '10px', 
                   fontWeight: 700, 
-                  color: copied ? '#10b981' : 'var(--text-muted)',
+                  color: copied ? '#06B68A' : 'var(--text-muted)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
@@ -283,7 +298,7 @@ const BookingRow = ({
           {/* Group 5: Actions */}
           <div
             style={{
-              paddingLeft: '12px',
+              paddingLeft: '8px',
               borderLeft: '1px solid var(--border-color)',
               display: 'flex',
               flexWrap: 'wrap',
@@ -301,10 +316,10 @@ const BookingRow = ({
             />
             <ActionChip
               icon={RefreshCw}
-              label={isSendingFlightChange ? '...' : 'Track Change'}
+              label={isSendingFlightChange ? '...' : 'Modify'}
               onClick={onSendFlightChange}
               tone="info"
-              title="Record service change"
+              title="Record service adjustment"
               disabled={isSendingFlightChange}
             />
             <ActionChip
@@ -338,7 +353,6 @@ const BookingRow = ({
               onClick={onOpenProof}
               tone="info"
               title="Open consent proof"
-              hideLabel
             />
             <ActionChip
               icon={Eye}
@@ -346,7 +360,6 @@ const BookingRow = ({
               onClick={onView}
               tone="info"
               title="Open full details"
-              hideLabel
             />
             <ActionChip
               icon={PhoneCall}
@@ -354,7 +367,6 @@ const BookingRow = ({
               onClick={onCall}
               tone="success"
               title="Create call log"
-              hideLabel
             />
             {canReassign ? (
               <ActionChip
@@ -363,7 +375,6 @@ const BookingRow = ({
                 onClick={onReassign}
                 tone="warning"
                 title="Transfer booking"
-                hideLabel
               />
             ) : null}
             <ActionChip
@@ -372,7 +383,6 @@ const BookingRow = ({
               onClick={onEdit}
               tone="default"
               title="Edit booking data"
-              hideLabel
             />
             <ActionChip
               icon={Trash2}
@@ -380,7 +390,6 @@ const BookingRow = ({
               onClick={onDelete}
               tone="danger"
               title="Delete permanently"
-              hideLabel
             />
           </div>
         </div>

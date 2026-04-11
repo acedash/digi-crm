@@ -21,7 +21,7 @@ const SectionHeader = ({ icon: Icon, title, toggle, isActive, setToggle }) => (
     </div>
     <h3 style={{ fontSize: '18px', fontWeight: 800, flex: 1, color: isActive ? 'var(--text-main)' : 'var(--text-muted)' }}>{title}</h3>
     {setToggle && (
-      <div style={{ width: '40px', height: '24px', borderRadius: '12px', background: isActive ? '#4ade80' : 'var(--border-color)', position: 'relative', transition: '0.2s' }}>
+      <div style={{ width: '40px', height: '24px', borderRadius: '12px', background: isActive ? '#06B68A' : 'var(--border-color)', position: 'relative', transition: '0.2s' }}>
         <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: isActive ? '18px' : '2px', transition: '0.2s' }} />
       </div>
     )}
