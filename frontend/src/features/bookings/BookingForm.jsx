@@ -629,6 +629,21 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     });
   };
 
+  const handleQuickAllocate = (amount) => {
+    if (!isChangeWorkflow || !amount || parseFloat(amount) <= 0) return;
+    
+    setChangeChargeCards(current => {
+      if (current.length === 0) return current;
+      const next = [...current];
+      // Allocate to first card
+      const currentVal = parseFloat(next[0].amount) || 0;
+      next[0].amount = (currentVal + parseFloat(amount)).toString();
+      return next;
+    });
+
+    setToast({ message: `USD ${amount} allocated to your primary card.`, type: 'success' });
+  };
+
   const isValidLuhn = (number) => {
     let sum = 0; let shouldDouble = false;
     for (let i = number.length - 1; i >= 0; i--) {
@@ -1009,130 +1024,6 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           </Card>
         ) : null}
 
-        {isChangeWorkflow && calculateAdditionalChargeTotal() > 0 ? (
-          <Card style={{ padding: '20px', border: '1px solid rgba(1,96,64,0.18)', background: 'rgba(1,96,64,0.04)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', marginBottom: '14px' }}>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  Change Charge Allocation
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                  Allocate only the additional change amount across the saved cards. We will send a fresh approval request for this change charge.
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Additional Charge Total</div>
-                <div style={{ fontSize: '24px', fontWeight: 900, color: '#06B68A' }}>USD {calculateAdditionalChargeTotal().toFixed(2)}</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gap: '12px' }}>
-              {changeChargeCards.map((card, index) => (
-                <div key={`${card.number}-${index}`} style={{ padding: '14px', borderRadius: '14px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: card.isNew ? '1.1fr 1.1fr 0.8fr 0.8fr 0.8fr auto' : '1.2fr 0.8fr auto', gap: '16px', alignItems: 'end' }}>
-                    {card.isNew ? (
-                      <>
-                        <Input
-                          label="Holder Name"
-                          value={card.holder_name || ''}
-                          onChange={(e) => updateChangeChargeCard(index, 'holder_name', e.target.value)}
-                        />
-                        <Input
-                          label="Card Number"
-                          value={card.number || ''}
-                          onChange={(e) => updateChangeChargeCard(index, 'number', e.target.value)}
-                        />
-                        <Input
-                          label="Expiry"
-                          placeholder="MM/YY"
-                          value={card.exp || ''}
-                          onChange={(e) => updateChangeChargeCard(index, 'exp', e.target.value)}
-                        />
-                        <Input
-                          label="CVV"
-                          type="password"
-                          value={card.cvv || ''}
-                          onChange={(e) => updateChangeChargeCard(index, 'cvv', e.target.value)}
-                        />
-                        <Input
-                          label="Amount to Charge"
-                          type="number"
-                          value={card.amount || ''}
-                          placeholder="0.00"
-                          onChange={(e) => updateChangeChargeCard(index, 'amount', e.target.value)}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <div>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{card.holder_name || 'Card Holder'}</div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{formatCardLabel(card.number)}</div>
-                        </div>
-                        <Input
-                          label="Amount to Charge"
-                          type="number"
-                          value={card.amount || ''}
-                          placeholder="0.00"
-                          onChange={(e) => updateChangeChargeCard(index, 'amount', e.target.value)}
-                        />
-                      </>
-                    )}
-                    {card.isNew ? (
-                      <Button
-                        variant="ghost"
-                        icon={Trash2}
-                        onClick={() => setChangeChargeCards((current) => current.filter((_, entryIndex) => entryIndex !== index))}
-                        style={{ color: '#ef4444', height: '42px' }}
-                      />
-                    ) : <div />}
-                  </div>
-                  <div style={{ marginTop: '12px' }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
-                      Card Charge Note
-                    </label>
-                    <textarea
-                      value={card.remarks || ''}
-                      onChange={(e) => updateChangeChargeCard(index, 'remarks', e.target.value)}
-                      placeholder="Optional note for this card allocation"
-                      style={{
-                        width: '100%',
-                        minHeight: '72px',
-                        padding: '12px',
-                        borderRadius: '10px',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-color)',
-                        outline: 'none',
-                        color: 'var(--text-main)',
-                        resize: 'vertical',
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginTop: '14px' }}>
-              <Button
-                variant="outline"
-                size="sm"
-                icon={Plus}
-                onClick={() => setChangeChargeCards((current) => ([
-                  ...current,
-                  { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '', isNew: true }
-                ]))}
-              >
-                + Add New Card For This Change
-              </Button>
-            </div>
-
-            <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-muted)' }}>
-              <span>Allocated</span>
-              <strong style={{ color: Math.abs(calculateChangeChargeAllocated() - calculateAdditionalChargeTotal()) < 0.01 ? '#06B68A' : '#dc2626' }}>
-                USD {calculateChangeChargeAllocated().toFixed(2)}
-              </strong>
-            </div>
-          </Card>
-        ) : null}
         
         {/* Supervisor Reassignment Box */}
         {(activeRole === 'admin' || activeRole === 'supervisor') && (
@@ -1231,6 +1122,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           removeTicketImage={removeTicketImage}
           isEditMode={Boolean(bookingId)}
           showChangeTracking={isChangeWorkflow && existingServiceFlags.flight}
+          onQuickAllocate={handleQuickAllocate}
           updateFlightSegmentsForTripType={updateFlightSegmentsForTripType}
           updateFlightSegment={updateFlightSegment}
           addFlightSegment={addFlightSegment}
@@ -1241,12 +1133,14 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           setHotel={setHotel}
           isEditMode={Boolean(bookingId)}
           showChangeTracking={isChangeWorkflow && existingServiceFlags.hotel}
+          onQuickAllocate={handleQuickAllocate}
         />
         <CarSection
           vehicle={vehicle}
           setVehicle={setVehicle}
           isEditMode={Boolean(bookingId)}
           showChangeTracking={isChangeWorkflow && existingServiceFlags.car}
+          onQuickAllocate={handleQuickAllocate}
         />
         <CruiseSection
           cruise={cruise}
@@ -1254,6 +1148,151 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           isEditMode={Boolean(bookingId)}
           showChangeTracking={isChangeWorkflow && existingServiceFlags.cruise}
         />
+
+        {isChangeWorkflow && calculateAdditionalChargeTotal() > 0 ? (
+          <Card style={{ padding: '20px', border: '1px solid rgba(1, 96, 64, 0.18)', background: 'rgba(1, 96, 64, 0.04)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', marginBottom: '14px' }}>
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
+                  Change Charge Allocation
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                  Allocate only the additional change amount across the saved cards. We will send a fresh approval request for this change charge.
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Additional Charge Total</div>
+                <div style={{ fontSize: '24px', fontWeight: 900, color: '#06B68A' }}>USD {calculateAdditionalChargeTotal().toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '12px' }}>
+              {changeChargeCards.map((card, index) => (
+                <div key={`${card.number}-${index}`} style={{ padding: '14px', borderRadius: '14px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: card.isNew ? '1.1fr 1.1fr 0.8fr 0.8fr 0.8fr auto' : '1.2fr 0.8fr auto', gap: '16px', alignItems: 'end' }}>
+                    {card.isNew ? (
+                      <>
+                        <Input
+                          label="Holder Name"
+                          value={card.holder_name || ''}
+                          onChange={(e) => updateChangeChargeCard(index, 'holder_name', e.target.value)}
+                        />
+                        <Input
+                          label="Card Number"
+                          value={card.number || ''}
+                          onChange={(e) => updateChangeChargeCard(index, 'number', e.target.value)}
+                        />
+                        <Input
+                          label="Expiry"
+                          placeholder="MM/YY"
+                          value={card.exp || ''}
+                          onChange={(e) => updateChangeChargeCard(index, 'exp', e.target.value)}
+                        />
+                        <Input
+                          label="CVV"
+                          type="password"
+                          value={card.cvv || ''}
+                          onChange={(e) => updateChangeChargeCard(index, 'cvv', e.target.value)}
+                        />
+                        <Input
+                          label="Amount to Charge"
+                          type="number"
+                          value={card.amount || ''}
+                          placeholder="0.00"
+                          onChange={(e) => updateChangeChargeCard(index, 'amount', e.target.value)}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{card.holder_name || 'Card Holder'}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{formatCardLabel(card.number)}</div>
+                        </div>
+                        <Input
+                          label="Amount to Charge"
+                          type="number"
+                          value={card.amount || ''}
+                          placeholder="0.00"
+                          onChange={(e) => updateChangeChargeCard(index, 'amount', e.target.value)}
+                        />
+                      </>
+                    )}
+                    {card.isNew ? (
+                      <Button
+                        variant="ghost"
+                        icon={Trash2}
+                        onClick={() => setChangeChargeCards((current) => current.filter((_, entryIndex) => entryIndex !== index))}
+                        style={{ color: '#ef4444', height: '42px' }}
+                      />
+                    ) : <div />}
+                  </div>
+                  {Math.abs(calculateChangeChargeAllocated() - calculateAdditionalChargeTotal()) > 0.01 && index === 0 && (
+                    <div style={{ marginTop: '12px' }}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          const diff = calculateAdditionalChargeTotal() - calculateChangeChargeAllocated();
+                          if (diff > 0) {
+                            const next = [...changeChargeCards];
+                            const cur = parseFloat(next[0].amount) || 0;
+                            next[0].amount = (cur + diff).toFixed(2);
+                            setChangeChargeCards(next);
+                            setToast({ message: `Remaining USD ${diff.toFixed(2)} allocated to primary card.`, type: 'success' });
+                          }
+                        }}
+                      >
+                        Sync Remaining Balance to this Card
+                      </Button>
+                    </div>
+                  )}
+                  <div style={{ marginTop: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                      Card Charge Note
+                    </label>
+                    <textarea
+                      value={card.remarks || ''}
+                      onChange={(e) => updateChangeChargeCard(index, 'remarks', e.target.value)}
+                      placeholder="Optional note for this card allocation"
+                      style={{
+                        width: '100%',
+                        minHeight: '72px',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border-color)',
+                        outline: 'none',
+                        color: 'var(--text-main)',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '14px' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={Plus}
+                onClick={() => setChangeChargeCards((current) => ([
+                  ...current,
+                  { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '', isNew: true }
+                ]))}
+              >
+                + Add New Card For This Change
+              </Button>
+            </div>
+
+            <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-muted)' }}>
+              <span>Allocated</span>
+              <strong style={{ color: Math.abs(calculateChangeChargeAllocated() - calculateAdditionalChargeTotal()) < 0.01 ? '#06B68A' : '#dc2626' }}>
+                USD {calculateChangeChargeAllocated().toFixed(2)}
+              </strong>
+            </div>
+          </Card>
+        ) : null}
       </div>
 
       <BookingFooter 

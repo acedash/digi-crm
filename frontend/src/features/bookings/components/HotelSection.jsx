@@ -5,7 +5,7 @@ import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import SectionHeader from './SectionHeader';
 
-const HotelSection = ({ hotel, setHotel, isEditMode = false, showChangeTracking = false }) => {
+const HotelSection = ({ hotel, setHotel, isEditMode = false, showChangeTracking = false, onQuickAllocate }) => {
   const hotelInputId = 'hotel-images-upload';
   const handleHotelImages = (event) => {
     const files = Array.from(event.target.files || []);
@@ -219,13 +219,37 @@ const HotelSection = ({ hotel, setHotel, isEditMode = false, showChangeTracking 
                        <option value="Other">Other</option>
                      </select>
                    </div>
-                   <Input
-                     label="Additional Charge"
-                     type="number"
-                     value={hotel.additional_charge || ''}
-                     placeholder="0.00"
-                     onChange={(e) => setHotel({ ...hotel, additional_charge: e.target.value })}
-                   />
+                   <div style={{ position: 'relative' }}>
+                    <Input
+                      label="Additional Charge"
+                      type="number"
+                      value={hotel.additional_charge || ''}
+                      placeholder="0.00"
+                      onChange={(e) => setHotel({ ...hotel, additional_charge: e.target.value })}
+                    />
+                    {hotel.additional_charge > 0 && onQuickAllocate && (
+                      <button
+                        type="button"
+                        onClick={() => onQuickAllocate(hotel.additional_charge)}
+                        style={{
+                          position: 'absolute',
+                          right: '0',
+                          top: '0',
+                          background: 'rgba(6,182,138,0.1)',
+                          color: '#06B68A',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transform: 'translateY(-4px)'
+                        }}
+                      >
+                        + Quick Allocate
+                      </button>
+                    )}
+                  </div>
                  </div>
 
                  <div style={{ marginTop: '16px' }}>

@@ -5,7 +5,7 @@ import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import SectionHeader from './SectionHeader';
 
-const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracking = false }) => {
+const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracking = false, onQuickAllocate }) => {
   const cruiseInputId = 'cruise-images-upload';
   const handleCruiseImages = (event) => {
     const files = Array.from(event.target.files || []);
@@ -222,13 +222,37 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
                        <option value="Other">Other</option>
                      </select>
                    </div>
-                   <Input
-                     label="Additional Charge"
-                     type="number"
-                     value={cruise.additional_charge || ''}
-                     placeholder="0.00"
-                     onChange={(e) => setCruise({ ...cruise, additional_charge: e.target.value })}
-                   />
+                   <div style={{ position: 'relative' }}>
+                    <Input
+                      label="Additional Charge"
+                      type="number"
+                      value={cruise.additional_charge || ''}
+                      placeholder="0.00"
+                      onChange={(e) => setCruise({ ...cruise, additional_charge: e.target.value })}
+                    />
+                    {cruise.additional_charge > 0 && onQuickAllocate && (
+                      <button
+                        type="button"
+                        onClick={() => onQuickAllocate(cruise.additional_charge)}
+                        style={{
+                          position: 'absolute',
+                          right: '0',
+                          top: '0',
+                          background: 'rgba(6,182,138,0.1)',
+                          color: '#06B68A',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transform: 'translateY(-4px)'
+                        }}
+                      >
+                        + Quick Allocate
+                      </button>
+                    )}
+                  </div>
                  </div>
 
                  <div style={{ marginTop: '16px' }}>

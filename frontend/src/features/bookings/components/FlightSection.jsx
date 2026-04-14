@@ -22,6 +22,7 @@ const FlightSection = ({
   addFlightSegment,
   removeFlightSegment,
   removeTicketImage,
+  onQuickAllocate,
 }) => {
   return (
     <Card style={{ padding: 0, opacity: flight.active ? 1 : 0.7 }}>
@@ -319,13 +320,37 @@ const FlightSection = ({
                     <option value="Other">Other</option>
                   </select>
                 </div>
-                <Input
-                  label="Additional Charge"
-                  type="number"
-                  value={flight.additional_charge || ''}
-                  placeholder="0.00"
-                  onChange={(e) => setFlight({ ...flight, additional_charge: e.target.value })}
-                />
+                <div style={{ position: 'relative' }}>
+                  <Input
+                    label="Additional Charge"
+                    type="number"
+                    value={flight.additional_charge || ''}
+                    placeholder="0.00"
+                    onChange={(e) => setFlight({ ...flight, additional_charge: e.target.value })}
+                  />
+                  {flight.additional_charge > 0 && onQuickAllocate && (
+                    <button
+                      type="button"
+                      onClick={() => onQuickAllocate(flight.additional_charge)}
+                      style={{
+                        position: 'absolute',
+                        right: '0',
+                        top: '0',
+                        background: 'rgba(6,182,138,0.1)',
+                        color: '#06B68A',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transform: 'translateY(-4px)'
+                      }}
+                    >
+                      + Quick Allocate
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={{ marginTop: '16px' }}>
