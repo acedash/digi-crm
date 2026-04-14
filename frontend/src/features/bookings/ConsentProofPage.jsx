@@ -54,8 +54,8 @@ const ConsentProofPage = () => {
     if (pathStr.startsWith('data:image') || pathStr.startsWith('http://') || pathStr.startsWith('https://')) {
       return pathStr;
     }
-    const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^storage\//, '');
-    return `${BACKEND_BASE_URL}/storage/app/public/${cleanPath}`;
+    const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^(storage\/app\/public|uploads)\//, '');
+    return `${BACKEND_BASE_URL}/uploads/${cleanPath}`;
   };
 
   const proofContentRef = useRef(null);

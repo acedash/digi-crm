@@ -63,9 +63,8 @@ const BookingDetailsPage = () => {
     }
     
     // Cleanup any leading slashes and ensure it points to the direct storage path
-    // Since symlinks don't work on this shared host, we hit the direct storage folder
-    const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^storage\//, '');
-    return `${BACKEND_BASE_URL}/storage/app/public/${cleanPath}`;
+    const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^(storage\/app\/public|uploads)\//, '');
+    return `${BACKEND_BASE_URL}/uploads/${cleanPath}`;
   };
 
   const getServiceIcon = (serviceableType = '') => {
