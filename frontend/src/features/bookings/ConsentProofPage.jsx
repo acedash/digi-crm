@@ -55,7 +55,8 @@ const ConsentProofPage = () => {
       return pathStr;
     }
     const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^(storage\/app\/public|uploads)\//, '');
-    return `${BACKEND_BASE_URL}/uploads/${cleanPath}`;
+    const urlBase = import.meta.env.DEV ? `${BACKEND_BASE_URL}/uploads` : `${BACKEND_BASE_URL}/core/uploads`;
+    return `${urlBase}/${cleanPath}`;
   };
 
   const proofContentRef = useRef(null);

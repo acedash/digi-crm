@@ -21,3 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
+
+$app->usePublicPath(
+    env('APP_ENV', 'production') === 'production' ? $app->basePath() : $app->basePath('public')
+);
+
+return $app;

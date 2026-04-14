@@ -36,7 +36,9 @@ const buildStoredImagePreview = (path) => {
   if (!path) return '';
   if (String(path).startsWith('data:image')) return path;
   if (String(path).startsWith('http://') || String(path).startsWith('https://')) return path;
-  return `${BACKEND_BASE_URL}/uploads/${String(path).replace(/^\/+/, '')}`;
+  const cleanPath = String(path).replace(/^\/+/g, '').replace(/^(storage\/app\/public|uploads)\//, '');
+  const urlBase = import.meta.env.DEV ? `${BACKEND_BASE_URL}/uploads` : `${BACKEND_BASE_URL}/core/uploads`;
+  return `${urlBase}/${cleanPath}`;
 };
 
 const normalizeFlightSegments = (segments = []) => {

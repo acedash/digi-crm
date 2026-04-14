@@ -64,7 +64,8 @@ const BookingDetailsPage = () => {
     
     // Cleanup any leading slashes and ensure it points to the direct storage path
     const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^(storage\/app\/public|uploads)\//, '');
-    return `${BACKEND_BASE_URL}/uploads/${cleanPath}`;
+    const urlBase = import.meta.env.DEV ? `${BACKEND_BASE_URL}/uploads` : `${BACKEND_BASE_URL}/core/uploads`;
+    return `${urlBase}/${cleanPath}`;
   };
 
   const getServiceIcon = (serviceableType = '') => {
