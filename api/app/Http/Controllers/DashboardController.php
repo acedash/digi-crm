@@ -164,71 +164,144 @@ class DashboardController extends Controller
 
     private function getSupervisorStats($user)
     {
-        $cacheKey = 'dashboard.supervisor.stats.' . $user->id;
+        $request = request();
+        $period = $request->get('period', 'monthly');
+        $cacheKey = 'dashboard.supervisor.stats.v4.' . $user->id . '.' . $period;
 
-        $data = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($user) {
+        // Simplified range logic for Supervisor
+        $now = now();
+        $startDate = null;
+        $endDate = $now->toDateTimeString();
+
+        switch ($period) {
+            case 'daily':
+                $startDate = $now->copy()->startOfDay()->toDateTimeString();
+                break;
+            case 'weekly':
+                $startDate = $now->copy()->subDays(7)->toDateTimeString();
+                break;
+            case 'yearly':
+                $startDate = $now->copy()->subYear()->toDateTimeString();
+                break;
+            case 'custom':
+                $startDate = $request->get('start_date') ? now()->parse($request->get('start_date'))->startOfDay()->toDateTimeString() : $now->copy()->subDays(30)->toDateTimeString();
+                $endDate = $request->get('end_date') ? now()->parse($request->get('end_date'))->endOfDay()->toDateTimeString() : $now->toDateTimeString();
+                break;
+            case 'monthly':
+            default:
+                $startDate = $now->copy()->subDays(30)->toDateTimeString();
+                break;
+        }
+
+        $cacheDuration = ($period === 'daily' || $period === 'custom') ? 45 : 300; // 5 mins for weekly/monthly/yearly
+
+        $data = Cache::remember($cacheKey, now()->addSeconds($cacheDuration), function () use ($user, $startDate, $endDate, $period) {
             $agentIds = $user->supervisedAgents()->pluck('users.id')->toArray();
             $teamIds = array_values(array_unique(array_merge([$user->id], $agentIds)));
-            $startOfToday = now()->startOfDay()->toDateTimeString();
-            $endOfToday = now()->endOfDay()->toDateTimeString();
-            $weeklyThreshold = now()->subDays(7)->toDateTimeString();
+            
+            // For trends, always look at last 6 months regardless of period
+            $trendStart = now()->subMonths(6)->startOfMonth()->toDateTimeString();
+
+            // Aggregated Team KPI (Bookings & Revenue) in 1 query
+            $teamKpi = Booking::query()
+                ->whereIn('agent_id', $teamIds)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->selectRaw('COUNT(*) as total_count, SUM(total_amount) as total_revenue')
+                ->first();
 
             $agents = User::role('agent')
                 ->whereHas('supervisors', function ($query) use ($user) {
                     $query->where('users.id', $user->id);
                 })
-                ->withCount([
-                    'bookings',
-                    'bookings as weekly_bookings_count' => function ($query) use ($weeklyThreshold) {
-                        $query->where('created_at', '>=', $weeklyThreshold);
-                    },
-                ])
                 ->get(['id', 'name', 'email', 'status']);
+
+            $agentPerfCounts = Booking::query()
+                ->whereIn('agent_id', $teamIds)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->select('agent_id', DB::raw('COUNT(*) as count'))
+                ->groupBy('agent_id')
+                ->pluck('count', 'agent_id');
 
             $callCounts = CallLog::query()
                 ->select('agent_id', DB::raw('COUNT(*) as total_calls'))
-                ->whereIn('agent_id', $agentIds)
+                ->whereIn('agent_id', $teamIds)
                 ->where('log_scope', 'booking')
-                ->whereBetween('created_at', [$startOfToday, $endOfToday])
+                ->whereBetween('created_at', [$startDate, $endDate])
                 ->groupBy('agent_id')
                 ->pluck('total_calls', 'agent_id');
 
-            $airlineInquiryCounts = CallLog::query()
-                ->select('agent_id', DB::raw('COUNT(*) as airline_inquiries'))
-                ->whereIn('agent_id', $agentIds)
+            $inquiryCounts = CallLog::query()
+                ->select('agent_id', DB::raw('COUNT(*) as total_inquiries'))
+                ->whereIn('agent_id', $teamIds)
                 ->where('log_scope', 'booking')
-                ->where('created_at', '>=', $weeklyThreshold)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupBy('agent_id')
+                ->pluck('total_inquiries', 'agent_id');
+
+            // Inquiry Tags Breakdown
+            $inquiryTags = CallLog::query()
+                ->select('airline_inquiry', DB::raw('COUNT(*) as count'))
+                ->whereIn('agent_id', $teamIds)
+                ->where('log_scope', 'booking')
+                ->whereBetween('created_at', [$startDate, $endDate])
                 ->whereNotNull('airline_inquiry')
                 ->where('airline_inquiry', '!=', '')
-                ->groupBy('agent_id')
-                ->pluck('airline_inquiries', 'agent_id');
+                ->groupBy('airline_inquiry')
+                ->get()
+                ->map(fn($item) => ['tag' => $item->airline_inquiry, 'count' => $item->count])
+                ->values();
+
+            // Status Breakdown
+            $statusBreakdown = Booking::query()
+                ->select('status', DB::raw('COUNT(*) as count'))
+                ->whereIn('agent_id', $teamIds)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupBy('status')
+                ->get()
+                ->map(fn($item) => ['status' => $item->status, 'count' => $item->count])
+                ->values();
+
+            // Revenue Trend (Last 6 Months) optimized
+            $isSqlite = config('database.default') === 'sqlite';
+            $monthFormat = $isSqlite ? "strftime('%m', created_at)" : "DATE_FORMAT(created_at, '%m')";
+            $yearFormat = $isSqlite ? "strftime('%Y', created_at)" : "DATE_FORMAT(created_at, '%Y')";
+
+            $revenueTrends = Booking::query()
+                ->select(
+                    DB::raw('SUM(total_amount) as amount'),
+                    DB::raw("$monthFormat as month_num"),
+                    DB::raw("$yearFormat as year_num")
+                )
+                ->whereIn('agent_id', $teamIds)
+                ->where('created_at', '>=', $trendStart)
+                ->groupBy('year_num', 'month_num')
+                ->orderBy('year_num', 'asc')
+                ->orderBy('month_num', 'asc')
+                ->get()
+                ->map(function ($item) {
+                    $monthName = date("M", mktime(0, 0, 0, (int)$item->month_num, 1));
+                    return ['name' => $monthName, 'revenue' => (float)$item->amount];
+                });
 
             return [
                 'total_clients' => Client::whereIn('agent_id', $teamIds)
-                    ->whereHas('bookings')
-                    ->count(),
-                'daily_revenue' => (float) Booking::whereIn('agent_id', $teamIds)
-                    ->whereBetween('created_at', [$startOfToday, $endOfToday])
-                    ->sum('total_amount'),
-                'weekly_bookings' => Booking::whereIn('agent_id', $teamIds)->where('created_at', '>=', $weeklyThreshold)->count(),
-                'team_calls' => CallLog::whereIn('agent_id', $teamIds)->where('log_scope', 'booking')->where('created_at', '>=', $weeklyThreshold)->count(),
-                'team_airline_inquiries' => CallLog::whereIn('agent_id', $teamIds)
-                    ->where('log_scope', 'booking')
-                    ->where('created_at', '>=', $weeklyThreshold)
-                    ->whereNotNull('airline_inquiry')
-                    ->where('airline_inquiry', '!=', '')
-                    ->count(),
-                'pending_tasks' => Booking::whereIn('agent_id', $teamIds)->where('status', 'Pending')->count(),
-                'agent_performance' => $agents->map(function ($agent) use ($callCounts, $airlineInquiryCounts) {
+                    ->whereHas('bookings', function($q) use ($startDate, $endDate) {
+                        $q->whereBetween('created_at', [$startDate, $endDate]);
+                    })->count(),
+                'daily_revenue' => (float) ($teamKpi->total_revenue ?? 0),
+                'period_bookings' => (int) ($teamKpi->total_count ?? 0),
+                'inquiry_tags' => $inquiryTags,
+                'status_breakdown' => $statusBreakdown,
+                'revenue_trends' => $revenueTrends,
+                'agent_performance' => $agents->map(function ($agent) use ($callCounts, $inquiryCounts, $agentPerfCounts) {
                     return [
                         'id' => $agent->id,
                         'name' => $agent->name,
                         'email' => $agent->email,
                         'status' => $agent->status,
-                        'bookings_count' => $agent->bookings_count,
-                        'weekly_bookings_count' => $agent->weekly_bookings_count,
+                        'bookings_count' => (int) ($agentPerfCounts[$agent->id] ?? 0),
                         'calls_count' => (int) ($callCounts[$agent->id] ?? 0),
-                        'airline_inquiries_count' => (int) ($airlineInquiryCounts[$agent->id] ?? 0),
+                        'inquiries_count' => (int) ($inquiryCounts[$agent->id] ?? 0),
                     ];
                 })->values(),
                 'recent_bookings' => Booking::query()
@@ -239,13 +312,14 @@ class DashboardController extends Controller
                     ->take(5)
                     ->get(),
                 'recent_inquiries' => CallLog::query()
-                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'airline_inquiry', 'call_type', 'outcome'])
+                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'airline_inquiry', 'call_type', 'customer_outcome'])
                     ->with(['agent:id,name', 'client:id,name,first_name,last_name'])
-                    ->whereIn('agent_id', $agentIds)
+                    ->whereIn('agent_id', $teamIds)
                     ->where('log_scope', 'booking')
                     ->latest('created_at')
                     ->take(5)
                     ->get(),
+                'period_label' => $period
             ];
         });
 
@@ -270,7 +344,7 @@ class DashboardController extends Controller
                 'daily_revenue' => $dailyRevenue,
                 'my_calls' => CallLog::where('agent_id', $user->id)->where('log_scope', 'booking')->count(),
                 'recent_logs' => CallLog::query()
-                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'call_type', 'outcome', 'airline_inquiry', 'notes'])
+                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'call_type', 'customer_outcome', 'airline_inquiry', 'notes'])
                     ->where('agent_id', $user->id)
                     ->where('log_scope', 'booking')
                     ->latest('created_at')

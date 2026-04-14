@@ -102,6 +102,8 @@ const AdminLayout = () => {
     };
 
     const handleBeforePrint = () => {
+      // Do not shield if we are on User List page to allow intentional data export
+      if (location.pathname === '/admin/users') return;
       setShieldActive(true);
     };
 
@@ -137,9 +139,10 @@ const AdminLayout = () => {
     { label: 'Settings', path: `${basePath}/settings`, icon: Mail, roles: ['admin', 'supervisor', 'agent'] },
   ];
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div className="admin-layout-container" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       {/* Sidebar */}
       <MotionAside 
+        className="no-print"
         initial={{ x: -240 }}
         animate={{ x: 0 }}
         style={{
@@ -242,8 +245,8 @@ const AdminLayout = () => {
       </MotionAside>
 
       {/* Main Content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', background: 'transparent' }}>
-        <header style={{
+      <div className="admin-content-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', background: 'transparent' }}>
+        <header className="no-print" style={{
           height: '72px',
           background: 'var(--bg-card)',
           backdropFilter: 'blur(8px)',
@@ -311,6 +314,7 @@ const AdminLayout = () => {
         </main>
         {shieldActive && (
           <div
+            className="no-print"
             style={{
               position: 'absolute',
               inset: 0,

@@ -15,7 +15,7 @@ class UserRepository extends BaseRepository
 
     public function getAll(): Collection
     {
-        return $this->model->with(['roles', 'supervisors:id,name'])->get();
+        return $this->model->with(['roles', 'supervisors:id,name', 'latestActivity', 'latestLogin'])->get();
     }
 
     public function find($id): ?User

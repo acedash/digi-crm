@@ -8,8 +8,25 @@ import {
   Plane,
   CircleDollarSign,
   ArrowRightLeft,
-  X
+  X,
+  Calendar,
+  Filter,
+  CheckCircle2,
+  Clock,
+  ChevronRight
 } from 'lucide-react';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart, 
+  Pie, 
+  Cell
+} from 'recharts';
 import userService from '../users/userService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -23,6 +40,11 @@ const SupervisorDashboard = () => {
   const [agents, setAgents] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Filtering state
+  const [period, setPeriod] = useState('monthly');
+  const [customRange, setCustomRange] = useState({ start: '', end: '' });
+  
   const [reassignModal, setReassignModal] = useState({ open: false, bookingId: null, currentAgentId: null });
   const [selectedReassignAgent, setSelectedReassignAgent] = useState('');
   const [handoffRemark, setHandoffRemark] = useState('');
@@ -31,14 +53,17 @@ const SupervisorDashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [period]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      const start = period === 'custom' ? customRange.start : null;
+      const end = period === 'custom' ? customRange.end : null;
+
       const [agentsRes, statsRes] = await Promise.all([
         userService.getMyAgents(),
-        dashboardService.getStats()
+        dashboardService.getStats(period, start, end)
       ]);
       setAgents(agentsRes.data.data || agentsRes.data);
       setStats(statsRes.data.data);
@@ -46,6 +71,12 @@ const SupervisorDashboard = () => {
       console.error('Failed to load supervisor data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApplyCustomFilter = () => {
+    if (customRange.start && customRange.end) {
+      fetchData();
     }
   };
 
@@ -62,327 +93,399 @@ const SupervisorDashboard = () => {
   const closeReassignModal = () => {
     if (reassigning) return;
     setReassignModal({ open: false, bookingId: null, currentAgentId: null });
-    setSelectedReassignAgent('');
-    setHandoffRemark('');
   };
 
   const handleReassign = async () => {
     if (!selectedReassignAgent) {
-      setToast({ message: 'Please select who should receive this booking.', type: 'error' });
+      setToast({ message: 'Please select an agent.', type: 'error' });
       return;
     }
-
-    if (!handoffRemark.trim()) {
-      setToast({ message: 'Please add a handoff remark for the next assignee.', type: 'error' });
-      return;
-    }
-
     try {
       setReassigning(true);
       await bookingService.reassignBooking(reassignModal.bookingId, selectedReassignAgent, handoffRemark.trim());
       setToast({ message: 'Booking reassigned successfully', type: 'success' });
       setReassignModal({ open: false, bookingId: null, currentAgentId: null });
-      setSelectedReassignAgent('');
-      setHandoffRemark('');
       await fetchData();
     } catch (error) {
-      setToast({ message: error?.response?.data?.message || 'Failed to reassign booking', type: 'error' });
+      setToast({ message: error?.response?.data?.message || 'Reassignment failed', type: 'error' });
     } finally {
       setReassigning(false);
     }
   };
 
-  const performance = stats?.agent_performance || [];
-  const recentBookings = stats?.recent_bookings || [];
-  const recentInquiries = stats?.recent_inquiries || [];
+  const revenueData = stats?.revenue_trends || [];
+  const statusData = stats?.status_breakdown || [];
+  const inquiryTags = stats?.inquiry_tags || [];
+  
+  const COLORS = ['#60a5fa', '#34d399', '#f59e0b', '#8b5cf6', '#f87171'];
 
-  const renderReassignModal = () => {
-    if (!reassignModal.open) return null;
-
-    return (
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(2, 6, 23, 0.85)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1200,
-        padding: '24px'
-      }}>
-        <div
-          style={{
-            width: '100%',
-            maxWidth: '420px',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '24px',
-            padding: '24px'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>Reassign Booking</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                Move this booking to another agent on your team and leave a clear handoff note.
-              </p>
-            </div>
-            <Button variant="ghost" size="sm" icon={X} onClick={closeReassignModal} disabled={reassigning} />
-          </div>
-
-          <select
-            value={selectedReassignAgent}
-            onChange={(event) => setSelectedReassignAgent(event.target.value)}
-            disabled={reassigning}
+  const renderFilterBar = () => (
+    <div style={{ 
+      display: 'flex', 
+      flexWrap: 'wrap',
+      justifyContent: 'space-between', 
+      alignItems: 'center', 
+      gap: '16px',
+      background: 'var(--bg-card)',
+      padding: '16px 24px',
+      borderRadius: '20px',
+      border: '1px solid var(--border-color)',
+      marginBottom: '8px'
+    }}>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        {['daily', 'weekly', 'monthly', 'custom'].map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
             style={{
-              width: '100%',
-              padding: '12px 14px',
-              borderRadius: '14px',
-              background: 'var(--bg-app)',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontWeight: 600,
+              textTransform: 'capitalize',
               border: '1px solid var(--border-color)',
-              color: 'var(--text-main)',
-              fontSize: '14px',
-              outline: 'none',
-              cursor: reassigning ? 'not-allowed' : 'pointer'
+              background: period === p ? 'hsl(var(--primary))' : 'var(--bg-app)',
+              color: period === p ? 'white' : 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
             }}
           >
-            <option value="" disabled>{reassigning ? 'Reassigning...' : '-- Select Agent --'}</option>
-            {user?.id !== reassignModal.currentAgentId && (
-              <option value={user?.id}>Assign to myself ({user?.name})</option>
-            )}
-            {agents
-              .filter((agent) => agent.id !== reassignModal.currentAgentId && agent.id !== user?.id)
-              .map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name}
-                </option>
-              ))}
-          </select>
+            {p === 'daily' ? 'Today' : p}
+          </button>
+        ))}
+      </div>
 
-          <div style={{ marginTop: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              Final Handoff Remark
-            </label>
-            <textarea
-              value={handoffRemark}
-              onChange={(event) => setHandoffRemark(event.target.value)}
-              disabled={reassigning}
-              placeholder="Add the final context for the next agent: what changed, what is pending, and what they should do next."
-              style={{
-                width: '100%',
-                minHeight: '110px',
-                padding: '12px 14px',
-                borderRadius: '14px',
-                background: 'var(--bg-app)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-main)',
-                fontSize: '14px',
-                outline: 'none',
-                resize: 'vertical',
-                marginTop: '8px'
-              }}
+      {period === 'custom' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>From:</span>
+            <input 
+              type="date" 
+              value={customRange.start} 
+              onChange={e => setCustomRange({...customRange, start: e.target.value})}
+              style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
             />
           </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-            <Button variant="ghost" onClick={closeReassignModal} disabled={reassigning}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleReassign} disabled={reassigning}>
-              {reassigning ? 'Reassigning...' : 'Reassign'}
-            </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>To:</span>
+            <input 
+              type="date" 
+              value={customRange.end} 
+              onChange={e => setCustomRange({...customRange, end: e.target.value})}
+              style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
+            />
           </div>
+          <Button variant="primary" size="sm" onClick={handleApplyCustomFilter}>Apply</Button>
         </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
+        <Clock size={14} />
+        Last synced: {new Date().toLocaleTimeString()}
       </div>
-    );
-  };
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ maxWidth: '700px' }}>
           <h1 style={{ 
             fontSize: '32px', 
             fontWeight: 800, 
             letterSpacing: '-1px',
-            marginBottom: '8px'
+            marginBottom: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
           }}>
             Team <span className="premium-gradient-text">Console</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '20px', color: 'var(--text-muted)', letterSpacing: '0' }}>Real-time</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
-            Monitor agent performance and oversee operational excellence.
-          </p>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '6px' }}>
-            Supervisor: <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{user?.name || 'Unknown'}</span>
+          <p style={{ color: 'var(--text-muted)', fontSize: '16px', lineHeight: '1.5' }}>
+            Monitor agent performance, track bookings, and oversee overall team operations in real time.
           </p>
         </div>
-        <Button variant="outline" icon={Activity} size="sm" onClick={fetchData}>Refresh Sync</Button>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>Logged in as</div>
+          <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '15px' }}>{user?.name}</div>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
-        <Card title="Clients with Bookings" subtitle="Handled by your team" icon={Users}>
-          <p style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.total_clients || 0}</p>
-        </Card>
-        <Card title="Bookings Created by Team" subtitle="Last 7 days" icon={TrendingUp}>
-          <p style={{ fontSize: '28px', fontWeight: 800, color: '#60a5fa' }}>
-            {stats?.weekly_bookings || 0}
-          </p>
-        </Card>
-        <Card title="Daily Revenue" subtitle="Bookings created today by your team" icon={CircleDollarSign}>
-          <p style={{ fontSize: '28px', fontWeight: 800, color: '#22c55e' }}>
-            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats?.daily_revenue) || 0)}
-          </p>
-        </Card>
-        <Card title="Airline Inquiry from Team" subtitle="Last 7 days" icon={Phone}>
-          <p style={{ fontSize: '28px', fontWeight: 800, color: '#f59e0b' }}>
-            {stats?.team_airline_inquiries || 0}
-          </p>
-        </Card>
-      </div>
+      {renderFilterBar()}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px' }}>
-        <Card title="Agent Performance" subtitle="Calls handled, bookings created, airline inquiries" icon={Award}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {loading ? (
-              <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>Loading performance data...</div>
-            ) : performance.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>No agent performance data yet.</div>
-            ) : (
-              performance.map((agent) => (
-                <div
-                  key={agent.id}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.4fr repeat(3, 0.7fr)',
-                    gap: '12px',
-                    alignItems: 'center',
-                    padding: '14px 16px',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '16px',
-                    background: 'var(--bg-input)'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{agent.name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{agent.email}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bookings Created</div>
-                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>{agent.bookings_count}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Calls Handled</div>
-                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#4ade80' }}>{agent.calls_count}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Airline Inquiries</div>
-                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#60a5fa' }}>{agent.airline_inquiries_count}</div>
-                  </div>
-                </div>
-              ))
-            )}
+      {/* Summary Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+        <Card title="Clients with Bookings" icon={Users}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.total_clients || 0}</span>
+            <Users size={40} style={{ opacity: 0.1, marginBottom: '-8px' }} />
           </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Total number of clients handled by your team</div>
         </Card>
 
-        <Card title="Recent Inquiries" subtitle="Latest team inquiry activity" icon={Phone}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {loading ? (
-              <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>Loading inquiries...</div>
-            ) : recentInquiries.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>No recent inquiries found.</div>
-            ) : (
-              recentInquiries.map((inquiry) => (
-                <div
-                  key={inquiry.id}
-                  style={{
-                    padding: '14px 16px',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '16px',
-                    background: 'var(--bg-input)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                        {inquiry.agent?.name || 'Unknown Agent'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        {inquiry.call_type || 'Inquiry'}{inquiry.airline_inquiry ? ` • ${inquiry.airline_inquiry}` : ''}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {new Date(inquiry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                    Client: {inquiry.client?.name || `${inquiry.client?.first_name || ''} ${inquiry.client?.last_name || ''}`.trim() || 'N/A'}
-                  </div>
-                </div>
-              ))
-            )}
+        <Card title="Team Bookings" icon={TrendingUp}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '32px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.period_bookings || 0}</span>
+            <TrendingUp size={40} style={{ opacity: 0.1, marginBottom: '-8px' }} />
           </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Bookings created by your team (Selected Period)</div>
         </Card>
-      </div>
 
-      <Card title="Recent Team Bookings" subtitle="Latest bookings created by your team" icon={Plane}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {loading ? (
-            <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>Loading recent bookings...</div>
-          ) : recentBookings.length === 0 ? (
-            <div style={{ color: 'var(--text-muted)', padding: '8px 0' }}>No recent team bookings found.</div>
-          ) : (
-            recentBookings.map((booking) => (
-              <div
-                key={booking.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1.1fr 0.9fr 0.8fr auto',
-                  gap: '16px',
-                  alignItems: 'center',
-                  padding: '16px',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '18px',
-                  background: 'var(--bg-input)'
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{booking.booking_reference}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    {booking.client?.name || `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim() || 'Unknown Client'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Assigned Agent</div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
-                    {booking.agent?.name || 'Self/System'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
-                  <div style={{ fontWeight: 700, color: '#60a5fa', marginTop: '4px' }}>{booking.status}</div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={ArrowRightLeft}
-                  onClick={() => openReassignModal(booking)}
-                >
-                  Reassign
-                </Button>
+        <Card title="Revenue Generated" icon={CircleDollarSign}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: '#34d399' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.daily_revenue || 0)}
+            </span>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>Revenue generated {period === 'daily' ? 'today' : 'in selected period'}</div>
+        </Card>
+
+        <Card title="Inquiry Tags" icon={Phone}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', minHeight: '40px' }}>
+            {inquiryTags.length > 0 ? inquiryTags.map(t => (
+              <div key={t.tag} style={{ 
+                padding: '4px 10px', 
+                background: 'var(--bg-input)', 
+                border: '1px solid var(--border-color)', 
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                color: 'var(--text-main)'
+              }}>
+                ({t.count}{t.tag.toLowerCase().replace('inquiry', '')})
               </div>
-            ))
-          )}
-        </div>
-      </Card>
+            )) : <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No inquiries found</span>}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px' }}>Latest inquiries by category (Selected Period)</div>
+        </Card>
+      </div>
 
-      {renderReassignModal()}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        onClose={() => setToast({ message: '', type: 'error' })}
-      />
+      {/* Visual Activity Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.6fr', gap: '24px' }}>
+        <Card title="Monthly Revenue & Trends" subtitle="Team performance over the last 6 months" icon={TrendingUp}>
+          <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={revenueData}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--text-muted)', fontSize: 12}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--text-muted)', fontSize: 12}} />
+                <Tooltip 
+                  contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px' }}
+                  itemStyle={{ color: 'var(--text-main)' }}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card title="Booking Status" subtitle="Team distribution" icon={CheckCircle2}>
+          <div style={{ height: '300px', width: '100%', marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="count"
+                  nameKey="status"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginTop: '-20px' }}>
+              {statusData.map((item, idx) => (
+                <div key={item.status} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[idx % COLORS.length] }} />
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.status} ({item.count})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Tables - Performance and Recent Activity */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+        <Card title="Agent Performance" subtitle="Track calls, bookings, and inquiries" icon={Award}>
+          <div style={{ overflowX: 'auto', marginTop: '16px' }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+              <thead>
+                <tr style={{ textAlign: 'left' }}>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Agent</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Inquiries</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Calls</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bookings</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Loading records...</td></tr>
+                ) : stats?.agent_performance.map(agent => (
+                  <tr key={agent.id} style={{ background: 'var(--bg-input)', transition: 'transform 0.2s' }}>
+                    <td style={{ padding: '16px', borderRadius: '16px 0 0 16px', border: '1px solid var(--border-color)', borderRight: 'none' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{agent.name}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{agent.email}</div>
+                    </td>
+                    <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                      <span style={{ 
+                        padding: '4px 10px', 
+                        borderRadius: '8px', 
+                        fontSize: '11px', 
+                        fontWeight: 700,
+                        background: agent.status === 'Active' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                        color: agent.status === 'Active' ? '#22c55e' : '#f59e0b'
+                      }}>
+                        {agent.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px', fontWeight: 800, color: 'var(--text-main)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>{agent.inquiries_count}</td>
+                    <td style={{ padding: '16px', fontWeight: 800, color: '#60a5fa', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>{agent.calls_count}</td>
+                    <td style={{ padding: '16px', borderRadius: '0 16px 16px 0', border: '1px solid var(--border-color)', borderLeft: 'none', fontWeight: 800, color: '#a855f7' }}>{agent.bookings_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <Card title="Recent Inquiries" subtitle="Latest team inquiries" icon={Phone}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+              {stats?.recent_inquiries.map(inq => (
+                <div key={inq.id} style={{ 
+                  padding: '16px', 
+                  borderRadius: '16px', 
+                  border: '1px solid var(--border-color)', 
+                  background: 'var(--bg-input)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{inq.client?.name || 'New Lead'}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Agent: {inq.agent?.name} • {inq.airline_inquiry || inq.call_type}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(inq.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    <ChevronRight size={14} style={{ color: 'var(--text-muted)', marginTop: '4px' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card title="Recent Team Bookings" subtitle="Latest bookings created by your team" icon={Plane}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+              {stats?.recent_bookings.map(book => (
+                <div key={book.id} style={{ 
+                  padding: '16px', 
+                  borderRadius: '16px', 
+                  border: '1px solid var(--border-color)', 
+                  background: 'var(--bg-input)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 800, color: 'hsl(var(--primary))' }}>{book.booking_reference}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      {book.client?.name} • ${book.total_amount}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      borderRadius: '6px', 
+                      fontSize: '10px', 
+                      fontWeight: 800,
+                      background: book.status === 'Confirmed' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(96, 165, 250, 0.1)',
+                      color: book.status === 'Confirmed' ? '#22c55e' : '#60a5fa'
+                    }}>
+                      {book.status}
+                    </span>
+                    <button 
+                      onClick={() => openReassignModal(book)}
+                      style={{ 
+                        display: 'block', 
+                        fontSize: '10px', 
+                        color: 'var(--text-muted)', 
+                        marginTop: '8px',
+                        textDecoration: 'underline',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Reassign
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {reassignModal.open && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(2, 6, 23, 0.85)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1200,
+          padding: '24px'
+        }}>
+          <div style={{ width: '100%', maxWidth: '420px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '24px', padding: '24px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Reassign Booking</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>Select a team member to take over this booking.</p>
+            
+            <select
+              value={selectedReassignAgent}
+              onChange={(e) => setSelectedReassignAgent(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-app)', color: 'var(--text-main)', border: '1px solid var(--border-color)', marginBottom: '16px' }}
+            >
+              <option value="">Select Agent</option>
+              {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+
+            <textarea 
+              placeholder="Add handoff notes..." 
+              value={handoffRemark}
+              onChange={e => setHandoffRemark(e.target.value)}
+              style={{ width: '100%', height: '100px', padding: '12px', borderRadius: '12px', background: 'var(--bg-app)', color: 'var(--text-main)', border: '1px solid var(--border-color)', marginBottom: '20px', resize: 'none' }}
+            />
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button style={{ flex: 1 }} variant="ghost" onClick={closeReassignModal}>Cancel</Button>
+              <Button style={{ flex: 1 }} variant="primary" onClick={handleReassign} isLoading={reassigning}>Reassign Now</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />
     </div>
   );
 };

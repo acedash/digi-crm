@@ -33,7 +33,7 @@ class PaymentAuthRepository extends BaseRepository
             ->first();
     }
 
-    public function getChargeQueue(string $view = 'pending')
+    public function getChargeQueue(string $view = 'pending', array $filters = [])
     {
         $query = $this->model
             ->whereHas('bookings')
@@ -42,10 +42,28 @@ class PaymentAuthRepository extends BaseRepository
 
         if ($view === 'charged') {
             $query->whereNotNull('collected_at')->latest('collected_at');
+            if (!empty($filters['startDate'])) {
+                $query->whereDate('collected_at', '>=', $filters['startDate']);
+            }
+            if (!empty($filters['endDate'])) {
+                $query->whereDate('collected_at', '<=', $filters['endDate']);
+            }
         } elseif ($view === 'all') {
             $query->latest('approved_at');
+            if (!empty($filters['startDate'])) {
+                $query->whereDate('approved_at', '>=', $filters['startDate']);
+            }
+            if (!empty($filters['endDate'])) {
+                $query->whereDate('approved_at', '<=', $filters['endDate']);
+            }
         } else {
             $query->whereNull('collected_at')->latest('approved_at');
+            if (!empty($filters['startDate'])) {
+                $query->whereDate('approved_at', '>=', $filters['startDate']);
+            }
+            if (!empty($filters['endDate'])) {
+                $query->whereDate('approved_at', '<=', $filters['endDate']);
+            }
         }
 
         return $query->get();

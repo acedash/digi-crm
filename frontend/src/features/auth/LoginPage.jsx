@@ -91,16 +91,11 @@ const LoginPage = () => {
           <div style={{ 
             width: '120px', 
             height: '120px', 
-            borderRadius: '28px', 
-            background: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 12px',
-            boxShadow: '0 25px 50px -12px rgba(10, 139, 36, 0.25)',
             overflow: 'hidden',
-            padding: '16px',
-            border: '1px solid var(--border-color)'
           }}>
             <img src={logo} alt="Kreyton Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>

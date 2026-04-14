@@ -6,7 +6,10 @@ const paymentAuthService = {
   approve: (token, data) => api.post(`/authorize/${token}/approve`, data),
   reject: (token, data) => api.post(`/authorize/${token}/reject`, data),
   getProofByBooking: (bookingId) => api.get(`/bookings/${bookingId}/consent-proof`),
-  getChargeQueue: (view = 'pending') => api.get(`/admin/payment-authorizations/charge-queue?view=${view}`),
+  getChargeQueue: (view = 'pending', params = {}) => {
+    const query = new URLSearchParams({ view, ...params }).toString();
+    return api.get(`/admin/payment-authorizations/charge-queue?${query}`);
+  },
   markCharged: (paymentAuthId, data) => api.post(`/admin/payment-authorizations/${paymentAuthId}/mark-charged`, data),
 };
 

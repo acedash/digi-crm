@@ -124,9 +124,9 @@ class PaymentAuthService
         return $this->repository->findLatestByBookingId($bookingId);
     }
 
-    public function getChargeQueue(string $view = 'pending')
+    public function getChargeQueue(string $view = 'pending', array $filters = [])
     {
-        return $this->repository->getChargeQueue($view);
+        return $this->repository->getChargeQueue($view, $filters);
     }
 
     public function markCharged(int $paymentAuthId, array $data = [])

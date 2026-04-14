@@ -4,6 +4,7 @@ import Card from '../../components/ui/Card';
 import api from '../../services/api';
 import { AnimatePresence } from 'framer-motion';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 
 const AuditTrailPage = () => {
   const [logs, setLogs] = useState([]);
@@ -202,7 +203,7 @@ const AuditTrailPage = () => {
             System <span className="premium-gradient-text">Audit Trail</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
-            A unified, human-readable timeline of all team actions and data modifications.
+            View a complete timeline of team activity and system changes.
           </p>
         </div>
         
@@ -215,21 +216,15 @@ const AuditTrailPage = () => {
       </div>
 
       <Card style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-        <div style={{ padding: '20px 24px', background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input 
-              type="text"
-              placeholder="Search by action, user, or module..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%', padding: '12px 16px 12px 48px',
-                background: 'var(--bg-card)', border: '1px solid var(--border-color)',
-                borderRadius: '12px', color: 'var(--text-main)', fontSize: '14px', outline: 'none'
-              }}
-            />
-          </div>
+        <div style={{ padding: '20px 24px', background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 300px', gap: '16px', alignItems: 'center' }}>
+          <Input 
+            placeholder="Search by action, user, or module..." 
+            icon={Search}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onClear={() => setSearchTerm('')}
+            style={{ marginBottom: 0 }}
+          />
           
           <select 
             value={filterSource}

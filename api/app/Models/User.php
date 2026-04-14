@@ -59,6 +59,18 @@ class User extends Authenticatable
         return $this->hasMany(\App\Domains\Booking\Models\Booking::class, 'agent_id');
     }
 
+    public function latestActivity()
+    {
+        return $this->hasOne(UserActivity::class)->latestOfMany();
+    }
+
+    public function latestLogin()
+    {
+        return $this->hasOne(UserActivity::class)
+            ->where('activity_type', 'login')
+            ->latestOfMany();
+    }
+
     /**
      * The attributes that are mass assignable.
      *

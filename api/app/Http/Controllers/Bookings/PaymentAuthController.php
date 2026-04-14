@@ -94,7 +94,12 @@ class PaymentAuthController extends Controller
             $view = 'pending';
         }
 
-        $records = $this->paymentAuthService->getChargeQueue($view);
+        $filters = [
+            'startDate' => request()->get('startDate'),
+            'endDate' => request()->get('endDate'),
+        ];
+
+        $records = $this->paymentAuthService->getChargeQueue($view, $filters);
 
         return $this->successResponse($records, 'Charge queue retrieved');
     }

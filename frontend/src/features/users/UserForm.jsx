@@ -17,12 +17,6 @@ import userService from './userService';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
-const RequiredLabel = ({ text }) => (
-  <span>
-    {text} <span style={{ color: '#ef4444' }}>*</span>
-  </span>
-);
-
 const UserForm = ({ user, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -32,7 +26,8 @@ const UserForm = ({ user, onClose, onSuccess }) => {
     supervisor_ids: [],
     phone: '',
     shift: '',
-    week_off: '',
+    custom_shift: '',
+    week_off: [], // Now an array for multi-select
   });
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,7 +36,6 @@ const UserForm = ({ user, onClose, onSuccess }) => {
   const toggleSupervisor = (supervisorId) => {
     setFormData((prev) => {
       const exists = prev.supervisor_ids.includes(supervisorId);
-
       return {
         ...prev,
         supervisor_ids: exists
@@ -51,9 +45,25 @@ const UserForm = ({ user, onClose, onSuccess }) => {
     });
   };
 
+  const toggleWeekOff = (day) => {
+    setFormData((prev) => {
+      const exists = prev.week_off.includes(day);
+      return {
+        ...prev,
+        week_off: exists
+          ? prev.week_off.filter((d) => d !== day)
+          : [...prev.week_off, day],
+      };
+    });
+  };
+
   useEffect(() => {
     fetchSupervisors();
     if (user) {
+      // Check if shift is one of the predefined ones
+      const standardShifts = ['Morning', 'Afternoon', 'Night'];
+      const isCustomShift = user.shift && !standardShifts.includes(user.shift);
+      
       setFormData({
         name: user.name || '',
         email: user.email || '',
@@ -61,8 +71,9 @@ const UserForm = ({ user, onClose, onSuccess }) => {
         roles: user.roles ? user.roles.map(r => r.name || r) : ['agent'],
         supervisor_ids: user.supervisors?.map((supervisor) => String(supervisor.id)) || (user.supervisor_id ? [String(user.supervisor_id)] : []),
         phone: user.phone || '',
-        shift: user.shift || '',
-        week_off: user.week_off || '',
+        shift: isCustomShift ? 'Custom' : (user.shift || ''),
+        custom_shift: isCustomShift ? user.shift : '',
+        week_off: user.week_off ? user.week_off.split(',').map(d => d.trim()) : [],
       });
     }
   }, [user]);
@@ -82,6 +93,16 @@ const UserForm = ({ user, onClose, onSuccess }) => {
     setError(null);
 
     const submissionData = { ...formData };
+    
+    // Process Shift
+    if (submissionData.shift === 'Custom') {
+      submissionData.shift = submissionData.custom_shift;
+    }
+    delete submissionData.custom_shift;
+
+    // Process Week Off (to string)
+    submissionData.week_off = submissionData.week_off.join(', ');
+
     if (!submissionData.roles.includes('agent')) {
       submissionData.supervisor_ids = [];
     }
@@ -126,7 +147,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '600px',
+          maxWidth: '650px',
           maxHeight: 'calc(100vh - 48px)',
           borderRadius: '24px',
           display: 'flex',
@@ -146,7 +167,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
         }}>
           <div>
             <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)' }}>
-              {user ? 'Edit Member' : 'Add Team Member'}
+              {user ? 'Edit Member Details' : 'Add Team Member'}
             </h2>
             <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
               Configure permissions and operational details.
@@ -184,7 +205,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                   <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Profile Identity</h3>
                 </div>
                 <Input 
-                  label={<RequiredLabel text="Full Name" />}
+                  label="Full Name"
                   placeholder="e.g. John Doe"
                   value={formData.name} 
                   onChange={e => setFormData({...formData, name: e.target.value})}
@@ -192,7 +213,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                 />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <Input 
-                    label={<RequiredLabel text="Email Address" />}
+                    label="Email Address"
                     icon={Mail}
                     placeholder="john@example.com"
                     value={formData.email} 
@@ -202,7 +223,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                   <Input 
                     label="Phone Number" 
                     icon={Phone}
-                    placeholder="Enter full number with country code"
+                    placeholder="Enter full number"
                     value={formData.phone} 
                     onChange={e => setFormData({...formData, phone: e.target.value})}
                   />
@@ -217,7 +238,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                 
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-muted)' }}>
-                    <RequiredLabel text="Roles" />
+                    Roles <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <div style={{ display: 'flex', gap: '12px' }}>
                     {['agent', 'supervisor', 'admin'].map(role => {
@@ -249,7 +270,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                 </div>
 
                 <Input 
-                  label={user ? 'New Password (leave blank to keep current)' : <RequiredLabel text="Account Password" />}
+                  label={user ? 'New Password (leave blank to keep current)' : "Account Password"}
                   icon={Lock}
                   type="password"
                   placeholder="••••••••"
@@ -265,66 +286,67 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                   <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Operations</h3>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
                   <div style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>Work Shift</label>
-                    <div style={{ position: 'relative' }}>
-                      <select 
-                        style={{
-                          width: '100%',
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '12px',
-                          padding: '12px',
-                          color: 'var(--text-main)',
-                          fontSize: '14px',
-                          outline: 'none',
-                          appearance: 'none'
-                        }}
-                        value={formData.shift}
-                        onChange={e => setFormData({...formData, shift: e.target.value})}
-                      >
-                        <option value="">Select Shift</option>
-                        <option value="Morning">Morning (9 AM - 6 PM)</option>
-                        <option value="Afternoon">Afternoon (2 PM - 11 PM)</option>
-                        <option value="Night">Night (10 PM - 7 AM)</option>
-                      </select>
-                      <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)', opacity: 0.5 }} />
-                    </div>
+                    <select 
+                      value={formData.shift}
+                      onChange={e => setFormData({...formData, shift: e.target.value})}
+                    >
+                      <option value="">Select Shift</option>
+                      <option value="Morning">Morning (9 AM - 6 PM)</option>
+                      <option value="Afternoon">Afternoon (2 PM - 11 PM)</option>
+                      <option value="Night">Night (10 PM - 7 AM)</option>
+                      <option value="Custom">Other (Custom)</option>
+                    </select>
                   </div>
 
-                  <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>Weekly Off</label>
-                    <div style={{ position: 'relative' }}>
-                      <select 
-                        style={{
-                          width: '100%',
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '12px',
-                          padding: '12px',
-                          color: 'var(--text-main)',
-                          fontSize: '14px',
-                          appearance: 'none',
-                          outline: 'none'
-                        }}
-                        value={formData.week_off}
-                        onChange={e => setFormData({...formData, week_off: e.target.value})}
-                      >
-                        <option value="" style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>Select Day</option>
-                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                          <option key={day} value={day} style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>{day}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)', opacity: 0.5 }} />
-                    </div>
+                  {formData.shift === 'Custom' ? (
+                    <Input 
+                      label="Custom Shift Time"
+                      placeholder="e.g. 11 AM - 8 PM"
+                      value={formData.custom_shift}
+                      onChange={e => setFormData({...formData, custom_shift: e.target.value})}
+                      style={{ marginBottom: 0 }}
+                    />
+                  ) : (
+                    <div />
+                  )}
+                </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-muted)' }}>Weekly Off (Multi-select)</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
+                      const isSelected = formData.week_off.includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => toggleWeekOff(day)}
+                          style={{
+                            padding: '8px 16px',
+                            borderRadius: '100px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            background: isSelected ? 'hsl(var(--primary))' : 'var(--bg-input)',
+                            color: isSelected ? 'white' : 'var(--text-muted)',
+                            border: `1px solid ${isSelected ? 'hsl(var(--primary))' : 'var(--border-color)'}`,
+                            transition: 'var(--transition-smooth)'
+                          }}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {formData.roles.includes('agent') && (
                   <div style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '10px', color: 'var(--text-muted)' }}>
-                      <RequiredLabel text="Assigned Supervisors" />
+                      Assigned Supervisors <span style={{ color: '#ef4444' }}>*</span>
                     </label>
                     <div
                       style={{
@@ -391,9 +413,6 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                       value={formData.supervisor_ids.join(',')}
                       required={formData.roles.includes('agent')}
                     />
-                    <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                      Click once to select or deselect supervisors.
-                    </p>
                   </div>
                 )}
               </section>
@@ -416,7 +435,7 @@ const UserForm = ({ user, onClose, onSuccess }) => {
             isLoading={loading}
             icon={Save}
           >
-            {user ? 'Sync Subscriptions' : 'Confirm Access'}
+            Save Details
           </Button>
         </div>
       </div>

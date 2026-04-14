@@ -141,6 +141,7 @@ const ActivityLogs = () => {
             <label style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Date</label>
             <input
               type="date"
+              className="crm-input"
               value={selectedDate}
               onChange={(event) => fetchAdminDetails(event.target.value)}
               style={{
