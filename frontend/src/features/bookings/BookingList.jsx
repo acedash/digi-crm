@@ -29,6 +29,7 @@ import Input from '../../components/ui/Input';
 import bookingService from './bookingService';
 import paymentAuthService from './paymentAuthService';
 import Toast from '../../components/ui/Toast';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import CallLogModal from './components/CallLogModal';
 import BookingRow from './components/BookingRow';
 import { useAuthStore } from '../auth/useAuthStore';
@@ -54,7 +55,16 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [handoffRemark, setHandoffRemark] = useState('');
   const [selectedReassignAgent, setSelectedReassignAgent] = useState('');
   const [availableAgents, setAvailableAgents] = useState([]);
-  const [toast, setToast] = useState({ message: '', type: 'error' });
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+  const [confirmModal, setConfirmModal] = useState({ 
+    open: false, 
+    title: '', 
+    message: '', 
+    onConfirm: null, 
+    tone: 'primary',
+    confirmLabel: 'Confirm',
+    isLoading: false
+  });
   const [sendingApprovalId, setSendingApprovalId] = useState(null);
   const [sendingTemplateAction, setSendingTemplateAction] = useState(null);
   const [statusModal, setStatusModal] = useState({ open: false, bookingId: null, targetStatus: '' });
@@ -161,7 +171,7 @@ const BookingList = ({ onCreate, onEdit }) => {
     }
   };
 
-  const executeReassign = async () => {
+  const executeReassign = useCallback(async () => {
     if (!selectedReassignAgent) {
       setToast({ message: 'Please select who should receive this booking.', type: 'error' });
       return;
@@ -185,10 +195,10 @@ const BookingList = ({ onCreate, onEdit }) => {
         type: 'error',
       });
     }
-  };
+  }, [reassignModal.bookingId, selectedReassignAgent, handoffRemark, pagination.current_page, fetchBookings]);
 
-  const handleSendApproval = async (booking) => {
-    if (sendingApprovalId === booking.id) return;
+  const handleSendApproval = useCallback(async (booking) => {
+    if (sendingApprovalId === booking.id || isFetchingRef.current) return;
 
     const clientName =
       booking.client?.name ||
@@ -197,30 +207,37 @@ const BookingList = ({ onCreate, onEdit }) => {
         : 'this client');
 
     const email = booking.client?.email || 'no email provided';
-    const confirmed = window.confirm(
-      `Send approval email for ${booking.booking_reference} to ${clientName} (${email})?`
-    );
+    
+    setConfirmModal({
+      open: true,
+      title: 'Send Payment Approval',
+      message: `Are you sure you want to send an approval request for ${booking.booking_reference} to ${clientName} (${email})?`,
+      confirmLabel: 'Send Request',
+      tone: 'primary',
+      onConfirm: async () => {
+        try {
+          setConfirmModal(prev => ({ ...prev, isLoading: true }));
+          setSendingApprovalId(booking.id);
+          await paymentAuthService.create({
+            client_id: booking.client_id,
+            booking_ids: [booking.id],
+          });
+          setToast({ message: `Approval email sent to ${booking.client?.email || 'client'}`, type: 'success' });
+          setConfirmModal({ open: false });
+        } catch (error) {
+          setToast({
+            message: error?.response?.data?.message || 'Failed to send approval email',
+            type: 'error',
+          });
+        } finally {
+          setSendingApprovalId(null);
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    });
+  }, [sendingApprovalId]);
 
-    if (!confirmed) return;
-
-    try {
-      setSendingApprovalId(booking.id);
-      await paymentAuthService.create({
-        client_id: booking.client_id,
-        booking_ids: [booking.id],
-      });
-      setToast({ message: `Approval email sent to ${booking.client?.email || 'client'}`, type: 'success' });
-    } catch (error) {
-      setToast({
-        message: error?.response?.data?.message || 'Failed to send approval email',
-        type: 'error',
-      });
-    } finally {
-      setSendingApprovalId(null);
-    }
-  };
-
-  const templateActionMeta = {
+  const templateActionMeta = React.useMemo(() => ({
     flight_change: {
       label: 'Flight Change',
       success: 'Flight change email sent successfully.',
@@ -236,9 +253,9 @@ const BookingList = ({ onCreate, onEdit }) => {
       success: 'Refund cancellation email sent successfully.',
       confirm: 'Send refund cancellation email',
     },
-  };
+  }), []);
 
-  const handleSendTemplateEmail = async (booking, templateKey) => {
+  const handleSendTemplateEmail = useCallback(async (booking, templateKey) => {
     if (templateKey === 'flight_change') {
       if (!['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'].includes(booking.status)) {
         setToast({
@@ -265,28 +282,35 @@ const BookingList = ({ onCreate, onEdit }) => {
         : 'this client');
 
     const email = booking.client?.email || 'no email provided';
-    const confirmed = window.confirm(
-      `${action.confirm} for ${booking.booking_reference} to ${clientName} (${email})?`
-    );
+    
+    setConfirmModal({
+      open: true,
+      title: action.label,
+      message: `${action.confirm} for ${booking.booking_reference} to ${clientName} (${email})?`,
+      confirmLabel: 'Send Email',
+      tone: 'primary',
+      onConfirm: async () => {
+        try {
+          setConfirmModal(prev => ({ ...prev, isLoading: true }));
+          setSendingTemplateAction(actionId);
+          await bookingService.sendTemplateEmail(booking.id, templateKey);
+          setToast({ message: action.success, type: 'success' });
+          setConfirmModal({ open: false });
+          fetchBookings(pagination.current_page);
+        } catch (error) {
+          setToast({
+            message: error?.response?.data?.message || `Failed to send ${action.label.toLowerCase()} email`,
+            type: 'error',
+          });
+        } finally {
+          setSendingTemplateAction(null);
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    });
+  }, [basePath, navigate, sendingTemplateAction, templateActionMeta, pagination.current_page, fetchBookings]);
 
-    if (!confirmed) return;
-
-    try {
-      setSendingTemplateAction(actionId);
-      await bookingService.sendTemplateEmail(booking.id, templateKey);
-      setToast({ message: action.success, type: 'success' });
-      fetchBookings(pagination.current_page);
-    } catch (error) {
-      setToast({
-        message: error?.response?.data?.message || `Failed to send ${action.label.toLowerCase()} email`,
-        type: 'error',
-      });
-    } finally {
-      setSendingTemplateAction(null);
-    }
-  };
-
-  const handleEditBooking = (booking) => {
+  const handleEditBooking = useCallback((booking) => {
     if (['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'].includes(booking.status)) {
       navigate(`${basePath}/bookings/${booking.id}/edit?workflow=service-change`, {
         state: {
@@ -300,7 +324,7 @@ const BookingList = ({ onCreate, onEdit }) => {
     }
 
     onEdit(booking.id);
-  };
+  }, [basePath, navigate, onEdit]);
 
   const statusIcons = {
     'Approved': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
@@ -320,7 +344,7 @@ const BookingList = ({ onCreate, onEdit }) => {
   const getStatusGuidance = (status) => {
     switch (status) {
       case 'Pending':
-        return 'Booking is saved in CRM and ready for the next step.';
+        return 'Booking is saved in CRM. Approval email has not been sent yet.';
       case 'Awaiting Approval':
         return 'Approval email sent. Waiting for the client response.';
       case 'Awaiting Change Approval':
@@ -374,24 +398,36 @@ const BookingList = ({ onCreate, onEdit }) => {
         boxShadow: `0 4px 12px ${config.shadow}`
       }}>
         <Icon size={12} strokeWidth={3} />
-        {status}
+        {status === 'Pending' ? 'Email Send Pending' : status}
       </div>
     );
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this booking?')) return;
-    
-    try {
-      await bookingService.deleteBooking(id);
-      fetchBookings();
-    } catch (error) {
-      console.error('Failed to delete booking:', error);
-      setToast({ message: 'Failed to delete booking', type: 'error' });
-    }
-  };
+  const handleDelete = useCallback(async (id) => {
+    setConfirmModal({
+      open: true,
+      title: 'Delete Booking',
+      message: 'Are you sure you want to delete this booking? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          setConfirmModal(prev => ({ ...prev, isLoading: true }));
+          await bookingService.deleteBooking(id);
+          setToast({ message: 'Booking deleted successfully', type: 'success' });
+          setConfirmModal({ open: false });
+          fetchBookings();
+        } catch (error) {
+          console.error('Failed to delete booking:', error);
+          setToast({ message: 'Failed to delete booking', type: 'error' });
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    });
+  }, [fetchBookings]);
 
-  const handleStatusUpdate = async () => {
+  const handleStatusUpdate = useCallback(async () => {
     if (!statusModal.bookingId || !statusModal.targetStatus) return;
     
     setLoading(true);
@@ -412,7 +448,19 @@ const BookingList = ({ onCreate, onEdit }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusModal, statusRemark, pagination.current_page, fetchBookings]);
+
+  // Memoized handlers for BookingRow to prevent re-renders
+  const handleOpenClient = useCallback((clientId) => navigate(`${basePath}/clients/${clientId}`), [basePath, navigate]);
+  const handleOpenProof = useCallback((bookingId) => navigate(`${basePath}/bookings/${bookingId}/consent-proof`), [basePath, navigate]);
+  const handleViewDetails = useCallback((bookingId) => navigate(`${basePath}/bookings/${bookingId}`), [basePath, navigate]);
+  const handleOpenCallLog = useCallback((booking) => {
+    setSelectedBookingForCall(booking);
+    setShowCallLog(true);
+  }, []);
+  const handleTriggerMarkCompleted = useCallback((bookingId) => setStatusModal({ open: true, bookingId, targetStatus: 'Completed' }), []);
+  const handleTriggerMarkPending = useCallback((bookingId) => setStatusModal({ open: true, bookingId, targetStatus: 'Work Pending' }), []);
+  const handleTriggerReassign = useCallback((booking) => handleReassignClick(booking), [handleReassignClick]);
 
   const renderStatusModal = () => {
     if (!statusModal.open) return null;
@@ -592,14 +640,11 @@ const BookingList = ({ onCreate, onEdit }) => {
             color: '#94a3b8',
             bg: 'rgba(148, 163, 184, 0.1)'
           },
-          {
-            label: 'Awaiting',
-            value: bookings.filter(
-              (b) => b.status === 'Awaiting Approval' || b.status === 'Awaiting Change Approval'
-            ).length,
+            { label: 'Booking Only',
+            value: bookings.filter((b) => b.status === 'Pending').length,
             icon: Clock,
-            color: '#8b5cf6',
-            bg: 'rgba(139, 92, 246, 0.1)'
+            color: '#f59e0b',
+            bg: 'rgba(245, 158, 11, 0.1)'
           },
           {
             label: 'Rejected',
@@ -659,7 +704,7 @@ const BookingList = ({ onCreate, onEdit }) => {
                   transition: 'all 0.2s'
                 }}
               >
-                {status}
+                {status === 'Pending' ? 'Email Send Pending' : status}
               </button>
             ))}
           </div>
@@ -748,22 +793,19 @@ const BookingList = ({ onCreate, onEdit }) => {
                 isSendingFlightChange={isSendingFlightChange}
                 isSendingFutureCredit={isSendingFutureCredit}
                 isSendingRefund={isSendingRefund}
-                onOpenClient={() => navigate(`${basePath}/clients/${booking.client_id}`)}
-                onSendApproval={() => handleSendApproval(booking)}
-                onSendFlightChange={() => handleSendTemplateEmail(booking, 'flight_change')}
-                onSendFutureCredit={() => handleSendTemplateEmail(booking, 'cancellation_future_credit')}
-                onSendRefund={() => handleSendTemplateEmail(booking, 'cancellation_refund')}
-                onOpenProof={() => navigate(`${basePath}/bookings/${booking.id}/consent-proof`)}
-                onView={() => navigate(`${basePath}/bookings/${booking.id}`)}
-                onCall={() => {
-                  setSelectedBookingForCall(booking);
-                  setShowCallLog(true);
-                }}
-                onReassign={() => handleReassignClick(booking)}
-                onMarkCompleted={() => setStatusModal({ open: true, bookingId: booking.id, targetStatus: 'Completed' })}
-                onMarkPending={() => setStatusModal({ open: true, bookingId: booking.id, targetStatus: 'Work Pending' })}
-                onEdit={() => handleEditBooking(booking)}
-                onDelete={() => handleDelete(booking.id)}
+                onOpenClient={() => handleOpenClient(booking.client_id)}
+                onSendApproval={handleSendApproval}
+                onSendFlightChange={(b) => handleSendTemplateEmail(b, 'flight_change')}
+                onSendFutureCredit={(b) => handleSendTemplateEmail(b, 'cancellation_future_credit')}
+                onSendRefund={(b) => handleSendTemplateEmail(b, 'cancellation_refund')}
+                onOpenProof={handleOpenProof}
+                onView={handleViewDetails}
+                onCall={handleOpenCallLog}
+                onReassign={handleTriggerReassign}
+                onMarkCompleted={handleTriggerMarkCompleted}
+                onMarkPending={handleTriggerMarkPending}
+                onEdit={handleEditBooking}
+                onDelete={handleDelete}
               />
             );
           })}
@@ -857,6 +899,17 @@ const BookingList = ({ onCreate, onEdit }) => {
         message={toast.message} 
         type={toast.type} 
         onClose={() => setToast({ message: '', type: 'error' })} 
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.open}
+        onClose={() => setConfirmModal({ open: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel={confirmModal.confirmLabel}
+        tone={confirmModal.tone}
+        isLoading={confirmModal.isLoading}
       />
     </div>
   );

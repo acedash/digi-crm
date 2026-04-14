@@ -145,7 +145,7 @@ const BookingDetailsPage = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px', marginBottom: '24px' }}>
         {[
           { label: 'Client', value: clientName, icon: User },
-          { label: 'Status', value: booking.status || 'Pending', icon: ShieldCheck },
+          { label: 'Status', value: booking.status === 'Pending' ? 'Email Send Pending' : (booking.status || 'Email Send Pending'), icon: ShieldCheck },
           { label: 'Travelers', value: booking.passengers?.length || 0, icon: Package },
           { label: 'Total Amount', value: new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(Number(booking.total_amount) || 0), icon: CreditCard },
         ].map((item) => (

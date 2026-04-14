@@ -81,8 +81,13 @@ function ActionChip({ icon: Icon, label, onClick, tone = 'default', title, disab
 
   return (
     <button
+      type="button"
       title={title || label}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (onClick) onClick();
+      }}
       disabled={disabled}
       style={{
         display: 'flex',
@@ -309,7 +314,7 @@ const BookingRow = ({
             <ActionChip
               icon={Mail}
               label={isSendingApproval ? '...' : approvalActionLabel}
-              onClick={onSendApproval}
+              onClick={() => onSendApproval(booking)}
               tone="primary"
               title="Email payment approval link"
               disabled={isSendingApproval}
@@ -317,7 +322,7 @@ const BookingRow = ({
             <ActionChip
               icon={RefreshCw}
               label={isSendingFlightChange ? '...' : 'Modify'}
-              onClick={onSendFlightChange}
+              onClick={() => onSendFlightChange(booking)}
               tone="info"
               title="Record service adjustment"
               disabled={isSendingFlightChange}
@@ -325,7 +330,7 @@ const BookingRow = ({
             <ActionChip
               icon={CreditCard}
               label={isSendingFutureCredit ? '...' : 'Future Credit'}
-              onClick={onSendFutureCredit}
+              onClick={() => onSendFutureCredit(booking)}
               tone="warning"
               title="Cancel with future credit"
               disabled={isSendingFutureCredit}
@@ -333,7 +338,7 @@ const BookingRow = ({
             <ActionChip
               icon={XCircle}
               label={isSendingRefund ? '...' : 'Refund'}
-              onClick={onSendRefund}
+              onClick={() => onSendRefund(booking)}
               tone="danger"
               title="Cancel with refund"
               disabled={isSendingRefund}
@@ -342,7 +347,7 @@ const BookingRow = ({
               <ActionChip
                 icon={CheckCircle2}
                 label="Complete"
-                onClick={onMarkCompleted}
+                onClick={() => onMarkCompleted(booking.id)}
                 tone="success"
                 title="Mark as fully completed"
               />
@@ -350,21 +355,21 @@ const BookingRow = ({
             <ActionChip
               icon={ShieldCheck}
               label="Proof"
-              onClick={onOpenProof}
+              onClick={() => onOpenProof(booking.id)}
               tone="info"
               title="Open consent proof"
             />
             <ActionChip
               icon={Eye}
               label="View"
-              onClick={onView}
+              onClick={() => onView(booking.id)}
               tone="info"
               title="Open full details"
             />
             <ActionChip
               icon={PhoneCall}
               label="Call"
-              onClick={onCall}
+              onClick={() => onCall(booking.id)}
               tone="success"
               title="Create call log"
             />
@@ -372,7 +377,7 @@ const BookingRow = ({
               <ActionChip
                 icon={ArrowRightLeft}
                 label="Reassign"
-                onClick={onReassign}
+                onClick={() => onReassign(booking.id)}
                 tone="warning"
                 title="Transfer booking"
               />
@@ -380,14 +385,14 @@ const BookingRow = ({
             <ActionChip
               icon={Pencil}
               label="Edit"
-              onClick={onEdit}
+              onClick={() => onEdit(booking)}
               tone="default"
               title="Edit booking data"
             />
             <ActionChip
               icon={Trash2}
               label="Delete"
-              onClick={onDelete}
+              onClick={() => onDelete(booking.id)}
               tone="danger"
               title="Delete permanently"
             />

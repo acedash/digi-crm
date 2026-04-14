@@ -312,7 +312,7 @@ const SupervisorDashboard = () => {
               {statusData.map((item, idx) => (
                 <div key={item.status} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[idx % COLORS.length] }} />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.status} ({item.count})</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.status === 'Pending' ? 'Email Send Pending' : item.status} ({item.count})</span>
                 </div>
               ))}
             </div>
@@ -420,7 +420,7 @@ const SupervisorDashboard = () => {
                       background: book.status === 'Confirmed' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(96, 165, 250, 0.1)',
                       color: book.status === 'Confirmed' ? '#22c55e' : '#60a5fa'
                     }}>
-                      {book.status}
+                      {book.status === 'Pending' ? 'Email Send Pending' : book.status}
                     </span>
                     <button 
                       onClick={() => openReassignModal(book)}

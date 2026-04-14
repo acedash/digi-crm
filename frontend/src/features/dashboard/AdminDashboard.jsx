@@ -275,7 +275,9 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
-                  <div style={{ fontWeight: 700, color: '#60a5fa', marginTop: '4px' }}>{booking.status}</div>
+                  <div style={{ fontWeight: 700, color: '#60a5fa', marginTop: '4px' }}>
+                    {booking.status === 'Pending' ? 'Email Send Pending' : booking.status}
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Amount</div>
