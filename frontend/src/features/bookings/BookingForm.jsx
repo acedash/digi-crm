@@ -45,7 +45,9 @@ const normalizeFlightSegments = (segments = []) => {
   }
 
   return segments.map((segment) => {
-    const images = Array.isArray(segment.ticket_images) ? segment.ticket_images : (segment.ticket_image ? [segment.ticket_image] : []);
+    const images = Array.isArray(segment.ticket_images) && segment.ticket_images.length > 0
+      ? segment.ticket_images 
+      : (segment.ticket_image ? [segment.ticket_image] : []);
     return {
       airline: segment.airline || segment.airline_code || '',
       flight_number: segment.flight_number || '',
@@ -53,6 +55,7 @@ const normalizeFlightSegments = (segments = []) => {
       destination: segment.destination || segment.arrival_city || '',
       departure_at: segment.departure_at || '',
       arrival_at: segment.arrival_at || '',
+      ticket_image: segment.ticket_image || (images.length > 0 ? images[0] : ''),
       ticket_images: images,
       ticket_previews: images.map(img => buildStoredImagePreview(img)),
     };
@@ -320,6 +323,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                       departure_at: details.departure_at || '',
                       arrival_at: details.arrival_at || '',
                       ticket_image: imgPath ?? '',
+                      ticket_images: details.ticket_images || [],
                     }]
               );
               setFlight({

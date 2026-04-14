@@ -35,6 +35,7 @@ class PaymentAuth extends Model
         'digital_signature',
         'metadata',
         'consent_snapshot',
+        'id_proof_path',
     ];
 
     protected $casts = [

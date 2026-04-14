@@ -187,14 +187,21 @@ class PaymentAuthService
         }
 
         DB::transaction(function () use ($auth, $consentData) {
-            $auth->update([
+            $updateData = [
                 'status' => 'Approved',
                 'approved_at' => now(),
                 'approved_email' => $auth->client?->email,
                 'ip_address' => $consentData['ip_address'] ?? null,
                 'user_agent' => $consentData['user_agent'] ?? null,
                 'digital_signature' => $consentData['signature'] ?? null,
-            ]);
+            ];
+
+            if (isset($consentData['id_proof']) && $consentData['id_proof'] instanceof \Illuminate\Http\UploadedFile) {
+                $path = $consentData['id_proof']->store('id_proofs', 'public');
+                $updateData['id_proof_path'] = $path;
+            }
+
+            $auth->update($updateData);
 
             if (($auth->metadata['authorization_type'] ?? 'initial') === 'initial') {
                 $auth->bookings()->update([
@@ -220,14 +227,21 @@ class PaymentAuthService
         }
 
         DB::transaction(function () use ($auth, $consentData) {
-            $auth->update([
+            $updateData = [
                 'status' => 'Rejected',
                 'approved_at' => now(),
                 'approved_email' => $auth->client?->email,
                 'ip_address' => $consentData['ip_address'] ?? null,
                 'user_agent' => $consentData['user_agent'] ?? null,
                 'digital_signature' => $consentData['signature'] ?? null,
-            ]);
+            ];
+
+            if (isset($consentData['id_proof']) && $consentData['id_proof'] instanceof \Illuminate\Http\UploadedFile) {
+                $path = $consentData['id_proof']->store('id_proofs', 'public');
+                $updateData['id_proof_path'] = $path;
+            }
+
+            $auth->update($updateData);
 
             if (($auth->metadata['authorization_type'] ?? 'initial') === 'initial') {
                 $auth->bookings()->update([

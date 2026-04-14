@@ -3,8 +3,26 @@ import api from '../../services/api';
 const paymentAuthService = {
   create: (data) => api.post('/payment-authorizations', data),
   getByToken: (token) => api.get(`/authorize/${token}`),
-  approve: (token, data) => api.post(`/authorize/${token}/approve`, data),
-  reject: (token, data) => api.post(`/authorize/${token}/reject`, data),
+  approve: (token, data) => {
+    if (data.id_proof) {
+      const formData = new FormData();
+      Object.keys(data).forEach(key => formData.append(key, data[key]));
+      return api.post(`/authorize/${token}/approve`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    }
+    return api.post(`/authorize/${token}/approve`, data);
+  },
+  reject: (token, data) => {
+    if (data.id_proof) {
+      const formData = new FormData();
+      Object.keys(data).forEach(key => formData.append(key, data[key]));
+      return api.post(`/authorize/${token}/reject`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    }
+    return api.post(`/authorize/${token}/reject`, data);
+  },
   getProofByBooking: (bookingId) => api.get(`/bookings/${bookingId}/consent-proof`),
   getChargeQueue: (view = 'pending', params = {}) => {
     const query = new URLSearchParams({ view, ...params }).toString();

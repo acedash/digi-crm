@@ -9,7 +9,10 @@ import {
   Shield,
   PenLine,
   AlertCircle,
-  Calendar
+  Calendar,
+  Camera,
+  Upload,
+  X
 } from 'lucide-react';
 import paymentAuthService from './paymentAuthService';
 
@@ -24,6 +27,9 @@ const AuthApprovalPage = () => {
   const [rejecting, setRejecting] = useState(false);
   const [error, setError] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [idProof, setIdProof] = useState(null);
+  const [idProofPreview, setIdProofPreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const loadAuth = async () => {
@@ -79,6 +85,27 @@ const AuthApprovalPage = () => {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
+  
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image is too large. Please upload a file smaller than 5MB.');
+        return;
+      }
+      setIdProof(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setIdProofPreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearFile = (e) => {
+    if (e) e.stopPropagation();
+    setIdProof(null);
+    setIdProofPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleApprove = async () => {
     const canvas = canvasRef.current;
@@ -86,7 +113,10 @@ const AuthApprovalPage = () => {
     
     setApproving(true);
     try {
-      await paymentAuthService.approve(token, { signature: signatureData });
+      await paymentAuthService.approve(token, { 
+        signature: signatureData,
+        id_proof: idProof
+      });
       setApproved(true);
       setAuth(prev => ({ ...prev, status: 'Approved' }));
     } catch (err) {
@@ -102,7 +132,10 @@ const AuthApprovalPage = () => {
 
     setRejecting(true);
     try {
-      await paymentAuthService.reject(token, { signature: signatureData });
+      await paymentAuthService.reject(token, { 
+        signature: signatureData,
+        id_proof: idProof
+      });
       setRejected(true);
       setAuth(prev => ({ ...prev, status: 'Rejected' }));
     } catch (err) {
@@ -411,6 +444,78 @@ const AuthApprovalPage = () => {
                   onTouchEnd={stopDrawing}
                   style={{ width: '100%', display: 'block' }}
                 />
+              </div>
+            </div>
+
+            {/* ID Proof Upload Section */}
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1c1c1e', marginBottom: 12 }}>
+                Identity Verification (Optional)
+              </h3>
+              <p style={{ fontSize: 13, color: '#8e8e93', marginBottom: 16 }}>
+                You may upload a photo of your ID or travel document for extra security.
+              </p>
+
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  border: idProofPreview ? 'none' : '2px dashed #01604033',
+                  borderRadius: '24px',
+                  background: idProofPreview ? 'none' : 'white',
+                  padding: idProofPreview ? 0 : '32px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+                onMouseEnter={(e) => { if(!idProofPreview) e.currentTarget.style.borderColor = '#01604077' }}
+                onMouseLeave={(e) => { if(!idProofPreview) e.currentTarget.style.borderColor = '#01604033' }}
+              >
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/*" 
+                  style={{ display: 'none' }} 
+                />
+                
+                {idProofPreview ? (
+                  <div style={{ position: 'relative', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+                    <img src={idProofPreview} alt="ID preview" style={{ width: '100%', height: '240px', objectFit: 'cover' }} />
+                    <div style={{ 
+                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
+                      background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      opacity: 0, transition: 'opacity 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = 0}
+                    >
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                        style={{ background: 'white', border: 'none', padding: '12px 20px', borderRadius: '100px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                      >
+                        <Camera size={18} /> Change Photo
+                      </button>
+                    </div>
+                    <button 
+                      onClick={clearFile}
+                      style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.9)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#ef4444', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '16px', background: '#01604011', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#016040' }}>
+                      <Upload size={24} />
+                    </div>
+                    <div>
+                      <p style={{ fontWeight: 700, fontSize: 15, color: '#1c1c1e' }}>Click to upload or take a photo</p>
+                      <p style={{ fontSize: 12, color: '#8e8e93', marginTop: 4 }}>PNG, JPG or JPEG (Max 5MB)</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

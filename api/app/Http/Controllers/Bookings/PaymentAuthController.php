@@ -122,13 +122,11 @@ class PaymentAuthController extends Controller
         }
     }
 
-    /**
-     * Client approves the payment authorization.
-     */
     public function approve(Request $request, string $token)
     {
         $request->validate([
             'signature' => 'nullable|string',
+            'id_proof' => 'nullable|file|image|max:5120', // 5MB max
         ]);
 
         try {
@@ -136,6 +134,7 @@ class PaymentAuthController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'signature' => $request->signature,
+                'id_proof' => $request->file('id_proof'),
             ]);
 
             return $this->successResponse($auth, 'Payment authorization approved successfully');
@@ -148,6 +147,7 @@ class PaymentAuthController extends Controller
     {
         $request->validate([
             'signature' => 'nullable|string',
+            'id_proof' => 'nullable|file|image|max:5120', // 5MB max
         ]);
 
         try {
@@ -155,6 +155,7 @@ class PaymentAuthController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'signature' => $request->signature,
+                'id_proof' => $request->file('id_proof'),
             ]);
 
             return $this->successResponse($auth, 'Payment authorization rejected successfully');

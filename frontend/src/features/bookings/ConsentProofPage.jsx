@@ -392,14 +392,31 @@ const ConsentProofPage = () => {
             <DetailRow label="Token Ref" value={proof.token} />
           </SectionCard>
 
-          <SectionCard icon={Clock3} title="Snapshot Summary" iconColor="#2563eb">
-            <DetailRow label="Captured At" value={snapshot.captured_at} />
-            <DetailRow label="Supplier" value={snapshot.supplier_label} />
-            <DetailRow label="Currency" value={snapshot.currency} />
-            <DetailRow label={isChangeCharge ? 'Change Amount' : 'Total Amount'} value={formatMoney(snapshot.total_amount, snapshot.currency)} />
-            <DetailRow label="Contact Email" value={snapshot.contact?.email} />
-            <DetailRow label="Contact Phone" value={snapshot.contact?.phone} />
-          </SectionCard>
+          <div style={{ display: 'grid', gap: '24px' }}>
+            <SectionCard icon={Clock3} title="Snapshot Summary" iconColor="#2563eb">
+              <DetailRow label="Captured At" value={snapshot.captured_at} />
+              <DetailRow label="Supplier" value={snapshot.supplier_label} />
+              <DetailRow label="Currency" value={snapshot.currency} />
+              <DetailRow label={isChangeCharge ? 'Change Amount' : 'Total Amount'} value={formatMoney(snapshot.total_amount, snapshot.currency)} />
+              <DetailRow label="Contact Email" value={snapshot.contact?.email} />
+              <DetailRow label="Contact Phone" value={snapshot.contact?.phone} />
+            </SectionCard>
+
+            {proof.id_proof_path && (
+              <SectionCard icon={ImageIcon} title="ID Proof Verification" iconColor="#06b6d4">
+                 <div style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#f8fafc' }}>
+                    <img 
+                      src={resolveImagePath(proof.id_proof_path)} 
+                      alt="ID Proof" 
+                      style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', display: 'block' }} 
+                    />
+                 </div>
+                 <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    Uploaded during digital authorization
+                 </div>
+              </SectionCard>
+            )}
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
