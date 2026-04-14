@@ -33,7 +33,7 @@ class PublicEmailAssetController extends Controller
             abort(404);
         }
 
-        $absolutePath = storage_path('app/public/' . $normalizedPath);
+        $absolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($normalizedPath);
 
         if (!is_file($absolutePath)) {
             abort(404);

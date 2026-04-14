@@ -347,6 +347,18 @@ class PaymentAuthService
                             ]];
                         }
 
+                        $pluralImages = data_get($service, 'serviceable.ticket_images');
+                        if (is_array($pluralImages) && count($pluralImages) > 0) {
+                            return collect($pluralImages)->map(function ($path, $index) use ($booking, $pluralImages) {
+                                return [
+                                    'booking_reference' => $booking->booking_reference,
+                                    'segment_label' => count($pluralImages) > 1 ? 'Flight Image ' . ($index + 1) : null,
+                                    'path' => $path,
+                                    'url' => $this->mailContextBuilder->buildStorageUrl($path),
+                                ];
+                            })->all();
+                        }
+
                         return [];
                     });
             })
