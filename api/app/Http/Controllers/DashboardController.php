@@ -82,7 +82,8 @@ class DashboardController extends Controller
                 return ['current' => $current, 'previous' => $previous, 'growth' => $growth];
             };
 
-            $bookingTrend = $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, false);
+            $bookingRevenueTrend = $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, false);
+            $bookingCountTrend = $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, true);
             $clientTrend = $getTrend(Client::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
             $callTrend = $getTrend(CallLog::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
             $staffTrend = $getTrend(User::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
@@ -106,50 +107,44 @@ class DashboardController extends Controller
                 ->limit(5)
                 ->get();
 
-            $summaryStats = DB::table('users')
-                ->selectRaw("
-                    (SELECT COUNT(*) FROM users) as total_staff_all,
-                    (SELECT COUNT(*) FROM users WHERE status IN ('Active', 'On Call', 'active', 'on call')) as active_staff,
-                    (SELECT COUNT(*) FROM clients) as total_clients_all,
-                    (SELECT COUNT(*) FROM bookings) as total_bookings_all,
-                    (SELECT COUNT(*) FROM call_logs WHERE log_scope = 'booking') as total_calls_all,
-                    (SELECT COUNT(*) FROM bookings WHERE status = 'Pending') as pending_approvals,
-                    (SELECT COUNT(*) FROM payment_authorizations pa 
-                        WHERE EXISTS (SELECT 1 FROM booking_payment_auth bpa WHERE bpa.payment_auth_id = pa.id)
-                        AND pa.status = 'Approved' AND pa.collected_at IS NULL
-                    ) as ready_to_charge
-                ")->first();
+            $totalStaffAll = User::count();
+            $activeStaff = User::whereIn('status', ['Active', 'On Call', 'active', 'on call'])->count();
+            $totalClientsAll = Client::count();
+            $totalBookingsAll = Booking::count();
+            $totalCallsAll = CallLog::where('log_scope', 'booking')->count();
+            $pendingApprovals = Booking::where('status', 'Pending')->count();
+            $readyToCharge = PaymentAuth::whereHas('bookings')->where('status', 'Approved')->whereNull('collected_at')->count();
 
             return [
                 'staff' => [
-                    'total' => (int) $summaryStats->total_staff_all,
-                    'active' => (int) $summaryStats->active_staff,
+                    'total' => $totalStaffAll,
+                    'active' => $activeStaff,
                     'period_count' => $staffTrend['current'],
                     'growth' => $staffTrend['growth']
                 ],
                 'clients' => [
-                    'total' => (int) $summaryStats->total_clients_all,
+                    'total' => $totalClientsAll,
                     'period_count' => $clientTrend['current'],
                     'growth' => $clientTrend['growth']
                 ],
                 'bookings' => [
-                    'total' => (int) $summaryStats->total_bookings_all,
-                    'period_count' => (int) $bookingTrend['current'], // This is revenue for bookings card usually, but user asked for booking statics % change
-                    'count_trend' => $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, true),
-                    'growth' => $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, true)['growth']
+                    'total' => $totalBookingsAll,
+                    'period_count' => (int) $bookingCountTrend['current'],
+                    'count_trend' => $bookingCountTrend,
+                    'growth' => $bookingCountTrend['growth']
                 ],
                 'calls' => [
-                    'total' => (int) $summaryStats->total_calls_all,
+                    'total' => $totalCallsAll,
                     'period_count' => $callTrend['current'],
                     'growth' => $callTrend['growth']
                 ],
                 'revenue' => [
                     'daily' => (float) PaymentAuth::whereNotNull('collected_at')->whereDate('collected_at', now()->toDateString())->sum('total_amount'),
-                    'period_total' => $bookingTrend['current'],
-                    'growth' => $bookingTrend['growth']
+                    'period_total' => $bookingRevenueTrend['current'],
+                    'growth' => $bookingRevenueTrend['growth']
                 ],
-                'pending_approvals' => (int) $summaryStats->pending_approvals,
-                'ready_to_charge' => (int) $summaryStats->ready_to_charge,
+                'pending_approvals' => $pendingApprovals,
+                'ready_to_charge' => $readyToCharge,
                 'recent_bookings' => $recentBookings,
                 'charge_queue' => $chargeQueue,
                 'cache_timestamp' => now()->toDateTimeString(),
