@@ -62,8 +62,8 @@ const UserList = () => {
   };
 
   const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.user_custom_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -80,7 +80,8 @@ const UserList = () => {
 
   const getActivityStatus = (user) => {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-    if (user.week_off && user.week_off.toLowerCase() === today.toLowerCase()) {
+    const weekOffStr = String(user.week_off || '');
+    if (weekOffStr && weekOffStr.toLowerCase().includes(today.toLowerCase())) {
       return { label: 'week off', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' };
     }
     if (user.status === 'Active') {

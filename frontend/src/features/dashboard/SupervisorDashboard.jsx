@@ -254,7 +254,7 @@ const SupervisorDashboard = () => {
                 fontWeight: 700,
                 color: 'var(--text-main)'
               }}>
-                ({t.count}{t.tag.toLowerCase().replace('inquiry', '')})
+                ({t.count}{(t.tag || '').toLowerCase().replace('inquiry', '')})
               </div>
             )) : <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No inquiries found</span>}
           </div>
