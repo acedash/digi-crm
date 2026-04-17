@@ -87,8 +87,8 @@ const ClientProfile = () => {
     );
   }
 
-  const totalSpent = (client.bookings || []).reduce((sum, b) => sum + (parseFloat(b.total_amount) || 0), 0);
-  const displayCards = (client.cards?.length ? client.cards : (client.bookings || [])
+  const totalSpent = (client?.bookings || []).reduce((sum, b) => sum + (parseFloat(b.total_amount) || 0), 0);
+  const displayCards = (client?.cards?.length ? client.cards : (client?.bookings || [])
     .flatMap((booking) => (booking.details_json?.payment_cards || []).map((card, index) => ({
       id: `booking-${booking.id}-${index}`,
       card_holder_name: card.holder_name || 'Card Holder',
@@ -136,10 +136,10 @@ const ClientProfile = () => {
       {/* Travel Stats Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
         {[
-          { label: 'Total Bookings', value: client.bookings?.length || 0, icon: Briefcase, color: '#60a5fa' },
+          { label: 'Total Bookings', value: client?.bookings?.length || 0, icon: Briefcase, color: '#60a5fa' },
           { label: 'Total Revenue', value: `$${totalSpent.toLocaleString()}`, icon: ShieldCheck, color: '#4ade80' },
-          { label: 'Pending PNRs', value: (client.bookings || []).filter(b => b.status === 'Pending').length, icon: Calendar, color: '#fbbf24' },
-          { label: 'Primary Contact', value: client.phone || 'N/A', icon: Phone, color: '#f472b6' }
+          { label: 'Pending PNRs', value: (client?.bookings || []).filter(b => b.status === 'Pending').length, icon: Calendar, color: '#fbbf24' },
+          { label: 'Primary Contact', value: client?.phone || 'N/A', icon: Phone, color: '#f472b6' }
         ].map((stat, i) => (
           <Card key={i} style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: `${stat.color}15`, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -200,11 +200,11 @@ const ClientProfile = () => {
                 <Users size={20} style={{ color: 'hsl(var(--primary))' }} />
                 <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main, white)' }}>Linked Travelers</h3>
               </div>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>{client.passengers?.length || 0} Total</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>{client?.passengers?.length || 0} Total</span>
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {client.passengers?.length > 0 ? client.passengers.map((p, idx) => (
+              {client?.passengers?.length > 0 ? client.passengers.map((p, idx) => (
                 <div key={idx} style={{ 
                   padding: '16px', borderRadius: '16px', background: 'var(--bg-app)',
                   border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px'
@@ -249,7 +249,7 @@ const ClientProfile = () => {
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {displayCards.length > 0 ? displayCards.map((card, idx) => (
+              {displayCards?.length > 0 ? displayCards.map((card, idx) => (
                 <div key={idx} style={{ 
                   padding: '24px', borderRadius: '20px', 
                   background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
@@ -322,7 +322,7 @@ const ClientProfile = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {client.bookings?.length > 0 ? client.bookings.map((booking, idx) => (
+          {client?.bookings?.length > 0 ? client.bookings.map((booking, idx) => (
             <div 
               key={idx} 
               onClick={() => navigate(`${basePath}/bookings/${booking.id}`)}
@@ -399,11 +399,11 @@ const ClientProfile = () => {
             <h3 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-main, white)' }}>Call History</h3>
           </div>
           <span style={{ padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            {client.call_logs?.length || 0} Records
+            {client?.call_logs?.length || 0} Records
           </span>
         </div>
 
-        {client.call_logs?.length > 0 ? (
+        {client?.call_logs?.length > 0 ? (
           <div style={{ position: 'relative', paddingLeft: '24px' }}>
             {/* Timeline vertical line */}
             <div style={{ position: 'absolute', top: '16px', bottom: '16px', left: '7px', width: '2px', background: 'var(--border-color)', borderRadius: '2px' }}></div>

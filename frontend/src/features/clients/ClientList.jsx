@@ -86,7 +86,7 @@ const ClientList = ({ isEmbedded = false }) => {
       const response = await clientService.getClients(params);
       const result = response.data.data;
       if (result && result.data) {
-        setClients(result.data.data);
+        setClients(result.data.data || []);
         if (result.stats) setStats(result.stats);
       } else {
         setClients([]);
@@ -199,7 +199,7 @@ const ClientList = ({ isEmbedded = false }) => {
 
   const renderCategoryDetails = (client) => {
     if (!client.latestBooking) return <span style={{ color: 'var(--text-muted)' }}>No bookings</span>;
-    const services = client.latestBooking.services || [];
+    const services = Array.isArray(client.latestBooking.services) ? client.latestBooking.services : [];
     if (services.length === 0) return <span style={{ color: 'var(--text-muted)' }}>Empty Booking</span>;
 
     return (
@@ -271,9 +271,9 @@ const ClientList = ({ isEmbedded = false }) => {
       {/* Stats Quick View */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
         {[
-          { label: 'Total Clients', value: stats.total, icon: Users, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
-          { label: 'Registered Today', value: stats.today, icon: UserIcon, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)' },
-          { label: 'Registered Yesterday', value: stats.yesterday, icon: UserIcon, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
+          { label: 'Total Clients', value: stats?.total || 0, icon: Users, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
+          { label: 'Registered Today', value: stats?.today || 0, icon: UserIcon, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)' },
+          { label: 'Registered Yesterday', value: stats?.yesterday || 0, icon: UserIcon, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
         ].map((stat, i) => (
           <Card key={i} style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -431,7 +431,7 @@ const ClientList = ({ isEmbedded = false }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {clients.length > 0 ? clients.map((client, idx) => (
+                  {clients?.length > 0 ? clients.map((client, idx) => (
                     <MotionTr 
                       key={client.id}
                       initial={{ opacity: 0, x: -10 }}
