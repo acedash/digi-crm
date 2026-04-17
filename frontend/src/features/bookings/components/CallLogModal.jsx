@@ -7,15 +7,15 @@ import api from '../../../services/api';
 const CallLogModal = ({ client, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    call_type: 'Flight',
-    airline_inquiry: '',
+    call_type: ['Flight'],
+    airline_inquiry: {},
     customer_outcome: 'Inquiry only',
     notes: '',
     callback_required: false,
     callback_datetime: ''
   });
 
-  const callTypes = ['Flight', 'Hotel', 'Cruise', 'General Inquiry'];
+  const callTypes = ['Flight', 'Hotel', 'Cruise', 'Car Rental', 'General Inquiry'];
   const outcomes = [
     'Booking created',
     'Inquiry only',
@@ -76,34 +76,48 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Call Type</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {callTypes.map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, call_type: type })}
-                  style={{
-                    padding: '10px', borderRadius: '12px', fontSize: '12px', fontWeight: 500,
-                    border: '1px solid',
-                    borderColor: formData.call_type === type ? '#60a5fa' : 'var(--border-color)',
-                    background: formData.call_type === type ? 'rgba(96, 165, 250, 0.1)' : 'var(--bg-input)',
-                    color: formData.call_type === type ? '#60a5fa' : 'var(--text-main)',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {type}
-                </button>
-              ))}
+              {callTypes.map(type => {
+                const isSelected = formData.call_type.includes(type);
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      const newTypes = isSelected 
+                        ? formData.call_type.filter(t => t !== type)
+                        : [...formData.call_type, type];
+                      // Ensure at least one is selected or handle empty
+                      setFormData({ ...formData, call_type: newTypes.length > 0 ? newTypes : ['General Inquiry'] });
+                    }}
+                    style={{
+                      padding: '10px', borderRadius: '12px', fontSize: '12px', fontWeight: 500,
+                      border: '1px solid',
+                      borderColor: isSelected ? '#60a5fa' : 'var(--border-color)',
+                      background: isSelected ? 'rgba(96, 165, 250, 0.1)' : 'var(--bg-input)',
+                      color: isSelected ? '#60a5fa' : 'var(--text-main)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {type}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {formData.call_type === 'Flight' && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Airline Inquiry</label>
+          {formData.call_type.length > 0 && formData.call_type.map(type => (
+            <motion.div key={type} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#60a5fa', marginBottom: '6px', textTransform: 'uppercase' }}>
+                {type} Inquiry
+              </label>
               <input 
                 type="text"
-                placeholder="e.g. Emirates, Qatar..."
-                value={formData.airline_inquiry}
-                onChange={(e) => setFormData({ ...formData, airline_inquiry: e.target.value })}
+                placeholder={`Specifics for ${type.toLowerCase()}...`}
+                value={formData.airline_inquiry[type] || ''}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  airline_inquiry: { ...formData.airline_inquiry, [type]: e.target.value } 
+                })}
                 style={{
                   width: '100%', padding: '12px', borderRadius: '12px',
                   background: 'var(--bg-input)', border: '1px solid var(--border-color)',
@@ -111,7 +125,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
                 }}
               />
             </motion.div>
-          )}
+          ))}
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Call Outcome</label>

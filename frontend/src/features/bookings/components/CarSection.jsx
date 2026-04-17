@@ -38,7 +38,7 @@ const CarSection = ({ vehicle, setVehicle, isEditMode = false, showChangeTrackin
     <Card style={{ padding: 0, opacity: vehicle.active ? 1 : 0.7 }}>
       <SectionHeader 
         icon={Car} 
-        title="5. Rental Car" 
+        title="5. Car Rental" 
         toggle={true} 
         isActive={vehicle.active} 
         setToggle={(v) => setVehicle({...vehicle, active: v})} 
@@ -46,22 +46,57 @@ const CarSection = ({ vehicle, setVehicle, isEditMode = false, showChangeTrackin
       {vehicle.active && (
          <div style={{ padding: '24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <Input label="Rental Company" required placeholder="e.g. Hertz" value={vehicle.company || ''} onChange={e => setVehicle({...vehicle, company: e.target.value})} />
+              <Input label="Car Company" required placeholder="e.g. Hertz" value={vehicle.company || ''} onChange={e => setVehicle({...vehicle, company: e.target.value})} />
               <Input label="Car Model" required placeholder="e.g. Toyota Camry" value={vehicle.model || ''} onChange={e => setVehicle({...vehicle, model: e.target.value})} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <Input label="Pickup Location" value={vehicle.pickup_loc || ''} onChange={e => setVehicle({...vehicle, pickup_loc: e.target.value})} />
-              <Input label="Drop Location" value={vehicle.drop_loc || ''} onChange={e => setVehicle({...vehicle, drop_loc: e.target.value})} />
-              <Input label="Pickup Date" type="date" value={vehicle.pickup_date || ''} onChange={e => setVehicle({...vehicle, pickup_date: e.target.value})} />
-              <Input label="Dropoff Date" type="date" value={vehicle.dropoff_date || ''} onChange={e => setVehicle({...vehicle, dropoff_date: e.target.value})} />
+              <Input label="Drop-off Location" value={vehicle.drop_loc || ''} onChange={e => setVehicle({...vehicle, drop_loc: e.target.value})} />
             </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <Input label="Pick-up Date & Time" type="datetime-local" value={vehicle.pickup_date || ''} onChange={e => setVehicle({...vehicle, pickup_date: e.target.value})} />
+              <Input label="Drop-off Date & Time" type="datetime-local" value={vehicle.dropoff_date || ''} onChange={e => setVehicle({...vehicle, dropoff_date: e.target.value})} />
+            </div>
+
+            <div style={{ margin: '24px 0', height: '1px', background: 'var(--border-color)', opacity: 0.5 }}></div>
+            
+            <div style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '4px', height: '14px', background: 'hsl(var(--primary))', borderRadius: '4px' }}></div>
+              Driver & Passenger Details
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <Input label="Driver's Name" placeholder="Full name as on license" value={vehicle.driver_name || ''} onChange={e => setVehicle({...vehicle, driver_name: e.target.value})} />
+              <Input label="Date of Birth" type="date" value={vehicle.driver_dob || ''} onChange={e => setVehicle({...vehicle, driver_dob: e.target.value})} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              <Input label="Adults" type="number" placeholder="0" value={vehicle.adult_count || ''} onChange={e => setVehicle({...vehicle, adult_count: e.target.value})} />
+              <Input label="Children" type="number" placeholder="0" value={vehicle.child_count || ''} onChange={e => setVehicle({...vehicle, child_count: e.target.value})} />
+              <Input label="Infants" type="number" placeholder="0" value={vehicle.infant_count || ''} onChange={e => setVehicle({...vehicle, infant_count: e.target.value})} />
+            </div>
+
+            <div style={{ margin: '24px 0', height: '1px', background: 'var(--border-color)', opacity: 0.5 }}></div>
+
+            <div style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '4px', height: '14px', background: 'hsl(var(--primary))', borderRadius: '4px' }}></div>
+              Payment Mode & Rates
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <Input label="Pay Now Amount" type="number" placeholder="0.00" value={vehicle.pay_now_amount || ''} onChange={e => setVehicle({...vehicle, pay_now_amount: e.target.value})} />
+              <Input label="Pay at Pick-up Amount" type="number" placeholder="0.00" value={vehicle.pay_at_pickup_amount || ''} onChange={e => setVehicle({...vehicle, pay_at_pickup_amount: e.target.value})} />
+            </div>
+
              <div style={{ display: 'flex', gap: '16px' }}>
                 <Input label="Net Cost" type="number" value={vehicle.cost || ''} onChange={e => {
                   const cost = parseFloat(e.target.value) || 0;
                   const markup = parseFloat(vehicle.markup) || 0;
                   setVehicle({...vehicle, cost: e.target.value, sell: cost + markup});
                 }} />
-                <Input label="Taxes & Charges" type="number" value={vehicle.markup || ''} onChange={e => {
+                <Input label="Taxes & Fees" type="number" value={vehicle.markup || ''} onChange={e => {
                   const markup = parseFloat(e.target.value) || 0;
                   const cost = parseFloat(vehicle.cost) || 0;
                   setVehicle({...vehicle, markup: e.target.value, sell: cost + markup});
@@ -242,7 +277,7 @@ const CarSection = ({ vehicle, setVehicle, isEditMode = false, showChangeTrackin
                           transform: 'translateY(-4px)'
                         }}
                       >
-                        + Quick Allocate
+                        Quick Allocate
                       </button>
                     )}
                   </div>

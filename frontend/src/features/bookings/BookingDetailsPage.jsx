@@ -17,6 +17,7 @@ import {
   EyeOff,
   Calendar,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import bookingService from './bookingService';
 import { BACKEND_BASE_URL } from '../../services/api';
@@ -146,7 +147,7 @@ const BookingDetailsPage = () => {
         {[
           { label: 'Client', value: clientName, icon: User },
           { label: 'Status', value: booking.status === 'Pending' ? 'Email Send Pending' : (booking.status || 'Email Send Pending'), icon: ShieldCheck },
-          { label: 'Travelers', value: booking.passengers?.length || 0, icon: Package },
+          { label: 'Travelers', value: booking.passengers?.length || 0, icon: Users },
           { label: 'Total Amount', value: new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(Number(booking.total_amount) || 0), icon: CreditCard },
         ].map((item) => (
           <Card key={item.label} style={{ padding: '18px' }}>
@@ -200,7 +201,7 @@ const BookingDetailsPage = () => {
 
           <Card style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Package size={18} color="#60a5fa" /> Traveling Passengers
+              <Users size={18} color="#60a5fa" /> Traveling Passengers
             </h3>
             <div style={{ display: 'grid', gap: '12px' }}>
               {booking.passengers?.length ? booking.passengers.map((passenger) => (

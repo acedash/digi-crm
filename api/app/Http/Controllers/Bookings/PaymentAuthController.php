@@ -163,4 +163,13 @@ class PaymentAuthController extends Controller
             return $this->errorResponse($e->getMessage(), 400);
         }
     }
+    public function refreshSnapshot(string $token)
+    {
+        try {
+            $auth = $this->paymentAuthService->refreshSnapshot($token);
+            return $this->successResponse($auth, 'Consent proof snapshot updated successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
+        }
+    }
 }

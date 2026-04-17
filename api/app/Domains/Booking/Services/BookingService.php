@@ -3,6 +3,7 @@
 namespace App\Domains\Booking\Services;
 
 use App\Domains\Booking\Repositories\BookingRepository;
+use App\Domains\Booking\Models\Booking;
 use App\Domains\Booking\Services\BookingOrchestrator;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
@@ -38,6 +39,7 @@ class BookingService
                 'status',
                 'total_amount',
                 'currency',
+                'details_json',
                 'created_at',
             ])
             ->with([
@@ -65,22 +67,49 @@ class BookingService
             });
         }
 
-        if (auth()->user()->hasRole('admin')) {
-            return $this->transformBookingListPaginator($query->paginate($perPage));
+        if (isset($params['start_date']) && $params['start_date']) {
+            $query->whereDate('created_at', '>=', $params['start_date']);
+        }
+        
+        if (isset($params['end_date']) && $params['end_date']) {
+            $query->whereDate('created_at', '<=', $params['end_date']);
         }
 
-        if (auth()->user()->hasRole('supervisor')) {
+        if (auth()->user()->hasRole('admin')) {
+            // No specific agent filter for admin
+        } elseif (auth()->user()->hasRole('supervisor')) {
             $teamIds = auth()->user()->agents()->pluck('id')->toArray();
             $teamIds[] = auth()->id();
-            
-            return $this->transformBookingListPaginator(
-                $query->whereIn('agent_id', $teamIds)->paginate($perPage)
-            );
+            $query->whereIn('agent_id', $teamIds);
+        } else {
+            $query->where('agent_id', auth()->id());
         }
 
-        return $this->transformBookingListPaginator(
-            $query->where('agent_id', auth()->id())->paginate($perPage)
-        );
+        // Clone query for stats before pagination
+        $statsQuery = clone $query;
+        $stats = $statsQuery->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        // Total count (ignoring status if we want global total under these filters)
+        $totalCount = array_sum($stats);
+
+        $results = $query->paginate($perPage);
+        $paginatedData = $this->transformBookingListPaginator($results);
+
+        return [
+            'data' => $paginatedData,
+            'stats' => [
+                'Total' => $totalCount,
+                'Approved' => ($stats['Approved'] ?? 0) + ($stats['Confirmed'] ?? 0) + ($stats['Change Approved'] ?? 0),
+                'Drafts' => $stats['Draft'] ?? 0,
+                'Pending' => $stats['Pending'] ?? 0,
+                'Work Pending' => $stats['Work Pending'] ?? 0,
+                'Completed' => $stats['Completed'] ?? 0,
+                'Rejected' => ($stats['Rejected'] ?? 0) + ($stats['Change Rejected'] ?? 0) + ($stats['Cancelled'] ?? 0),
+            ]
+        ];
     }
 
     public function getById($id)
@@ -179,13 +208,8 @@ class BookingService
         return $this->orchestrator->updateMultiServiceBooking($id, $data);
     }
 
-    public function reassign($id, $newAgentId, $handoffRemark)
+    public function reassign(Booking $booking, $newAgentId, $handoffRemark)
     {
-        $booking = $this->bookingRepo->find($id);
-        if (!$booking) {
-            throw new \Exception("Booking not found.");
-        }
-
         $currentAgent = $booking->agent;
         $existingDetails = $booking->details_json ?? [];
         $history = $existingDetails['reassignment_history'] ?? [];
@@ -326,9 +350,12 @@ class BookingService
                         ?? ($details['created_by_user_name'] ?? null)
                         ?? ($history->first()['from_agent_name'] ?? null)
                         ?? ($booking->agent->name ?? 'System'),
+                    'created_by_id' => $details['created_by_id'] ?? null,
                     'latest_handoff_remark' => $latestReassignment['remark']
                         ?? ($details['latest_reassignment_remark'] ?? null),
+                    'status_remark' => $details['status_remark'] ?? null,
                     'was_reassigned' => $history->isNotEmpty(),
+                    'reassignment_history' => $history->all(),
                 ];
             })
         );

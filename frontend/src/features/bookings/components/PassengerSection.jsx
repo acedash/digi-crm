@@ -1,5 +1,4 @@
-import React from 'react';
-import { User, Trash2 } from 'lucide-react';
+import { User, Trash2, Plus } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
@@ -154,8 +153,9 @@ const PassengerSection = ({
             variant={contactAlreadyAddedAsTraveler ? 'secondary' : 'outline'}
             size="sm"
             onClick={onAddContactAsTraveler}
+            icon={contactAlreadyAddedAsTraveler ? undefined : Plus}
           >
-            {contactAlreadyAddedAsTraveler ? 'Traveler Added' : '+ Add as Traveler'}
+            {contactAlreadyAddedAsTraveler ? 'Traveler Added' : 'Add as Traveler'}
           </Button>
         </div>
 
@@ -203,43 +203,80 @@ const PassengerSection = ({
         ) : null}
 
         {/* Manually Add Extra Passengers */}
+        {/* Manually Add Extra Passengers */}
         <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Traveling Passengers</label>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.6 }}>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>Traveling Passengers</label>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
             Add the actual passengers traveling on this booking here.
           </p>
+
+          {/* Header Row */}
+          {newPassengers.length > 0 && (
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '100px 1.5fr 1fr 1.5fr 160px 140px 40px', 
+              gap: '12px', 
+              marginBottom: '10px',
+              padding: '0 4px',
+              color: 'var(--text-muted)',
+              fontSize: '12px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}>
+              <div>Type <span style={{ color: '#ef4444' }}>*</span></div>
+              <div>First Name <span style={{ color: '#ef4444' }}>*</span></div>
+              <div>Middle Name</div>
+              <div>Last Name <span style={{ color: '#ef4444' }}>*</span></div>
+              <div>Date of Birth <span style={{ color: '#ef4444' }}>*</span></div>
+              <div>Gender <span style={{ color: '#ef4444' }}>*</span></div>
+              <div></div>
+            </div>
+          )}
+
           {newPassengers.map((np, index) => (
-            <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr auto', gap: '12px', alignItems: 'end', marginBottom: '16px' }}>
+            <div key={index} style={{ display: 'grid', gridTemplateColumns: '100px 1.5fr 1fr 1.5fr 160px 140px 40px', gap: '12px', alignItems: 'center', marginBottom: '12px' }}>
+              <div>
+                <select 
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', outline: 'none', color: 'var(--text-main)', fontSize: '14px' }}
+                  value={np.type || 'Adult'} 
+                  onChange={e => { const arr = [...newPassengers]; arr[index].type = e.target.value; setNewPassengers(arr); }}
+                >
+                  <option value="Adult">Adult</option>
+                  <option value="Child">Child</option>
+                  <option value="Infant">Infant</option>
+                </select>
+              </div>
               <Input 
-                label="First Name" required
+                placeholder="First Name"
                 value={np.first_name || ''} 
                 onChange={e => { const arr = [...newPassengers]; arr[index].first_name = e.target.value; setNewPassengers(arr); }} 
+                style={{ marginBottom: 0 }}
               />
               <Input 
-                label="Middle Name" 
+                placeholder="Middle Name" 
                 value={np.middle_name || ''} 
                 onChange={e => { const arr = [...newPassengers]; arr[index].middle_name = e.target.value; setNewPassengers(arr); }} 
+                style={{ marginBottom: 0 }}
               />
               <Input 
-                label="Last Name" required
+                placeholder="Last Name"
                 value={np.last_name || ''} 
                 onChange={e => { const arr = [...newPassengers]; arr[index].last_name = e.target.value; setNewPassengers(arr); }} 
+                style={{ marginBottom: 0 }}
               />
               <Input 
-                label="Date of Birth" required
                 type="date"
                 value={np.date_of_birth || ''} 
                 onChange={e => { const arr = [...newPassengers]; arr[index].date_of_birth = e.target.value; setNewPassengers(arr); }} 
+                style={{ marginBottom: 0 }}
               />
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
-                  Gender <span style={{ color: '#ef4444' }}>*</span>
-                </label>
+              <div>
                 <select 
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', outline: 'none', color: 'var(--text-main)' }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', outline: 'none', color: 'var(--text-main)', fontSize: '14px' }}
                   value={np.gender || ''} onChange={e => { const arr = [...newPassengers]; arr[index].gender = e.target.value; setNewPassengers(arr); }}
                 >
-                  <option value="">Select</option>
+                  <option value="">Gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
@@ -249,17 +286,18 @@ const PassengerSection = ({
                 variant="ghost" 
                 icon={Trash2} 
                 onClick={() => { const arr = [...newPassengers]; arr.splice(index, 1); setNewPassengers(arr); }}
-                style={{ color: '#ef4444', marginBottom: '24px' }}
+                style={{ color: '#ef4444', height: '46px', width: '40px', minWidth: '40px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               />
             </div>
           ))}
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => setNewPassengers([...newPassengers, {first_name: '', middle_name: '', last_name: '', date_of_birth: '', gender: ''}])}
-            icon={User}
+            style={{ marginTop: '8px' }}
+            onClick={() => setNewPassengers([...newPassengers, {type: 'Adult', first_name: '', middle_name: '', last_name: '', date_of_birth: '', gender: ''}])}
+            icon={Plus}
           >
-            + Add Passenger
+            Add Passenger
           </Button>
         </div>
       </div>

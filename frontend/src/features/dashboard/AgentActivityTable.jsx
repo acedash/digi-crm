@@ -31,12 +31,13 @@ const AgentActivityTable = () => {
 
   const getStatusColor = (status) => {
     switch(status?.toLowerCase()) {
-      case 'active': return { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', dot: '#10b981' };
+      case 'active': return { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', dot: '#22c55e' };
       case 'on call': return { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', dot: '#3b82f6' };
-      case 'break': return { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', dot: '#f59e0b' };
-      case 'idle': return { bg: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', dot: '#6366f1' };
-      case 'offline': return { bg: 'rgba(107, 114, 128, 0.1)', color: '#6b7280', dot: '#6b7280' };
-      default: return { bg: 'rgba(107, 114, 128, 0.1)', color: '#6b7280', dot: '#6b7280' };
+      case 'break': return { bg: 'rgba(234, 179, 8, 0.1)', color: '#eab308', dot: '#eab308' };
+      case 'week off': return { bg: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', dot: '#8b5cf6' };
+      case 'offline':
+      case 'not logged in': return { bg: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', dot: '#94a3b8' };
+      default: return { bg: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', dot: '#94a3b8' };
     }
   };
 
@@ -45,17 +46,16 @@ const AgentActivityTable = () => {
       <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
         <div>
           <h3 style={{ fontSize: '18px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-            <Users size={20} style={{ color: '#60a5fa' }} />
             Live Team Activity
           </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Real-time monitoring of agent shifts and statuses.</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Track agent activity and status in real time.</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button 
             onClick={() => {
               const csvContent = "data:text/csv;charset=utf-8," 
                 + "Agent,Login Time,Status,Calls Picked,Bookings Created,Daily Revenue,Break Time\n"
-                + agents.map(a => `${a.agent_name},${a.login_time},${a.status},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time}`).join("\n");
+                + agents.map(a => `${a.agent_name},${a.login_time},${a.status?.toLowerCase() === 'offline' ? 'Not Logged In' : a.status},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time}`).join("\n");
               const link = document.createElement("a");
               link.setAttribute("href", encodeURI(csvContent));
               link.setAttribute("download", `team_activity_${new Date().getTime()}.csv`);
@@ -138,7 +138,7 @@ const AgentActivityTable = () => {
                           border: `1px solid ${style.color}30`
                         }}>
                           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: style.dot, boxShadow: `0 0 5px ${style.dot}` }} />
-                          {agent.status}
+                          {agent.status?.toLowerCase() === 'offline' ? 'Not Logged In' : agent.status}
                         </div>
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--text-main)' }}>

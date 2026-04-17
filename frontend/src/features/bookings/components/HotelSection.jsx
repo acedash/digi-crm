@@ -54,10 +54,24 @@ const HotelSection = ({ hotel, setHotel, isEditMode = false, showChangeTracking 
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <Input label="Room Type" placeholder="e.g. Deluxe Room, Suite" value={hotel.room_type || ''} onChange={e => setHotel({...hotel, room_type: e.target.value})} />
+              <Input label="Booking Confirmation" placeholder="e.g. ABC123XYZ" value={hotel.booking_confirmation || ''} onChange={e => setHotel({...hotel, booking_confirmation: e.target.value})} />
             </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <Input label="Number of Rooms" type="number" placeholder="1" value={hotel.room_count || ''} onChange={e => setHotel({...hotel, room_count: e.target.value})} />
+              <Input label="Number of Adults" type="number" placeholder="1" value={hotel.adult_count || ''} onChange={e => setHotel({...hotel, adult_count: e.target.value})} />
+              <Input label="Number of Children" type="number" placeholder="0" value={hotel.child_count || ''} onChange={e => setHotel({...hotel, child_count: e.target.value})} />
+            </div>
+
+            {hotel.child_count > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <Input label="Children's Ages" placeholder="e.g. 5, 8 (Separate with commas)" value={hotel.children_ages || ''} onChange={e => setHotel({...hotel, children_ages: e.target.value})} />
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              <Input label="Check-in Date" type="date" value={hotel.checkin || ''} onChange={e => setHotel({...hotel, checkin: e.target.value})} />
-              <Input label="Check-out Date" type="date" value={hotel.checkout || ''} onChange={e => setHotel({...hotel, checkout: e.target.value})} />
+              <Input label="Check-in Date & Time" type="datetime-local" value={hotel.checkin || ''} onChange={e => setHotel({...hotel, checkin: e.target.value})} />
+              <Input label="Check-out Date & Time" type="datetime-local" value={hotel.checkout || ''} onChange={e => setHotel({...hotel, checkout: e.target.value})} />
             </div>
              <div style={{ display: 'flex', gap: '16px' }}>
                 <Input label="Net Cost" type="number" value={hotel.cost || ''} onChange={e => {
@@ -246,7 +260,7 @@ const HotelSection = ({ hotel, setHotel, isEditMode = false, showChangeTracking 
                           transform: 'translateY(-4px)'
                         }}
                       >
-                        + Quick Allocate
+                        Quick Allocate
                       </button>
                     )}
                   </div>

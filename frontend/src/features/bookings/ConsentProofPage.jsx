@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, ShieldCheck, Mail, Globe, Clock3, Fingerprint, RefreshCcw, CreditCard, FileText, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Download, ShieldCheck, Mail, Globe, Clock3, Fingerprint, RefreshCcw, CreditCard, FileText, Image as ImageIcon, ChevronDown, Shield, PenLine, Plane, Hotel, Car, Waves } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import paymentAuthService from './paymentAuthService';
@@ -34,23 +34,29 @@ const DetailRow = ({ label, value }) => (
 const SectionCard = ({ icon, title, children, iconColor = '#2563eb' }) => {
   const SectionIcon = icon;
   return (
-  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-      <SectionIcon size={20} color={iconColor} />
-      <h2 style={{ fontSize: '18px', fontWeight: 800 }}>{title}</h2>
+    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+        <SectionIcon size={20} color={iconColor} />
+        <h2 style={{ fontSize: '18px', fontWeight: 800 }}>{title}</h2>
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
   );
 };
 
 const ConsentProofPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   const resolveImagePath = (path) => {
     if (!path) return '';
-    const pathStr = path.toString();
+    let pathStr = path.toString();
+
+    // Fix for legacy snapshots that might have been generated with an incorrect base URL (missing port 8001)
+    if (pathStr.includes('localhost/api/email-assets/')) {
+      pathStr = pathStr.replace(/https?:\/\/localhost\//, `${BACKEND_BASE_URL}/`);
+    }
+
     if (pathStr.startsWith('data:image') || pathStr.startsWith('http://') || pathStr.startsWith('https://')) {
       return pathStr;
     }
@@ -63,6 +69,8 @@ const ConsentProofPage = () => {
   const [loading, setLoading] = useState(true);
   const [proof, setProof] = useState(null);
   const [error, setError] = useState('');
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const exportDropdownRef = useRef(null);
 
   useEffect(() => {
     const loadProof = async () => {
@@ -80,6 +88,16 @@ const ConsentProofPage = () => {
   }, [id]);
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
+        setShowExportOptions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     sensitiveAuditService.logEvent({
       event_type: 'Sensitive Page Viewed',
       module: 'Consent Proof',
@@ -87,7 +105,7 @@ const ConsentProofPage = () => {
       details: {
         booking_id: Number(id),
       },
-    }).catch(() => {});
+    }).catch(() => { });
   }, [id]);
 
   if (loading) {
@@ -112,163 +130,172 @@ const ConsentProofPage = () => {
   const cardAllocations = snapshot.card_allocations || proof.metadata?.card_allocations || [];
   const changeEntries = snapshot.change_entries || proof.metadata?.change_entries || [];
   const bookingReference = bookings[0]?.booking_reference || `#${id}`;
+
+  // Deduplicate images by path (safety net for legacy snapshots that may have duplicates)
+  const dedupByPath = (arr) => [...new Map((arr || []).filter(Boolean).map(item => [item.path || item.url, item])).values()];
+  const ticketImages = dedupByPath(snapshot.ticket_images);
+  const hotelImages = dedupByPath(snapshot.hotel_images);
+  const carImages = dedupByPath(snapshot.car_images);
+  const cruiseImages = dedupByPath(snapshot.cruise_images);
   const statusTone = proof.status === 'Approved'
     ? { bg: 'rgba(16,185,129,0.12)', color: '#10b981', border: 'rgba(16,185,129,0.28)' }
     : proof.status === 'Rejected'
       ? { bg: 'rgba(239,68,68,0.12)', color: '#ef4444', border: 'rgba(239,68,68,0.28)' }
       : { bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6', border: 'rgba(139,92,246,0.28)' };
 
-  const exportPdf = () => {
-    const content = proofContentRef.current;
-    if (!content) return;
-
-    sensitiveAuditService.logEvent({
-      event_type: 'Sensitive Export',
-      module: 'Consent Proof',
-      description: 'Exported consent proof PDF',
-      details: {
-        booking_id: Number(id),
-        authorization_id: proof.id,
-      },
-    }).catch(() => {});
-
-    const printWindow = window.open('', '_blank', 'width=1100,height=900');
-    if (!printWindow) return;
-
-    const printableHtml = `
-      <!doctype html>
-      <html>
-        <head>
-          <title>Consent Proof - Booking ${bookingReference}</title>
-          <meta charset="utf-8" />
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              background: #ffffff;
-              color: #111827;
-              margin: 0;
-              padding: 32px;
-            }
-            .print-shell {
-              max-width: 1080px;
-              margin: 0 auto;
-            }
-            .print-header {
-              margin-bottom: 24px;
-            }
-            .print-title {
-              font-size: 30px;
-              font-weight: 800;
-              margin: 0 0 8px 0;
-            }
-            .print-subtitle {
-              font-size: 14px;
-              color: #4b5563;
-              margin: 0;
-            }
-            .proof-grid {
-              display: grid;
-              gap: 24px;
-            }
-            .proof-card {
-              background: #ffffff;
-              border: 1px solid #d1d5db;
-              border-radius: 18px;
-              padding: 20px;
-              page-break-inside: avoid;
-            }
-            img {
-              max-width: 100%;
-              border-radius: 12px;
-            }
-            button {
-              display: none !important;
-            }
-            @media print {
-              body { padding: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-shell">
-            <div class="print-header">
-              <h1 class="print-title">Consent Proof</h1>
-              <p class="print-subtitle">Booking ${bookingReference} | Authorization ${proof.id}</p>
-            </div>
-            ${content.innerHTML}
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(printableHtml);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.onload = () => {
-      printWindow.print();
-    };
+  const handleRefreshSnapshot = async () => {
+    if (!window.confirm('This will update the proof with the latest booking data (passengers, tickets/images). This is useful if the snapshot was incomplete. Proceed?')) return;
+    try {
+      setLoading(true);
+      await paymentAuthService.refreshProofSnapshot(proof.token);
+      const response = await paymentAuthService.getProofByBooking(id);
+      setProof(response.data.data);
+      alert('Proof snapshot refreshed successfully.');
+    } catch (err) {
+      alert('Failed to refresh snapshot: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
   };
-  
+
+
   const exportJpeg = async () => {
     const content = proofContentRef.current;
     if (!content) return;
-    
+
     try {
       setLoading(true);
       const canvas = await html2canvas(content, {
         useCORS: true,
         scale: 2,
-        backgroundColor: '#f8fafc',
-        windowWidth: 1200
+        backgroundColor: '#ffffff',
+        windowWidth: 1200,
+        onclone: (clonedDoc) => {
+          const area = clonedDoc.getElementById('proof-capture-area');
+          if (area) {
+            area.style.padding = '80px 100px';
+            area.style.background = '#ffffff';
+            area.style.width = '1200px';
+          }
+
+          // Inject high-contrast styles into the clone
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            * { transition: none !important; }
+            :root {
+              --bg-card: #ffffff !important;
+              --bg-app: #ffffff !important;
+              --text-main: #000000 !important;
+              --text-muted: #262626 !important;
+              --border-color: #cccccc !important;
+            }
+            [style*="color: var(--text-muted)"] { color: #262626 !important; }
+            [style*="color: var(--text-main)"] { color: #000000 !important; }
+            div { border-color: #cccccc !important; }
+            strong { color: #000000 !important; font-weight: 800 !important; }
+            p { color: #000000 !important; }
+            span { color: #000000 !important; opacity: 1 !important; }
+          `;
+          clonedDoc.head.appendChild(style);
+
+          clonedDoc.querySelectorAll('*').forEach(el => {
+            if (el.tagName === 'BUTTON') el.style.display = 'none';
+            // Force reset any opacity that might make text look "dull"
+            if (window.getComputedStyle(el).opacity !== '1') {
+              el.style.opacity = '1';
+            }
+          });
+        }
       });
-      
+
       const link = document.createElement('a');
       link.download = `consent-proof-${bookingReference}.jpg`;
       link.href = canvas.toDataURL('image/jpeg', 0.9);
       link.click();
-      
+
       sensitiveAuditService.logEvent({
         event_type: 'Sensitive Export',
         module: 'Consent Proof',
         description: 'Exported consent proof JPEG',
         details: { booking_id: Number(id), authorization_id: proof.id },
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (err) {
       console.error('JPEG Export failed:', err);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const exportDirectPdf = async () => {
     const content = proofContentRef.current;
     if (!content) return;
-    
+
     try {
       setLoading(true);
       const canvas = await html2canvas(content, {
         useCORS: true,
         scale: 2,
-        backgroundColor: '#f8fafc',
-        windowWidth: 1200
+        backgroundColor: '#ffffff',
+        windowWidth: 1200,
+        onclone: (clonedDoc) => {
+          const area = clonedDoc.getElementById('proof-capture-area');
+          if (area) {
+            area.style.padding = '80px 100px';
+            area.style.background = '#ffffff';
+          }
+          // Force high-contrast styles into the clone
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            :root {
+              --bg-card: #ffffff !important;
+              --bg-app: #ffffff !important;
+              --text-main: #000000 !important;
+              --text-muted: #262626 !important;
+              --border-color: #cccccc !important;
+            }
+            * { color: #000000 !important; opacity: 1 !important; }
+            [style*="color: var(--text-muted)"] { color: #262626 !important; }
+            button { display: none !important; }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
       });
-      
+
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgProps = pdf.getImageProperties(imgData);
+
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const margin = 15; // 15mm margin
+      const contentWidth = pdfWidth - (margin * 2);
+      const pageHeightWithoutMargin = pdfHeight - (margin * 2);
+      const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
+
+      let heightLeft = contentHeight;
+      let position = margin;
+
+      // First page
+      pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+      heightLeft -= pageHeightWithoutMargin;
+
+      // Additional pages if the content overflows
+      while (heightLeft > 0) {
+        position = position - pageHeightWithoutMargin; // Shift the image UP
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+        heightLeft -= pageHeightWithoutMargin;
+      }
+
       pdf.save(`consent-proof-${bookingReference}.pdf`);
-      
+
       sensitiveAuditService.logEvent({
         event_type: 'Sensitive Export',
         module: 'Consent Proof',
         description: 'Exported consent proof PDF (Direct)',
         details: { booking_id: Number(id), authorization_id: proof.id },
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (err) {
       console.error('PDF Export failed:', err);
     } finally {
@@ -280,9 +307,9 @@ const ConsentProofPage = () => {
     <div style={{ padding: '32px', maxWidth: '1080px', margin: '0 auto', display: 'grid', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-          <Button 
-            variant="ghost" 
-            icon={ArrowLeft} 
+          <Button
+            variant="ghost"
+            icon={ArrowLeft}
             onClick={() => navigate(-1)}
             style={{ marginTop: '8px' }}
           >
@@ -295,45 +322,130 @@ const ConsentProofPage = () => {
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <Button
             variant="outline"
-            icon={FileText}
-            onClick={exportDirectPdf}
+            icon={RefreshCcw}
+            onClick={handleRefreshSnapshot}
             disabled={loading}
+            title="Update snapshot with current booking data"
           >
-            PDF Export
+            Refresh Snapshot
           </Button>
-          <Button
-            variant="outline"
-            icon={ImageIcon}
-            onClick={exportJpeg}
-            disabled={loading}
-          >
-            JPEG Export
-          </Button>
-          <Button
-            variant="ghost"
-            icon={Download}
-            onClick={() => {
-              sensitiveAuditService.logEvent({
-                event_type: 'Sensitive Export',
-                module: 'Consent Proof',
-                description: 'Exported consent proof JSON',
-                details: {
-                  booking_id: Number(id),
-                  authorization_id: proof.id,
-                },
-              }).catch(() => {});
-              downloadJson(proof, `consent-proof-booking-${id}.json`);
-            }}
-          >
-            JSON
-          </Button>
+
+          <div style={{ position: 'relative' }} ref={exportDropdownRef}>
+            <Button
+              variant="primary"
+              icon={Download}
+              onClick={() => setShowExportOptions(!showExportOptions)}
+              disabled={loading}
+            >
+              Export Evidence
+            </Button>
+
+            {showExportOptions && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: '0',
+                width: '210px',
+                backgroundColor: '#1e2235',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                padding: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)',
+                zIndex: 1000
+              }}>
+                <button
+                  onClick={() => { exportDirectPdf(); setShowExportOptions(false); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#f8fafc',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <FileText size={16} /> Export as PDF Report
+                </button>
+                <button
+                  onClick={() => { exportJpeg(); setShowExportOptions(false); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#3b82f6',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <ImageIcon size={16} /> Export as JPEG Image
+                </button>
+                <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 8px', opacity: 0.3 }} />
+                <button
+                  onClick={() => {
+                    sensitiveAuditService.logEvent({
+                      event_type: 'Sensitive Export',
+                      module: 'Consent Proof',
+                      description: 'Exported consent proof JSON',
+                      details: { booking_id: Number(id), authorization_id: proof.id },
+                    }).catch(() => { });
+                    downloadJson(proof, `consent-proof-booking-${id}.json`);
+                    setShowExportOptions(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'var(--text-muted)',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <RefreshCcw size={16} /> Export Raw JSON
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div ref={proofContentRef} style={{ display: 'grid', gap: '24px' }}>
+
+      <div id="proof-capture-area" ref={proofContentRef} style={{ display: 'grid', gap: '24px' }}>
         <div
           style={{
             display: 'flex',
@@ -352,7 +464,7 @@ const ConsentProofPage = () => {
               Authorization Type
             </div>
             <div style={{ fontSize: '22px', fontWeight: 800, marginTop: '6px', color: 'var(--text-main)' }}>
-              {isChangeCharge ? 'Change Charge Approval' : 'Initial Booking Approval'}
+              {isChangeCharge ? 'Change Charge Approval' : 'Initial approval by client'}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
               {isChangeCharge
@@ -389,7 +501,7 @@ const ConsentProofPage = () => {
             <DetailRow label="User Agent" value={proof.user_agent} />
             <DetailRow label="Masked Card" value={proof.masked_card} />
             <DetailRow label="Declaration Ver." value={proof.declaration_version} />
-            <DetailRow label="Auth Type" value={isChangeCharge ? 'Change Charge Approval' : 'Initial Booking Approval'} />
+            <DetailRow label="Auth Type" value={isChangeCharge ? 'Change Charge Approval' : 'Initial approval by client'} />
             <DetailRow label="Token Ref" value={proof.token} />
           </SectionCard>
 
@@ -403,40 +515,81 @@ const ConsentProofPage = () => {
               <DetailRow label="Contact Phone" value={snapshot.contact?.phone} />
             </SectionCard>
 
-            {proof.id_proof_path && (
-              <SectionCard icon={ImageIcon} title="ID Proof Verification" iconColor="#06b6d4">
-                 <div style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#f8fafc' }}>
-                    <img 
-                      src={resolveImagePath(proof.id_proof_path)} 
-                      alt="ID Proof" 
-                      style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', display: 'block' }} 
-                    />
-                 </div>
-                 <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
-                    Uploaded during digital authorization
-                 </div>
-              </SectionCard>
-            )}
+            <div style={{ padding: '20px', borderRadius: '18px', background: 'rgba(6, 182, 212, 0.05)', border: '1px solid rgba(6, 182, 212, 0.15)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0891b2', marginBottom: '8px' }}>
+                <Shield size={18} />
+                <span style={{ fontSize: '14px', fontWeight: 800, textTransform: 'uppercase' }}>Security Verification</span>
+              </div>
+              <p style={{ fontSize: '12px', color: '#636366', lineHeight: 1.6, margin: 0 }}>
+                This record constitutes digital evidence of payment authorization. All images and signatures are cryptographically linked to this record.
+              </p>
+            </div>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          <SectionCard icon={Mail} title="Declaration Text" iconColor="#8b5cf6">
-            <p style={{ fontSize: '14px', lineHeight: 1.8, color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>
-              {proof.declaration_text || 'No declaration text recorded.'}
-            </p>
+          <SectionCard icon={Fingerprint} title="Verification Assets" iconColor="#d97706">
+            <div style={{ display: 'grid', gap: '20px' }}>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <PenLine size={12} /> Digital Signature
+                </div>
+                {proof.digital_signature ? (
+                  <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#fff', padding: '10px' }}>
+                    <img
+                      src={resolveImagePath(proof.digital_signature)}
+                      crossOrigin="anonymous"
+                      alt="Digital signature"
+                      style={{ width: '100%', display: 'block' }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ padding: '20px', borderRadius: '16px', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-color)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    No signature recorded
+                  </div>
+                )}
+              </div>
+
+              {proof.id_proof_path && (
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ImageIcon size={12} /> Client Uploaded Photo / ID
+                  </div>
+                  <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#fff' }}>
+                    <img
+                      src={proof.id_proof_url || resolveImagePath(proof.id_proof_path)}
+                      crossOrigin="anonymous"
+                      alt="ID Proof"
+                      style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block' }}
+                    />
+                  </div>
+                  <div style={{ marginTop: '8px', fontSize: '11px', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <ShieldCheck size={12} /> Verified identity document provided
+                  </div>
+                </div>
+              )}
+            </div>
           </SectionCard>
 
-          <SectionCard icon={Fingerprint} title="Digital Signature" iconColor="#d97706">
-            {proof.digital_signature ? (
-              <img
-                src={resolveImagePath(proof.digital_signature)}
-                alt="Digital signature"
-                style={{ width: '100%', borderRadius: '16px', border: '1px solid var(--border-color)', background: '#fff' }}
-              />
-            ) : (
-              <p style={{ color: 'var(--text-muted)' }}>No signature recorded.</p>
-            )}
+          <SectionCard icon={Mail} title="Declaration & Legal" iconColor="#8b5cf6">
+            <div style={{
+              padding: '20px',
+              borderRadius: '16px',
+              background: 'rgba(139, 92, 246, 0.03)',
+              border: '1px solid rgba(139, 92, 246, 0.1)',
+              height: '100%'
+            }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#8b5cf6', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Shield size={12} /> Binding Acceptance
+              </div>
+              <p style={{ fontSize: '14px', lineHeight: 1.8, color: 'var(--text-main)', whiteSpace: 'pre-wrap', margin: 0 }}>
+                {proof.declaration_text || 'No declaration text recorded.'}
+              </p>
+              <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed rgba(139, 92, 246, 0.2)', fontSize: '12px', color: 'var(--text-muted)' }}>
+                Accepted IP: {proof.ip_address}<br />
+                Timestamp: {proof.approved_at}
+              </div>
+            </div>
           </SectionCard>
         </div>
 
@@ -533,18 +686,65 @@ const ConsentProofPage = () => {
           </SectionCard>
         </div>
 
-        <SectionCard icon={Globe} title="Ticket Images" iconColor="#2563eb">
+        <SectionCard icon={Plane} title="Flight Ticket Images" iconColor="#2563eb">
           <div style={{ display: 'grid', gap: '16px' }}>
-            {(snapshot.ticket_images || []).length ? snapshot.ticket_images.map((ticket, index) => (
-              <div key={`${ticket.booking_reference}-${index}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
-                <div style={{ fontWeight: 700, marginBottom: '12px' }}>{ticket.booking_reference}</div>
-                <img src={resolveImagePath(ticket.url || ticket.path)} alt={ticket.booking_reference} style={{ width: '100%', borderRadius: '14px', border: '1px solid var(--border-color)' }} />
+            {ticketImages.length ? ticketImages.map((ticket, index) => (
+              <div key={`ticket-${index}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ fontWeight: 700 }}>{ticket.booking_reference}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{ticket.segment_label || 'Ticket'}</div>
+                </div>
+                <img
+                  src={resolveImagePath(ticket.url || ticket.path)}
+                  crossOrigin="anonymous"
+                  alt={ticket.booking_reference}
+                  style={{ width: '100%', borderRadius: '14px', border: '1px solid var(--border-color)' }}
+                />
               </div>
             )) : (
-              <p style={{ color: 'var(--text-muted)' }}>No ticket images stored in this proof snapshot.</p>
+              <p style={{ color: 'var(--text-muted)' }}>No flight ticket images stored in this snapshot.</p>
             )}
           </div>
         </SectionCard>
+
+        {hotelImages.length > 0 && (
+          <SectionCard icon={Hotel} title="Hotel & Accommodation" iconColor="#059669">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+              {hotelImages.map((img, idx) => (
+                <div key={`hotel-img-${idx}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '12px' }}>{img.booking_reference} - {img.label}</div>
+                  <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ width: '100%', borderRadius: '14px' }} alt="Hotel" />
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        {carImages.length > 0 && (
+          <SectionCard icon={Car} title="Car Rental & Transfers" iconColor="#f59e0b">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+              {carImages.map((img, idx) => (
+                <div key={`car-img-${idx}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '12px' }}>{img.booking_reference} - {img.label}</div>
+                  <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ width: '100%', borderRadius: '14px' }} alt="Car" />
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        {cruiseImages.length > 0 && (
+          <SectionCard icon={Waves} title="Cruise Assets" iconColor="#06b6d4">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+              {cruiseImages.map((img, idx) => (
+                <div key={`cruise-img-${idx}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '12px' }}>{img.booking_reference} - {img.label}</div>
+                  <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ width: '100%', borderRadius: '14px' }} alt="Cruise" />
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Save } from 'lucide-react';
+import { Save, CheckCircle2 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 
 const BookingFooter = ({ calculateTotal, totalAllocated, handleSubmit, onSaveDraft, loading, currency = 'USD', showDraft = true }) => {
@@ -46,7 +45,7 @@ const BookingFooter = ({ calculateTotal, totalAllocated, handleSubmit, onSaveDra
             size="lg" 
             onClick={handleSubmit}
             isLoading={loading}
-            icon={Save}
+            icon={CheckCircle2}
             style={{ minWidth: '200px' }}
           >
             Confirm Booking

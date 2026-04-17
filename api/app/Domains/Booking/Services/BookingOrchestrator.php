@@ -450,7 +450,7 @@ class BookingOrchestrator
                             'last_name' => $np['last_name'] ?? '',
                             'date_of_birth' => $np['date_of_birth'] ?? null,
                         ],
-                        ['middle_name' => $np['middle_name'] ?? null, 'gender' => $np['gender'] ?? null, 'type' => 'Adult']
+                        ['middle_name' => $np['middle_name'] ?? null, 'gender' => $np['gender'] ?? null, 'type' => $np['type'] ?? 'Adult']
                     );
                 }
                 if ($pax) $passengerIds[] = $pax->id;
@@ -613,9 +613,45 @@ class BookingOrchestrator
 
         switch ($type) {
             case 'flight': return Flight::create($details);
-            case 'hotel':  return Hotel::create(array_merge(['country' => 'N/A'], $details));
-            case 'car':    return Car::create(array_merge(['capacity' => 5], $details));
-            case 'cruise': return Cruise::create($details);
+            case 'hotel':  return Hotel::create(array_merge([
+                'country' => 'N/A',
+                'booking_confirmation' => $details['booking_confirmation'] ?? null,
+                'room_count' => $details['room_count'] ?? 1,
+                'adult_count' => $details['adult_count'] ?? 1,
+                'child_count' => $details['child_count'] ?? 0,
+                'children_ages' => $details['children_ages'] ?? null,
+                'check_in_at' => $details['checkin'] ?? null,
+                'check_out_at' => $details['checkout'] ?? null,
+            ], $details));
+            case 'car':    return Car::create(array_merge([
+                'capacity' => 5,
+                'pickup_location' => $details['pickup_loc'] ?? null,
+                'drop_off_location' => $details['drop_loc'] ?? null,
+                'pickup_at' => $details['pickup_date'] ?? null,
+                'drop_off_at' => $details['dropoff_date'] ?? null,
+                'driver_name' => $details['driver_name'] ?? null,
+                'driver_dob' => $details['driver_dob'] ?? null,
+                'adult_count' => $details['adult_count'] ?? 0,
+                'child_count' => $details['child_count'] ?? 0,
+                'infant_count' => $details['infant_count'] ?? 0,
+                'pay_now_amount' => $details['pay_now_amount'] ?? 0,
+                'pay_at_pickup_amount' => $details['pay_at_pickup_amount'] ?? 0,
+            ], $details));
+            case 'cruise':   return Cruise::create(array_merge([
+                'departure_port' => $details['departure_port'] ?? null,
+                'room_type' => $details['room_type'] ?? null,
+                'deck_number' => $details['deck_number'] ?? null,
+                'room_number' => $details['room_number'] ?? null,
+                'room_count' => $details['room_count'] ?? 1,
+                'adult_count' => $details['adult_count'] ?? 1,
+                'child_count' => $details['child_count'] ?? 0,
+                'children_dob' => $details['children_dob'] ?? null,
+                'deposit_amount' => $details['deposit_amount'] ?? null,
+                'due_amount' => $details['due_amount'] ?? null,
+                'due_date' => $details['due_date'] ?? null,
+                'departure_at' => $details['departure_date'] ?? null,
+                'arrival_at' => $details['arrival_date'] ?? null,
+            ], $details));
             default: throw new \InvalidArgumentException("Invalid service type: {$type}");
         }
     }

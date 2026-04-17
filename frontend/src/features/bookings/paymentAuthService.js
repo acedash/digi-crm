@@ -29,6 +29,7 @@ const paymentAuthService = {
     return api.get(`/admin/payment-authorizations/charge-queue?${query}`);
   },
   markCharged: (paymentAuthId, data) => api.post(`/admin/payment-authorizations/${paymentAuthId}/mark-charged`, data),
+  refreshProofSnapshot: (token) => api.post(`/payment-authorizations/${token}/refresh`),
 };
 
 export default paymentAuthService;

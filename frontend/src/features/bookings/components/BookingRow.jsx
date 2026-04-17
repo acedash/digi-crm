@@ -155,6 +155,7 @@ const BookingRow = ({
   onDelete,
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const [showHistory, setShowHistory] = React.useState(false);
 
   const handleCopyId = (e) => {
     e.stopPropagation();
@@ -187,89 +188,91 @@ const BookingRow = ({
           padding: '0',
           overflow: 'hidden',
           borderLeft: `6px solid ${statusColor}`,
-          marginBottom: '0',
+          marginBottom: '16px',
         }}
       >
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '20% 18% 13% 13% 36%',
+            gridTemplateColumns: '1.2fr 1.3fr 0.7fr 0.7fr 2.1fr',
             alignItems: 'center',
-            padding: '8px 12px',
-            gap: '8px',
+            padding: '20px 24px',
+            gap: '24px',
           }}
         >
           {/* Group 1: Booking / Client */}
-          <div style={{ minWidth: '0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-               <span style={{ fontFamily: 'monospace', fontSize: '10px', fontWeight: 700, background: 'rgba(96, 165, 250, 0.1)', color: '#60a5fa', padding: '2px 6px', borderRadius: '4px' }}>
+          <div style={{ minWidth: '0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+               <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 800, background: 'rgba(96, 165, 250, 0.12)', color: '#60a5fa', padding: '3px 8px', borderRadius: '4px', letterSpacing: '0.05em' }}>
                  #{booking.id}
                </span>
-               <span 
+               <div 
                 onClick={handleCopyId}
                 title="Click to copy reference"
                 style={{ 
-                  fontSize: '10px', 
-                  fontWeight: 700, 
-                  color: copied ? '#06B68A' : 'var(--text-muted)',
-                  display: 'flex',
+                  fontSize: '14px', 
+                  fontWeight: 800, 
+                  color: copied ? '#06B68A' : 'var(--text-main)',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: '6px',
                   cursor: 'copy',
-                  padding: '2px 4px',
-                  borderRadius: '4px',
-                  transition: 'all 0.2s'
+                  padding: '2px 6px',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s',
+                  letterSpacing: '0.03em',
+                  background: 'rgba(255, 255, 255, 0.03)',
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
               >
-                {booking.booking_reference}
-                {copied ? <Check size={10} /> : <Copy size={10} style={{ opacity: 0.5 }} />}
-              </span>
+                <span>{booking.booking_reference}</span>
+                {copied ? <Check size={14} /> : <Copy size={14} style={{ opacity: 0.5 }} />}
+              </div>
             </div>
             
             <div onClick={onOpenClient} style={{ cursor: 'pointer' }}>
-               <h3 className="hover-link" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+               <h3 className="hover-link" style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {clientDisplayName}
               </h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>
                 <span>{booking.client?.phone || 'N/A'}</span>
-                <span>•</span>
+                <span style={{ opacity: 0.4 }}>•</span>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{booking.client?.email || 'N/A'}</span>
               </div>
             </div>
-            {(booking.latest_handoff_remark || booking.details_json?.status_remark) && (
+            {(booking.status_remark || booking.latest_handoff_remark) && (
               <div style={{ 
-                marginTop: '4px',
+                marginTop: '10px',
                 fontSize: '11px',
-                color: '#8b5cf6',
-                background: 'rgba(139, 92, 246, 0.05)',
-                padding: '4px 8px',
-                borderRadius: '6px',
-                borderLeft: '2px solid #8b5cf6',
+                color: booking.status_remark ? '#059669' : '#8b5cf6',
+                background: booking.status_remark ? 'rgba(5, 150, 105, 0.08)' : 'rgba(139, 92, 246, 0.08)',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                borderLeft: `3px solid ${booking.status_remark ? '#059669' : '#8b5cf6'}`,
                 maxWidth: '100%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }} title={booking.latest_handoff_remark || booking.details_json?.status_remark}>
-                <strong>Note:</strong> {booking.latest_handoff_remark || booking.details_json?.status_remark}
+                lineHeight: 1.5
+              }} title={booking.status_remark || booking.latest_handoff_remark}>
+                <strong style={{ opacity: 0.8 }}>{booking.status_remark ? 'FINAL NOTE:' : 'HANDOFF NOTE:'}</strong> {booking.status_remark || booking.latest_handoff_remark}
               </div>
             )}
           </div>
 
           {/* Group 2: Travel Details */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-main)', fontWeight: 600 }}>
-              <Calendar size={14} style={{ color: '#60a5fa' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: 'var(--text-main)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+              <Calendar size={16} style={{ color: '#60a5fa' }} />
               <span>{booking.travel_date ? new Date(booking.travel_date).toLocaleDateString() : 'N/A'}</span>
-              <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '12px' }}>({getTravelerCount(booking)} Pax)</span>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '13px', whiteSpace: 'nowrap' }}>({getTravelerCount(booking)} Pax)</span>
             </div>
             
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {booking.services?.map((service, si) => {
                 const ServiceIcon = getServiceIcon(service.serviceable_type);
                 return (
-                  <div key={si} title={service.detail || service.type} style={{ padding: '4px 8px', borderRadius: '6px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div key={si} title={service.detail || service.type} style={{ padding: '5px 10px', borderRadius: '8px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <ServiceIcon size={12} style={{ color: '#8b5cf6' }} />
-                    <span style={{ fontSize: '11px', fontWeight: 600, maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
                       {service.detail ? service.detail.split(' ')[0] : service.type}
                     </span>
                   </div>
@@ -278,23 +281,101 @@ const BookingRow = ({
             </div>
           </div>
 
-          {/* Group 3: Assigned To */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '0' }}>
+          {/* Group 3: Assigned To / History */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '0' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Creator</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>{createdByName}</span>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', opacity: 0.6, letterSpacing: '0.08em', marginBottom: '4px' }}>CREATED BY</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                   {createdByName}
+                </span>
+              </div>
             </div>
-            {wasReassigned && currentAssignee !== createdByName && (
-              <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border-color)', paddingTop: '4px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 600, color: '#8b5cf6', textTransform: 'uppercase' }}>Current Agent</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>{currentAssignee}</span>
+
+            <div style={{ display: 'flex', flexDirection: 'column', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>ASSIGNED TO</span>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>{currentAssignee}</span>
+            </div>
+
+            {booking.reassignment_history && booking.reassignment_history.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowHistory(!showHistory);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  color: '#8b5cf6',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  border: 'none',
+                  cursor: 'pointer',
+                  width: 'fit-content',
+                  marginTop: '4px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)'}
+              >
+                <ArrowRightLeft size={10} />
+                <span>{showHistory ? 'HIDE LOG' : `HISTORY (${booking.reassignment_history.length})`}</span>
+              </button>
+            )}
+
+            {showHistory && booking.reassignment_history && (
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'absolute',
+                  zIndex: 100,
+                  top: '100%',
+                  left: '24px',
+                  width: '320px',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                  marginTop: '4px'
+                }}
+              >
+                <h4 style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Handover History</h4>
+                <div style={{ display: 'grid', gap: '12px', maxHeight: '200px', overflowY: 'auto', paddingRight: '8px' }}>
+                  {booking.reassignment_history.map((h, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '12px', position: 'relative' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6' }}></div>
+                         {i < booking.reassignment_history.length - 1 && <div style={{ flex: 1, width: '2px', background: 'var(--border-color)', margin: '4px 0' }}></div>}
+                      </div>
+                      <div style={{ flex: 1, paddingBottom: i < booking.reassignment_history.length - 1 ? '12px' : 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-main)' }}>{h.to_agent_name || `Agent #${h.to_agent_id}`}</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(h.reassigned_at).toLocaleDateString()}</span>
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          From: {h.from_agent_name || 'System'} • By: {h.reassigned_by_name}
+                        </div>
+                        {h.remark && (
+                          <div style={{ fontSize: '10px', fontStyle: 'italic', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '4px', borderLeft: '2px solid rgba(139, 92, 246, 0.4)' }}>
+                            "{h.remark}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )).reverse()}
+                </div>
               </div>
             )}
           </div>
 
           {/* Group 4: Status / Amount */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: '17px', fontWeight: 800, color: 'var(--text-main)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
+            <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
               {new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(Number(booking.total_amount) || 0)}
             </div>
             {statusBadge}
@@ -303,11 +384,11 @@ const BookingRow = ({
           {/* Group 5: Actions */}
           <div
             style={{
-              paddingLeft: '8px',
+              paddingLeft: '16px',
               borderLeft: '1px solid var(--border-color)',
               display: 'flex',
               flexWrap: 'wrap',
-              gap: '6px',
+              gap: '8px 8px',
               justifyContent: 'flex-start',
             }}
           >
@@ -343,6 +424,15 @@ const BookingRow = ({
               title="Cancel with refund"
               disabled={isSendingRefund}
             />
+            {booking.status === 'Approved' && (
+              <ActionChip
+                icon={RefreshCw}
+                label="Process"
+                onClick={() => onMarkPending(booking.id)}
+                tone="primary"
+                title="Move to Work Pending status"
+              />
+            )}
             {(booking.status === 'Work Pending' || booking.status === 'Approved') && (
               <ActionChip
                 icon={CheckCircle2}
@@ -377,7 +467,7 @@ const BookingRow = ({
               <ActionChip
                 icon={ArrowRightLeft}
                 label="Reassign"
-                onClick={() => onReassign(booking.id)}
+                onClick={() => onReassign(booking)}
                 tone="warning"
                 title="Transfer booking"
               />

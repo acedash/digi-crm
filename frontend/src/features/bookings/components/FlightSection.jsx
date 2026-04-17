@@ -87,7 +87,7 @@ const FlightSection = ({
                   <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {flight.trip_type === 'round_trip' 
                       ? (index === 0 ? 'Departure Flight' : (index === 1 ? 'Return Flight' : `Flight Segment ${index + 1}`))
-                      : `Flight Segment ${index + 1}`
+                      : (flight.trip_type === 'one_way' && index === 0 ? 'Flight Details' : `Flight Segment ${index + 1}`)
                     }
                   </div>
                   {((flight.trip_type === 'one_way' && flight.segments.length > 1) || (flight.trip_type !== 'one_way' && flight.segments.length > 2)) && (
@@ -127,16 +127,43 @@ const FlightSection = ({
                     onChange={(e) => updateFlightSegment(index, 'destination', e.target.value)}
                   />
                   <Input
-                    label="Departure"
+                    label="Departure Date & Time"
                     type="datetime-local"
                     value={segment.departure_at || ''}
                     onChange={(e) => updateFlightSegment(index, 'departure_at', e.target.value)}
                   />
                   <Input
-                    label="Arrival"
+                    label="Arrival Date & Time"
                     type="datetime-local"
                     value={segment.arrival_at || ''}
                     onChange={(e) => updateFlightSegment(index, 'arrival_at', e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginTop: '16px' }}>
+                  <Input
+                    label="Seat Number"
+                    placeholder="e.g. 12A"
+                    value={segment.seat_number || ''}
+                    onChange={(e) => updateFlightSegment(index, 'seat_number', e.target.value)}
+                  />
+                  <Input
+                    label="Personal Item"
+                    placeholder="e.g. 1 Bag"
+                    value={segment.personal_item || ''}
+                    onChange={(e) => updateFlightSegment(index, 'personal_item', e.target.value)}
+                  />
+                  <Input
+                    label="Carry-on Bags"
+                    placeholder="e.g. 7kg"
+                    value={segment.carry_on || ''}
+                    onChange={(e) => updateFlightSegment(index, 'carry_on', e.target.value)}
+                  />
+                  <Input
+                    label="Check-in Bags"
+                    placeholder="e.g. 23kg"
+                    value={segment.checkin_bags || ''}
+                    onChange={(e) => updateFlightSegment(index, 'checkin_bags', e.target.value)}
                   />
                 </div>
 
@@ -234,7 +261,7 @@ const FlightSection = ({
           {(flight.trip_type === 'multi_city' || flight.trip_type === 'round_trip') && (
             <div style={{ marginTop: '16px' }}>
               <Button variant="outline" size="sm" icon={Plus} onClick={addFlightSegment}>
-                Add Flight Segment
+                Add more flight
               </Button>
             </div>
           )}
@@ -251,7 +278,7 @@ const FlightSection = ({
               }}
             />
             <Input
-              label="Taxes & Charges"
+              label="Taxes & Fees"
               type="number"
               value={flight.markup}
               onChange={(e) => {
@@ -347,7 +374,7 @@ const FlightSection = ({
                         transform: 'translateY(-4px)'
                       }}
                     >
-                      + Quick Allocate
+                      Quick Allocate
                     </button>
                   )}
                 </div>

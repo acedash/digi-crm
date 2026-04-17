@@ -11,13 +11,22 @@ import {
   RefreshCw,
   Search,
   UserCheck,
-  UserX
+  UserX,
+  PhoneCall,
+  ClipboardList
 } from 'lucide-react';
 import userService from './userService';
 import UserForm from './UserForm';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+
+const AgentIcon = ({ size }) => (
+  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+    <ClipboardList size={size} />
+    <PhoneCall size={size - 4} style={{ opacity: 0.8 }} />
+  </div>
+);
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
@@ -173,7 +182,7 @@ const UserList = () => {
             }).length}
           </p>
         </Card>
-        <Card title="Agents" subtitle="Handle bookings & calls" icon={Activity}>
+        <Card title="Agents" subtitle="Handle bookings & calls" icon={AgentIcon}>
           <p style={{ fontSize: '28px', fontWeight: 800, color: '#60a5fa' }}>
             {users.filter(u => {
               const role = u.roles?.[0];

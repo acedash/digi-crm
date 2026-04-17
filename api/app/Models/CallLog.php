@@ -22,6 +22,12 @@ class CallLog extends Model
         'callback_datetime',
     ];
 
+    protected $casts = [
+        'call_type' => 'array',
+        'airline_inquiry' => 'array',
+        'callback_required' => 'boolean',
+    ];
+
     public function agent()
     {
         return $this->belongsTo(User::class, 'agent_id');

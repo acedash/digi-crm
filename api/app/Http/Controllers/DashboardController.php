@@ -30,9 +30,15 @@ class DashboardController extends Controller
     private function getAdminStats(Request $request)
     {
         $period = $request->get('period', 'monthly');
-        $cacheKey = 'dashboard.admin.stats.v3.' . $period;
+        $customStart = $request->get('start_date');
+        $customEnd = $request->get('end_date');
+        
+        $cacheKey = 'dashboard.admin.stats.v4.' . $period;
+        if ($period === 'custom') {
+            $cacheKey .= "." . md5($customStart . $customEnd);
+        }
 
-        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($period) {
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($period, $customStart, $customEnd) {
             $now = now();
             $currentStart = null;
             $currentEnd = $now->toDateTimeString();
@@ -54,6 +60,17 @@ class DashboardController extends Controller
                     $currentStart = $now->copy()->subYear()->toDateTimeString();
                     $prevStart = $now->copy()->subYears(2)->toDateTimeString();
                     $prevEnd = $now->copy()->subYear()->toDateTimeString();
+                    break;
+                case 'custom':
+                    $start = $customStart ? now()->parse($customStart)->startOfDay() : $now->copy()->subDays(30);
+                    $end = $customEnd ? now()->parse($customEnd)->endOfDay() : $now->copy();
+                    $diffInDays = $start->diffInDays($end);
+                    if ($diffInDays === 0) $diffInDays = 1;
+                    
+                    $currentStart = $start->toDateTimeString();
+                    $currentEnd = $end->toDateTimeString();
+                    $prevStart = $start->copy()->subDays($diffInDays)->toDateTimeString();
+                    $prevEnd = $start->copy()->subSeconds(1)->toDateTimeString();
                     break;
                 case 'monthly':
                 default:
@@ -113,7 +130,43 @@ class DashboardController extends Controller
             $totalBookingsAll = Booking::count();
             $totalCallsAll = CallLog::where('log_scope', 'booking')->count();
             $pendingApprovals = Booking::where('status', 'Pending')->count();
-            $readyToCharge = PaymentAuth::whereHas('bookings')->where('status', 'Approved')->whereNull('collected_at')->count();
+            $readyToCharge = PaymentAuth::where('status', 'Approved')
+                ->whereNull('collected_at')
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('booking_payment_auth')
+                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
+                })->count();
+
+            $isSqlite = config('database.default') === 'sqlite';
+            $monthFormat = $isSqlite ? "strftime('%m', created_at)" : "DATE_FORMAT(created_at, '%m')";
+            $yearFormat = $isSqlite ? "strftime('%Y', created_at)" : "DATE_FORMAT(created_at, '%Y')";
+            
+            $trendStart = now()->subMonths(6)->startOfMonth()->toDateTimeString();
+
+            $revenueTrends = Booking::query()
+                ->select(
+                    DB::raw('SUM(total_amount) as amount'),
+                    DB::raw("$monthFormat as month_num"),
+                    DB::raw("$yearFormat as year_num")
+                )
+                ->where('created_at', '>=', $trendStart)
+                ->groupBy('year_num', 'month_num')
+                ->orderBy('year_num', 'asc')
+                ->orderBy('month_num', 'asc')
+                ->get()
+                ->map(function ($item) {
+                    $monthName = date("M", mktime(0, 0, 0, (int)$item->month_num, 1));
+                    return ['name' => $monthName, 'revenue' => (float)$item->amount];
+                });
+
+            $bookingStatusDistribution = Booking::select('status', DB::raw('count(*) as total'))
+                ->whereBetween('created_at', [$currentStart, $currentEnd])
+                ->groupBy('status')
+                ->get()
+                ->map(function ($item) {
+                    return ['name' => $item->status, 'value' => $item->total];
+                });
 
             return [
                 'staff' => [
@@ -147,6 +200,8 @@ class DashboardController extends Controller
                 'ready_to_charge' => $readyToCharge,
                 'recent_bookings' => $recentBookings,
                 'charge_queue' => $chargeQueue,
+                'revenue_trends' => $revenueTrends,
+                'booking_status_distribution' => $bookingStatusDistribution,
                 'cache_timestamp' => now()->toDateTimeString(),
             ];
         });
@@ -471,10 +526,14 @@ class DashboardController extends Controller
         }
 
         $data = Cache::remember('dashboard.admin-monitor', now()->addSeconds(30), function () {
-            $supervisors = User::role('supervisor')->get(['id', 'name']);
+            $supervisors = User::role('supervisor')
+                ->with(['supervisedAgents' => function ($query) {
+                    $query->select('users.id', 'users.status');
+                }])
+                ->get(['id', 'name']);
 
             return $supervisors->map(function ($sup) {
-                $agents = $sup->supervisedAgents()->get(['users.id', 'users.status']);
+                $agents = $sup->supervisedAgents;
                 $totalAgents = $agents->count();
                 $active = $agents->filter(function ($agent) {
                     return in_array(strtolower((string) $agent->status), ['active', 'on call'], true);

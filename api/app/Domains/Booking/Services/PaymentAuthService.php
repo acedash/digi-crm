@@ -311,57 +311,56 @@ class PaymentAuthService
             ->flatMap(function ($booking) {
                 return collect($booking->services ?? [])
                     ->filter(function ($service) {
-                        return strtolower(class_basename($service->serviceable_type ?? '')) === 'flight';
+                        $type = strtolower(class_basename($service->serviceable_type ?? ''));
+                        return in_array($type, ['flight', 'multiflight']);
                     })
                     ->flatMap(function ($service) use ($booking) {
-                        $segmentImages = collect(data_get($service, 'details_json.segments', []))
-                            ->filter(fn ($segment) => filled($segment['ticket_image'] ?? null))
-                            ->values()
-                            ->map(function ($segment, $index) use ($booking, $service) {
-                                $path = $segment['ticket_image'];
+                        $allImages = collect();
 
-                                if (is_string($path) && str_starts_with($path, 'data:image') && filled(data_get($service, 'serviceable.ticket_image'))) {
-                                    $path = data_get($service, 'serviceable.ticket_image');
+                        // helper to push standardized paths
+                        $pushImage = function($path, $label) use (&$allImages, $booking) {
+                            if (filled($path)) {
+                                $standardPath = ltrim($path, '/');
+                                $allImages->push([
+                                    'booking_reference' => $booking->booking_reference,
+                                    'segment_label' => $label,
+                                    'path' => $standardPath,
+                                    'url' => str_starts_with($standardPath, 'data:image')
+                                        ? $standardPath
+                                        : $this->mailContextBuilder->buildStorageUrl($standardPath),
+                                ]);
+                            }
+                        };
+
+                        // 1. Collect one image per segment (ticket_image is the canonical field).
+                        $segments = data_get($service, 'details_json.segments', []);
+                        $hasSegmentImages = false;
+                        foreach ($segments as $index => $segment) {
+                            if (!empty($segment['ticket_image'])) {
+                                $pushImage($segment['ticket_image'], 'Flight Segment ' . ($index + 1));
+                                $hasSegmentImages = true;
+                            }
+                        }
+
+                        // Only collect from top-level if segment-level images were not present, 
+                        // as BookingOrchestrator duplicates segment 0 images to the top-level with a new file path.
+                        if (!$hasSegmentImages) {
+                            // 2. Collect top-level ticket_image
+                            $pushImage(data_get($service, 'serviceable.ticket_image'), 'Main Ticket');
+    
+                            // 3. Collect plural ticket_images
+                            $pluralImages = data_get($service, 'serviceable.ticket_images');
+                            if (is_array($pluralImages)) {
+                                foreach ($pluralImages as $index => $path) {
+                                    $pushImage($path, count($pluralImages) > 1 ? 'Flight Image ' . ($index + 1) : 'Flight Image');
                                 }
-
-                                return [
-                                    'booking_reference' => $booking->booking_reference,
-                                    'segment_label' => 'Flight Segment ' . ($index + 1),
-                                    'path' => $path,
-                                    'url' => str_starts_with($path, 'data:image')
-                                        ? $path
-                                        : $this->mailContextBuilder->buildStorageUrl($path),
-                                ];
-                            });
-
-                        if ($segmentImages->isNotEmpty()) {
-                            return $segmentImages;
+                            }
                         }
 
-                        if (filled(data_get($service, 'serviceable.ticket_image'))) {
-                            return [[
-                                'booking_reference' => $booking->booking_reference,
-                                'segment_label' => null,
-                                'path' => $service->serviceable->ticket_image,
-                                'url' => $this->mailContextBuilder->buildStorageUrl($service->serviceable->ticket_image),
-                            ]];
-                        }
-
-                        $pluralImages = data_get($service, 'serviceable.ticket_images');
-                        if (is_array($pluralImages) && count($pluralImages) > 0) {
-                            return collect($pluralImages)->map(function ($path, $index) use ($booking, $pluralImages) {
-                                return [
-                                    'booking_reference' => $booking->booking_reference,
-                                    'segment_label' => count($pluralImages) > 1 ? 'Flight Image ' . ($index + 1) : null,
-                                    'path' => $path,
-                                    'url' => $this->mailContextBuilder->buildStorageUrl($path),
-                                ];
-                            })->all();
-                        }
-
-                        return [];
+                        return $allImages;
                     });
             })
+            ->unique('path')
             ->values()
             ->all();
 
@@ -513,5 +512,15 @@ class PaymentAuthService
             })
             ->values()
             ->all();
+    }
+
+    public function refreshSnapshot(string $token)
+    {
+        $auth = \App\Models\PaymentAuth::where('token', $token)->firstOrFail();
+        
+        $auth->consent_snapshot = $this->buildConsentSnapshot($auth->bookings);
+        $auth->save();
+
+        return $auth;
     }
 }

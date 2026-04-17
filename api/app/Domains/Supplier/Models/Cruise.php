@@ -12,6 +12,18 @@ class Cruise extends Model
         'operator',
         'departure_port',
         'destination',
-        'duration'
+        'duration',
+        'room_type',
+        'deck_number',
+        'room_number',
+        'room_count',
+        'adult_count',
+        'child_count',
+        'children_dob',
+        'deposit_amount',
+        'due_amount',
+        'due_date',
+        'departure_at',
+        'arrival_at'
     ];
 }

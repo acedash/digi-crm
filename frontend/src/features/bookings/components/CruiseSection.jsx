@@ -45,22 +45,39 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
       />
       {cruise.active && (
          <div style={{ padding: '24px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <Input label="Cruise Line" required placeholder="e.g. Royal Caribbean" value={cruise.line || ''} onChange={e => setCruise({...cruise, line: e.target.value})} />
               <Input label="Ship Name" required placeholder="e.g. Icon of the Seas" value={cruise.ship || ''} onChange={e => setCruise({...cruise, ship: e.target.value})} />
+              <Input label="Departure Port" placeholder="e.g. Miami, Florida" value={cruise.departure_port || ''} onChange={e => setCruise({...cruise, departure_port: e.target.value})} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              <Input label="Departure Date" type="date" value={cruise.departure_date || ''} onChange={e => setCruise({...cruise, departure_date: e.target.value})} />
-              <Input label="Arrival Date" type="date" value={cruise.arrival_date || ''} onChange={e => setCruise({...cruise, arrival_date: e.target.value})} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <Input label="Room Type" placeholder="e.g. Ocean View Balcony" value={cruise.room_type || ''} onChange={e => setCruise({...cruise, room_type: e.target.value})} />
+              <Input label="Deck Number" placeholder="e.g. Deck 12" value={cruise.deck_number || ''} onChange={e => setCruise({...cruise, deck_number: e.target.value})} />
+              <Input label="Room Number" placeholder="e.g. 1245" value={cruise.room_number || ''} onChange={e => setCruise({...cruise, room_number: e.target.value})} />
             </div>
-            <div style={{ marginBottom: '16px' }}>
-              <Input
-                label="Deposit Amount"
-                type="number"
-                placeholder="0.00"
-                value={cruise.deposit_amount || ''}
-                onChange={e => setCruise({...cruise, deposit_amount: e.target.value})}
-              />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <Input label="Number of Rooms" type="number" placeholder="1" value={cruise.room_count || ''} onChange={e => setCruise({...cruise, room_count: e.target.value})} />
+              <Input label="Number of Adults" type="number" placeholder="1" value={cruise.adult_count || ''} onChange={e => setCruise({...cruise, adult_count: e.target.value})} />
+              <Input label="Number of Children" type="number" placeholder="0" value={cruise.child_count || ''} onChange={e => setCruise({...cruise, child_count: e.target.value})} />
+            </div>
+
+            {cruise.child_count > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <Input label="Children's DOB" placeholder="e.g. 12/05/2015, 08/11/2018 (Separate with commas)" value={cruise.children_dob || ''} onChange={e => setCruise({...cruise, children_dob: e.target.value})} />
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <Input label="Departure Date & Time" type="datetime-local" value={cruise.departure_date || ''} onChange={e => setCruise({...cruise, departure_date: e.target.value})} />
+              <Input label="Arrival Date & Time" type="datetime-local" value={cruise.arrival_date || ''} onChange={e => setCruise({...cruise, arrival_date: e.target.value})} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              <Input label="Deposit Amount" type="number" placeholder="0.00" value={cruise.deposit_amount || ''} onChange={e => setCruise({...cruise, deposit_amount: e.target.value})} />
+              <Input label="Due Amount" type="number" placeholder="0.00" value={cruise.due_amount || ''} onChange={e => setCruise({...cruise, due_amount: e.target.value})} />
+              <Input label="Due Date" type="date" value={cruise.due_date || ''} onChange={e => setCruise({...cruise, due_date: e.target.value})} />
             </div>
              <div style={{ display: 'flex', gap: '16px' }}>
                 <Input label="Net Cost" type="number" value={cruise.cost || ''} onChange={e => {
@@ -249,7 +266,7 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
                           transform: 'translateY(-4px)'
                         }}
                       >
-                        + Quick Allocate
+                        Quick Allocate
                       </button>
                     )}
                   </div>

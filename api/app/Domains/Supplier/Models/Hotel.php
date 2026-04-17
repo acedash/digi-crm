@@ -15,6 +15,13 @@ class Hotel extends Model
         'country',
         'rating',
         'contact_person',
-        'phone'
+        'phone',
+        'booking_confirmation',
+        'room_count',
+        'adult_count',
+        'child_count',
+        'children_ages',
+        'check_in_at',
+        'check_out_at'
     ];
 }

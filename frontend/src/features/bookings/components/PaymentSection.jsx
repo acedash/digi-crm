@@ -199,7 +199,7 @@ const PaymentSection = ({ paymentCards, setPaymentCards, grandTotal }) => {
           onClick={() => setPaymentCards([...paymentCards, { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '', currency: 'USD' }])}
           icon={Plus}
         >
-          + Add Another Card
+          Add Another Card
         </Button>
       </div>
     </Card>

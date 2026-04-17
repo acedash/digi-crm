@@ -24,7 +24,8 @@ import {
   EyeOff,
   PhoneCall,
   CheckCircle2,
-  XCircle
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import clientService from './clientService';
 import ClientForm from './ClientForm';
@@ -71,10 +72,8 @@ const ClientProfile = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <div className="animate-spin text-primary">
-          <AlertCircle size={32} />
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'hsl(var(--primary))' }}>
+        <RefreshCw className="animate-spin" size={32} />
       </div>
     );
   }

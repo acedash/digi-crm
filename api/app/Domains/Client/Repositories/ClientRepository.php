@@ -53,7 +53,9 @@ class ClientRepository extends BaseRepository
             ])
             ->with([
                 'creator:id,name',
+                'latestBooking.services.serviceable'
             ])
+            ->withSum('bookings', 'total_amount')
             ->withCount(['passengers', 'bookings']);
 
         if ($user?->hasRole('agent')) {
@@ -125,6 +127,14 @@ class ClientRepository extends BaseRepository
             $query->whereHas('cards', function ($cardQuery) use ($filters) {
                 $cardQuery->where('last_4', (string) $filters['card_last_4']);
             });
+        }
+
+        if (!empty($filters['start_date'])) {
+            $query->whereDate('created_at', '>=', $filters['start_date']);
+        }
+
+        if (!empty($filters['end_date'])) {
+            $query->whereDate('created_at', '<=', $filters['end_date']);
         }
 
         return $query->latest('created_at')->paginate($perPage);

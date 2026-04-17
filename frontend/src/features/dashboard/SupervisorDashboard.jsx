@@ -381,7 +381,12 @@ const SupervisorDashboard = () => {
                   <div>
                     <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{inq.client?.name || 'New Lead'}</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Agent: {inq.agent?.name} • {inq.airline_inquiry || inq.call_type}
+                      Agent: {inq.agent?.name} • {
+                        [
+                          ...(Array.isArray(inq.call_type) ? inq.call_type : (inq.call_type ? [inq.call_type] : [])),
+                          ...(Array.isArray(inq.airline_inquiry) ? inq.airline_inquiry : (inq.airline_inquiry ? [inq.airline_inquiry] : []))
+                        ].filter(Boolean).join(', ') || 'General Inquiry'
+                      }
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>

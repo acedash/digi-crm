@@ -121,12 +121,13 @@ const ConfirmModal = ({
               padding: '16px 32px 32px', 
               display: 'flex', 
               gap: '12px',
+              justifyContent: 'center',
               background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.02))'
             }}>
               <Button 
                 variant="ghost" 
                 onClick={onClose} 
-                className="flex-1"
+                style={{ flex: 1 }}
                 disabled={isLoading}
               >
                 {cancelLabel}
@@ -134,7 +135,7 @@ const ConfirmModal = ({
               <Button 
                 variant={style.btn} 
                 onClick={onConfirm} 
-                className="flex-1"
+                style={{ flex: 1 }}
                 isLoading={isLoading}
                 icon={Check}
               >

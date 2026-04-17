@@ -50,6 +50,8 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [showCallLog, setShowCallLog] = useState(false);
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const exportDropdownRef = React.useRef(null);
   const [selectedBookingForCall, setSelectedBookingForCall] = useState(null);
   const [reassignModal, setReassignModal] = useState({ open: false, bookingId: null, currentAgentId: null });
   const [handoffRemark, setHandoffRemark] = useState('');
@@ -75,6 +77,17 @@ const BookingList = ({ onCreate, onEdit }) => {
     last_page: 1,
     per_page: 15,
     total: 0
+  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [stats, setStats] = useState({
+    Total: 0,
+    Approved: 0,
+    Drafts: 0,
+    Pending: 0,
+    'Work Pending': 0,
+    Completed: 0,
+    Rejected: 0
   });
 
   const filteredBookings = bookings.filter(booking => {
@@ -118,19 +131,24 @@ const BookingList = ({ onCreate, onEdit }) => {
         page, 
         per_page: pagination.per_page,
         search: debouncedSearchTerm,
+        start_date: startDate,
+        end_date: endDate
       });
       const result = response.data.data;
       
       if (result && result.data) {
-        setBookings(result.data);
+        setBookings(result.data.data);
         setPagination({
-          current_page: result.current_page,
-          last_page: result.last_page,
-          per_page: result.per_page,
-          total: result.total
+          current_page: result.data.current_page,
+          last_page: result.data.last_page,
+          per_page: result.data.per_page,
+          total: result.data.total
         });
+        if (result.stats) {
+          setStats(result.stats);
+        }
       } else {
-        setBookings(Array.isArray(result) ? result : []);
+        setBookings([]);
       }
     } catch (error) {
       console.error('Failed to fetch bookings:', error);
@@ -142,7 +160,19 @@ const BookingList = ({ onCreate, onEdit }) => {
 
   useEffect(() => {
     fetchBookings(pagination.current_page);
-  }, [pagination.current_page, fetchBookings]);
+  }, [pagination.current_page, startDate, endDate, fetchBookings]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
+        setShowExportOptions(false);
+      }
+    };
+    if (showExportOptions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportOptions]);
 
   useEffect(() => {
     const flash = routeLocation.state?.flash;
@@ -225,6 +255,7 @@ const BookingList = ({ onCreate, onEdit }) => {
           setToast({ message: `Approval email sent to ${booking.client?.email || 'client'}`, type: 'success' });
           setConfirmModal({ open: false });
         } catch (error) {
+          setConfirmModal({ open: false });
           setToast({
             message: error?.response?.data?.message || 'Failed to send approval email',
             type: 'error',
@@ -298,6 +329,7 @@ const BookingList = ({ onCreate, onEdit }) => {
           setConfirmModal({ open: false });
           fetchBookings(pagination.current_page);
         } catch (error) {
+          setConfirmModal({ open: false });
           setToast({
             message: error?.response?.data?.message || `Failed to send ${action.label.toLowerCase()} email`,
             type: 'error',
@@ -338,6 +370,7 @@ const BookingList = ({ onCreate, onEdit }) => {
     'Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Change Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' },
+    'Work Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' },
     'Draft': { icon: FileText, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)', shadow: 'rgba(148, 163, 184, 0.2)' }
   };
 
@@ -361,6 +394,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       case 'Cancelled':
         return 'Booking has been cancelled and is no longer active.';
       case 'Completed':
+      case 'Work Completed':
         return 'Trip workflow has been completed successfully.';
       case 'Draft':
         return 'Booking is an incomplete draft. Finish client and service details to confirm.';
@@ -398,7 +432,11 @@ const BookingList = ({ onCreate, onEdit }) => {
         boxShadow: `0 4px 12px ${config.shadow}`
       }}>
         <Icon size={12} strokeWidth={3} />
-        {status === 'Pending' ? 'Email Send Pending' : status}
+        {status === 'Pending' ? 'Email Send Pending' : 
+         status === 'Awaiting Approval' ? 'Pending approval' :
+         status === 'Approved' ? 'Initial approval by client' : 
+         status === 'Completed' ? 'Work Completed' : 
+         status}
       </div>
     );
   };
@@ -535,12 +573,9 @@ const BookingList = ({ onCreate, onEdit }) => {
             onChange={e => setSelectedReassignAgent(e.target.value)}
             style={{ 
               width: '100%', 
-              padding: '12px 40px 12px 16px', 
+              padding: '12px 16px', 
               borderRadius: '12px', 
               background: 'var(--bg-app)', 
-              backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2394a3b8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'m6 9 6 6 6-6\'/%3E%3C/svg%3E")',
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 16px center',
               border: '1px solid var(--border-color)', 
               color: 'var(--text-main)', 
               outline: 'none', 
@@ -621,36 +656,52 @@ const BookingList = ({ onCreate, onEdit }) => {
       </div>
 
       {/* Stats Quick View */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+        gap: '20px', 
+        marginBottom: '40px' 
+      }}>
         {[
-          { label: 'Total Bookings', value: bookings.length, icon: Package, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' },
+          { label: 'Total Bookings', value: stats.Total, icon: Package, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
           {
             label: 'Approved',
-            value: bookings.filter(
-              (b) => b.status === 'Approved' || b.status === 'Confirmed' || b.status === 'Change Approved'
-            ).length,
+            value: stats.Approved,
             icon: CheckCircle2,
             color: '#06B68A',
             bg: 'rgba(6, 182, 138, 0.1)'
           },
           {
+            label: 'Work Pending',
+            value: stats['Work Pending'],
+            icon: Clock,
+            color: '#ec4899',
+            bg: 'rgba(236, 72, 153, 0.1)'
+          },
+          {
+            label: 'Work Completed',
+            value: stats.Completed,
+            icon: CheckCircle2,
+            color: '#3b82f6',
+            bg: 'rgba(59, 130, 246, 0.1)'
+          },
+          {
             label: 'Drafts',
-            value: bookings.filter((b) => b.status === 'Draft').length,
+            value: stats.Drafts,
             icon: FileText,
             color: '#94a3b8',
             bg: 'rgba(148, 163, 184, 0.1)'
           },
-            { label: 'Booking Only',
-            value: bookings.filter((b) => b.status === 'Pending').length,
+          {
+            label: 'Booking Only',
+            value: stats.Pending,
             icon: Clock,
             color: '#f59e0b',
             bg: 'rgba(245, 158, 11, 0.1)'
           },
           {
-            label: 'Rejected',
-            value: bookings.filter(
-              (b) => b.status === 'Rejected' || b.status === 'Change Rejected' || b.status === 'Cancelled'
-            ).length,
+            label: 'Rejected / Cancel',
+            value: stats.Rejected,
             icon: XCircle,
             color: '#ef4444',
             bg: 'rgba(239, 68, 68, 0.1)'
@@ -675,74 +726,119 @@ const BookingList = ({ onCreate, onEdit }) => {
         ))}
       </div>
 
-      {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '300px', maxWidth: '600px' }}>
-          <Input 
-            placeholder="Search by ID, reference, client name, or PNR..." 
-            icon={Search}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onClear={() => setSearchTerm('')}
-            style={{ marginBottom: '24px' }}
-          />
-          
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '20px' }}>
-            {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Completed', 'Cancelled'].map(status => (
-              <button 
-                key={status}
-                onClick={() => setFilterType(status)}
-                style={{ 
-                  padding: '6px 14px', 
-                  borderRadius: '100px', 
-                  background: filterType === status ? 'hsl(var(--primary))' : 'var(--bg-card)', 
-                  color: filterType === status ? 'white' : 'var(--text-muted)',
-                  border: '1px solid var(--border-color)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+      {/* Toolbar Area */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '40px' }}>
+        {/* Row 1: Primary Search, Dates, Refresh, Export */}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '300px', maxWidth: '400px' }}>
+            <Input 
+              placeholder="Search by ID, reference, client name, or PNR..." 
+              icon={Search}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClear={() => setSearchTerm('')}
+              style={{ marginBottom: 0 }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ width: '190px' }}>
+              <Input 
+                type="date"
+                icon={Calendar}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                style={{ marginBottom: 0 }}
+              />
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: 700 }}>to</div>
+            <div style={{ width: '190px' }}>
+              <Input 
+                type="date"
+                icon={Calendar}
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                style={{ marginBottom: 0 }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: 'auto' }}>
+            <Button 
+              variant="glass" 
+              icon={RefreshCw} 
+              onClick={() => fetchBookings(pagination.current_page)}
+              isLoading={loading}
+              title="Refresh List"
+            />
+            
+            <div style={{ position: 'relative' }} ref={exportDropdownRef}>
+              <Button 
+                variant="primary" 
+                icon={Download} 
+                onClick={() => setShowExportOptions(!showExportOptions)}
               >
-                {status === 'Pending' ? 'Email Send Pending' : status}
-              </button>
-            ))}
+                Export List
+              </Button>
+              {showExportOptions && (
+                <div style={{ 
+                  position: 'absolute', 
+                  top: 'calc(100% + 8px)', 
+                  right: 0, 
+                  backgroundColor: '#1e2235', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '12px', 
+                  padding: '4px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '2px', 
+                  boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', 
+                  minWidth: '200px',
+                  zIndex: 1000
+                }}>
+                  <button onClick={() => { exportHandlers.pdf(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                    <FileText size={16} /> Export as PDF Report
+                  </button>
+                  <button onClick={() => { exportHandlers.excel(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#10b981', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                    <FileSpreadsheet size={16} /> Export as Excel Data
+                  </button>
+                  <button onClick={() => { exportHandlers.json(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#3b82f6', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                    <FileJson size={16} /> Export Raw JSON
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Button variant="outline" size="sm" icon={RefreshCw} onClick={() => fetchBookings(pagination.current_page)}>Refresh</Button>
-          <div style={{ height: '32px', width: '1px', background: 'var(--border-color)', margin: '0 8px' }} />
           
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              icon={FileSpreadsheet} 
-              onClick={() => exportHandlers.excel()}
-              style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.05)' }}
+        {/* Row 2: Status Chips */}
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+          {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Work Pending', 'Completed', 'Cancelled'].map(status => (
+            <button 
+              key={status}
+              onClick={() => setFilterType(status)}
+              style={{ 
+                padding: '6px 14px', 
+                borderRadius: '100px', 
+                background: filterType === status ? 'hsl(var(--primary))' : 'var(--bg-card)', 
+                color: filterType === status ? 'white' : 'var(--text-muted)',
+                border: '1px solid var(--border-color)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
             >
-              Excel
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              icon={FileText} 
-              onClick={() => exportHandlers.pdf()}
-              style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.05)' }}
-            >
-              PDF
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              icon={FileJson} 
-              onClick={() => exportHandlers.json()}
-              style={{ color: '#3b82f6', background: 'rgba(59, 130, 246, 0.05)' }}
-            >
-              JSON
-            </Button>
-          </div>
+              {status === 'all' ? 'All' : 
+               status === 'Pending' ? 'Email Send Pending' : 
+               status === 'Awaiting Approval' ? 'Pending approval' :
+               status === 'Approved' ? 'Initial approval by client' : 
+               status === 'Completed' ? 'Work Completed' : 
+               status}
+            </button>
+          ))}
         </div>
       </div>
 

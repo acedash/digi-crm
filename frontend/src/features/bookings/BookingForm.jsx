@@ -28,6 +28,10 @@ const createEmptyFlightSegment = () => ({
   destination: '',
   departure_at: '',
   arrival_at: '',
+  seat_number: '',
+  personal_item: '',
+  carry_on: '',
+  checkin_bags: '',
   ticket_images: [],
   ticket_previews: [],
 });
@@ -57,6 +61,10 @@ const normalizeFlightSegments = (segments = []) => {
       destination: segment.destination || segment.arrival_city || '',
       departure_at: segment.departure_at || '',
       arrival_at: segment.arrival_at || '',
+      seat_number: segment.seat_number || '',
+      personal_item: segment.personal_item || '',
+      carry_on: segment.carry_on || '',
+      checkin_bags: segment.checkin_bags || '',
       ticket_image: segment.ticket_image || (images.length > 0 ? images[0] : ''),
       ticket_images: images,
       ticket_previews: images.map(img => buildStoredImagePreview(img)),
@@ -119,9 +127,81 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     markup: 0,
     sell: 0
   });
-  const [hotel, setHotel] = useState({ active: false, name: '', city: '', address: '', room_type: '', images: [], image_previews: [], checkin: '', checkout: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
-  const [vehicle, setVehicle] = useState({ active: false, company: '', model: '', images: [], image_previews: [], pickup_loc: '', drop_loc: '', pickup_date: '', dropoff_date: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
-  const [cruise, setCruise] = useState({ active: false, line: '', ship: '', images: [], image_previews: [], departure_date: '', arrival_date: '', deposit_amount: '', remarks: '', change_type: '', change_summary: '', additional_charge: '', cost: 0, markup: 0, sell: 0 });
+  const [hotel, setHotel] = useState({ 
+    active: false, 
+    name: '', 
+    city: '', 
+    address: '', 
+    room_type: '', 
+    images: [], 
+    image_previews: [], 
+    checkin: '', 
+    checkout: '', 
+    booking_confirmation: '',
+    room_count: 1,
+    adult_count: 1,
+    child_count: 0,
+    children_ages: '',
+    remarks: '', 
+    change_type: '', 
+    change_summary: '', 
+    additional_charge: '', 
+    cost: 0, 
+    markup: 0, 
+    sell: 0 
+  });
+  const [vehicle, setVehicle] = useState({ 
+    active: false, 
+    company: '', 
+    model: '', 
+    images: [], 
+    image_previews: [], 
+    pickup_loc: '', 
+    drop_loc: '', 
+    pickup_date: '', 
+    dropoff_date: '', 
+    driver_name: '',
+    driver_dob: '',
+    adult_count: 0,
+    child_count: 0,
+    infant_count: 0,
+    pay_now_amount: 0,
+    pay_at_pickup_amount: 0,
+    remarks: '', 
+    change_type: '', 
+    change_summary: '', 
+    additional_charge: '', 
+    cost: 0, 
+    markup: 0, 
+    sell: 0 
+  });
+  const [cruise, setCruise] = useState({ 
+    active: false, 
+    line: '', 
+    ship: '', 
+    departure_port: '',
+    room_type: '',
+    deck_number: '',
+    room_number: '',
+    room_count: 1,
+    adult_count: 1,
+    child_count: 0,
+    children_dob: '',
+    images: [], 
+    image_previews: [], 
+    departure_date: '', 
+    arrival_date: '', 
+    deposit_amount: '', 
+    due_amount: '',
+    due_date: '',
+    remarks: '', 
+    change_type: '', 
+    change_summary: '', 
+    additional_charge: '', 
+    cost: 0, 
+    markup: 0, 
+    sell: 0 
+  });
   
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const [existingServiceFlags, setExistingServiceFlags] = useState({
@@ -221,8 +301,16 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           }
         });
 
-        const payload = response.data?.data?.data || response.data?.data || [];
-        setExistingClientResults(Array.isArray(payload) ? payload.slice(0, 8) : []);
+        // With ClientService adding stats, the paginator items might be located at response.data.data.data.data
+        const resData = response.data?.data;
+        let payload = [];
+        if (resData) {
+          if (Array.isArray(resData)) payload = resData;
+          else if (Array.isArray(resData.data)) payload = resData.data; // Standard paginator
+          else if (resData.data && Array.isArray(resData.data.data)) payload = resData.data.data; // Wrapped with stats
+        }
+        
+        setExistingClientResults(payload.slice(0, 8));
       } catch {
         setExistingClientResults([]);
       } finally {
@@ -353,8 +441,13 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 room_type: details.room_type ?? '',
                 images: s.details_json?.images ?? [],
                 image_previews: (s.details_json?.images ?? []).map((image) => buildStoredImagePreview(image)).filter(Boolean),
-                checkin: s.details_json?.checkin ?? '',
-                checkout: s.details_json?.checkout ?? '',
+                checkin: s.details_json?.checkin ?? details.check_in_at ?? '',
+                checkout: s.details_json?.checkout ?? details.check_out_at ?? '',
+                booking_confirmation: details.booking_confirmation ?? s.details_json?.booking_confirmation ?? '',
+                room_count: details.room_count ?? s.details_json?.room_count ?? 1,
+                adult_count: details.adult_count ?? s.details_json?.adult_count ?? 1,
+                child_count: details.child_count ?? s.details_json?.child_count ?? 0,
+                children_ages: details.children_ages ?? s.details_json?.children_ages ?? '',
                 remarks: s.details_json?.remarks ?? '',
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
@@ -371,10 +464,17 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 model: details.car_type ?? details.model ?? '',
                 images: s.details_json?.images ?? [],
                 image_previews: (s.details_json?.images ?? []).map((image) => buildStoredImagePreview(image)).filter(Boolean),
-                pickup_loc: s.details_json?.pickup_loc ?? '',
-                drop_loc: s.details_json?.drop_loc ?? '',
-                pickup_date: s.details_json?.pickup_date ?? '',
-                dropoff_date: s.details_json?.dropoff_date ?? '',
+                pickup_loc: s.details_json?.pickup_loc ?? details.pickup_location ?? '',
+                drop_loc: s.details_json?.drop_loc ?? details.drop_off_location ?? '',
+                pickup_date: s.details_json?.pickup_date ?? details.pickup_at ?? '',
+                dropoff_date: s.details_json?.dropoff_date ?? details.drop_off_at ?? '',
+                driver_name: details.driver_name ?? s.details_json?.driver_name ?? '',
+                driver_dob: details.driver_dob ?? s.details_json?.driver_dob ?? '',
+                adult_count: details.adult_count ?? s.details_json?.adult_count ?? 0,
+                child_count: details.child_count ?? s.details_json?.child_count ?? 0,
+                infant_count: details.infant_count ?? s.details_json?.infant_count ?? 0,
+                pay_now_amount: details.pay_now_amount ?? s.details_json?.pay_now_amount ?? 0,
+                pay_at_pickup_amount: details.pay_at_pickup_amount ?? s.details_json?.pay_at_pickup_amount ?? 0,
                 remarks: s.details_json?.remarks ?? '',
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
@@ -391,9 +491,19 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 ship: details.cruise_name ?? details.ship ?? '',
                 images: s.details_json?.images ?? [],
                 image_previews: (s.details_json?.images ?? []).map((image) => buildStoredImagePreview(image)).filter(Boolean),
-                departure_date: s.details_json?.departure_date ?? '',
-                arrival_date: s.details_json?.arrival_date ?? '',
-                deposit_amount: s.details_json?.deposit_amount ?? '',
+                departure_date: s.details_json?.departure_date ?? details.departure_at ?? '',
+                arrival_date: s.details_json?.arrival_date ?? details.arrival_at ?? '',
+                departure_port: details.departure_port ?? s.details_json?.departure_port ?? '',
+                room_type: details.room_type ?? s.details_json?.room_type ?? '',
+                deck_number: details.deck_number ?? s.details_json?.deck_number ?? '',
+                room_number: details.room_number ?? s.details_json?.room_number ?? '',
+                room_count: details.room_count ?? s.details_json?.room_count ?? 1,
+                adult_count: details.adult_count ?? s.details_json?.adult_count ?? 1,
+                child_count: details.child_count ?? s.details_json?.child_count ?? 0,
+                children_dob: details.children_dob ?? s.details_json?.children_dob ?? '',
+                deposit_amount: details.deposit_amount ?? s.details_json?.deposit_amount ?? '',
+                due_amount: details.due_amount ?? s.details_json?.due_amount ?? '',
+                due_date: details.due_date ?? s.details_json?.due_date ?? '',
                 remarks: s.details_json?.remarks ?? '',
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
@@ -968,7 +1078,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '120px' }}>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', paddingBottom: '120px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
         <Button variant="ghost" icon={ArrowLeft} onClick={onCancel}>Back</Button>
         <h2 style={{ fontSize: '28px', fontWeight: 800 }}>{bookingId ? 'Edit' : 'Create'} <span className="premium-gradient-text">Booking</span></h2>
@@ -1287,7 +1397,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                   { holder_name: '', number: '', exp: '', cvv: '', amount: '', remarks: '', isNew: true }
                 ]))}
               >
-                + Add New Card For This Change
+                Add New Card For This Change
               </Button>
             </div>
 

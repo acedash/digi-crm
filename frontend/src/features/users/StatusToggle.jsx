@@ -30,6 +30,7 @@ const StatusToggle = () => {
     { name: 'Active', color: '#06B68A', icon: Circle, activityType: 'break_end' },
     { name: 'On Call', color: '#facc15', icon: Phone, activityType: 'on_call' },
     { name: 'Break', color: '#f87171', icon: Coffee, activityType: 'break_start' },
+    { name: 'Week Off', color: '#8b5cf6', icon: Clock, activityType: 'week_off' },
     { name: 'Idle', color: '#94a3b8', icon: Clock, activityType: 'idle' },
   ];
 

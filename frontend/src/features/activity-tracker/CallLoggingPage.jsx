@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, Briefcase, Download } from 'lucide-react';
+import { PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, Briefcase, Download, MoreHorizontal, FileText, Table } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -12,6 +15,8 @@ const CallLoggingPage = () => {
   const [exporting, setExporting] = useState(false);
   const [logs, setLogs] = useState([]);
   const [clients, setClients] = useState([]);
+  const [toast, setToast] = useState(null);
+  const [showExportOptions, setShowExportOptions] = useState(false);
   const [scopeFilter, setScopeFilter] = useState('all');
   const [formData, setFormData] = useState({
     log_scope: 'general',
@@ -20,15 +25,15 @@ const CallLoggingPage = () => {
     contact_email: '',
     contact_phone: '',
     lead_source: '',
-    call_type: 'Flight',
-    airline_inquiry: '',
+    call_type: ['Flight'],
+    airline_inquiry: {},
     customer_outcome: 'Inquiry only',
     notes: '',
     callback_required: false,
     callback_datetime: ''
   });
 
-  const callTypes = ['Flight', 'Hotel', 'Cruise', 'General Inquiry'];
+  const callTypes = ['Flight', 'Hotel', 'Cruise', 'Car Rental', 'General Inquiry'];
   const outcomes = [
     'Booking created',
     'Inquiry only',
@@ -55,6 +60,13 @@ const CallLoggingPage = () => {
     fetchClients();
   }, [fetchClients, fetchLogs]);
 
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -67,8 +79,8 @@ const CallLoggingPage = () => {
         contact_email: '',
         contact_phone: '',
         lead_source: '',
-        call_type: 'Flight',
-        airline_inquiry: '',
+        call_type: ['Flight'],
+        airline_inquiry: {},
         customer_outcome: 'Inquiry only',
         notes: '',
         callback_required: false,
@@ -82,7 +94,7 @@ const CallLoggingPage = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExportCsv = async () => {
     try {
       setExporting(true);
       const response = await callLogService.exportCallLogs(scopeFilter);
@@ -91,23 +103,79 @@ const CallLoggingPage = () => {
       const link = document.createElement('a');
       const scopeLabel = scopeFilter === 'all' ? 'all' : scopeFilter;
       link.href = url;
-      link.setAttribute('download', `call-logs-${scopeLabel}.csv`);
+      link.setAttribute('download', `call-logs-${scopeLabel}-${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      sensitiveAuditService.logEvent({
-        event_type: 'Sensitive Export',
-        module: 'Call Logs',
-        description: 'Exported call logs CSV',
-        details: {
-          scope: scopeFilter,
-        },
-      }).catch(() => {});
+      setToast({ message: 'CSV exported successfully!', type: 'success' });
     } catch {
-      alert('Failed to export call logs');
+      setToast({ message: 'Failed to export CSV', type: 'error' });
     } finally {
       setExporting(false);
+      setShowExportOptions(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const data = logs.map(log => ({
+        Date: new Date(log.created_at).toLocaleString(),
+        Scope: log.log_scope === 'general' ? 'Marketing' : 'Booking',
+        Client: log.client ? `${log.client.first_name} ${log.client.last_name}` : log.contact_name,
+        Contact: log.contact_phone || log.client?.phone || '',
+        Types: (log.call_type || []).join(', '),
+        Inquiries: typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k,v]) => `${k}: ${v}`).join(' | ') : log.airline_inquiry,
+        Outcome: log.customer_outcome,
+        Notes: log.notes
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Call Logs");
+      XLSX.writeFile(wb, `call-logs-${scopeFilter}-${new Date().toISOString().split('T')[0]}.xlsx`);
+      setToast({ message: 'Excel exported successfully!', type: 'success' });
+    } catch (e) {
+      console.error(e);
+      setToast({ message: 'Failed to export Excel', type: 'error' });
+    } finally {
+      setShowExportOptions(false);
+    }
+  };
+
+  const handleExportPdf = () => {
+    try {
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text("Call Logging Activity Report", 14, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Scope: ${scopeFilter.toUpperCase()} | Generated: ${new Date().toLocaleString()}`, 14, 30);
+      
+      const tableRows = logs.map(log => [
+        new Date(log.created_at).toLocaleDateString(),
+        log.client ? `${log.client.first_name} ${log.client.last_name}` : (log.contact_name || 'Unknown'),
+        (Array.isArray(log.call_type) ? log.call_type : [log.call_type]).join(', '),
+        log.customer_outcome,
+        log.notes || ''
+      ]);
+
+      autoTable(doc, {
+        startY: 40,
+        head: [['Date', 'Contact', 'Categories', 'Outcome', 'Notes']],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [37, 99, 235] }, // Use RGB for consistency
+        styles: { fontSize: 8 }
+      });
+
+      doc.save(`call-logs-${scopeFilter}-${new Date().toISOString().split('T')[0]}.pdf`);
+      setToast({ message: 'PDF exported successfully!', type: 'success' });
+    } catch (e) {
+      console.error(e);
+      setToast({ message: 'Failed to export PDF', type: 'error' });
+    } finally {
+      setShowExportOptions(false);
     }
   };
 
@@ -116,14 +184,49 @@ const CallLoggingPage = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: '32px', fontWeight: 800 }}>Call <span className="premium-gradient-text">Logging</span></h1>
-          <Button
-            variant="secondary"
-            icon={Download}
-            onClick={handleExport}
-            isLoading={exporting}
-          >
-            Export CSV
-          </Button>
+          
+          <div style={{ position: 'relative' }}>
+            <Button
+              variant="secondary"
+              icon={Download}
+              onClick={() => setShowExportOptions(!showExportOptions)}
+              isLoading={exporting}
+            >
+              Export
+            </Button>
+            
+            {showExportOptions && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: '8px',
+                background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                borderRadius: '12px', padding: '8px', zIndex: 100, width: '180px',
+                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+              }}>
+                {[
+                  { label: 'CSV Format', icon: FileText, action: handleExportCsv },
+                  { label: 'Excel (XLSX)', icon: Table, action: handleExportExcel },
+                  { label: 'PDF Report', icon: MoreHorizontal, action: handleExportPdf },
+                ].map(opt => (
+                  <button 
+                    key={opt.label}
+                    onClick={opt.action}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '8px 12px', border: 'none', background: 'transparent',
+                      color: 'var(--text-main)', fontSize: '12px', fontWeight: 600,
+                      textAlign: 'left', cursor: 'pointer', borderRadius: '8px',
+                      hover: { background: 'var(--bg-input)' }
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <opt.icon size={14} />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -162,36 +265,120 @@ const CallLoggingPage = () => {
                 border: '1px solid var(--border-color)',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                flexDirection: 'column'
               }}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
                   <div style={{ 
-                    width: '36px', height: '36px', borderRadius: '12px', 
-                    background: log.call_type === 'Inbound' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                    color: log.call_type === 'Inbound' ? '#22c55e' : '#3b82f6',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    width: '36px', height: '36px', borderRadius: '12px', flexShrink: 0,
+                    background: log.call_type?.includes('Inbound') ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                    color: log.call_type?.includes('Inbound') ? '#22c55e' : '#3b82f6',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '4px'
                   }}>
-                    {log.call_type === 'Inbound' ? <PhoneIncoming size={18} /> : <PhoneOutgoing size={18} />}
+                    {log.call_type?.includes('Inbound') ? <PhoneIncoming size={18} /> : <PhoneOutgoing size={18} />}
                   </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px' }}>
-                      {log.client
-                        ? `${log.client.first_name || ''} ${log.client.last_name || ''}`.trim() || log.client.name
-                        : log.contact_name || log.contact_email || log.contact_phone || 'Unknown Caller'}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ fontWeight: 800, fontSize: '15px' }}>
+                        {log.client
+                          ? `${log.client.first_name || ''} ${log.client.last_name || ''}`.trim() || log.client.name
+                          : log.contact_name || log.contact_email || log.contact_phone || 'Unknown Caller'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        {new Date(log.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {log.log_scope === 'general' ? 'Marketing Call' : 'Booking Call'} • {log.customer_outcome} • {new Date(log.created_at).toLocaleString()}
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', margin: '8px 0' }}>
+                      {(Array.isArray(log.call_type) ? log.call_type : [log.call_type]).map(t => (
+                        <span key={t} style={{ 
+                          fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', 
+                          background: t === 'Flight' ? 'rgba(59, 130, 246, 0.1)' : 
+                                      t === 'Hotel' ? 'rgba(139, 92, 246, 0.1)' : 
+                                      t === 'Cruise' ? 'rgba(236, 72, 153, 0.1)' :
+                                      t === 'Car Rental' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                          color: t === 'Flight' ? '#3b82f6' : 
+                                 t === 'Hotel' ? '#8b5cf6' : 
+                                 t === 'Cruise' ? '#ec4899' :
+                                 t === 'Car Rental' ? '#f59e0b' : 'var(--text-muted)',
+                          border: `1px solid currentColor`, textTransform: 'uppercase'
+                        }}>
+                          {t}
+                        </span>
+                      ))}
                     </div>
-                    {log.log_scope === 'general' && (log.contact_email || log.contact_phone || log.lead_source) && (
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        {[log.contact_email, log.contact_phone, log.lead_source].filter(Boolean).join(' • ')}
+
+                    {/* Inquiry Details Upfront */}
+                    {typeof log.airline_inquiry === 'object' && log.airline_inquiry !== null && Object.keys(log.airline_inquiry).length > 0 && (
+                      <div style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {Object.entries(log.airline_inquiry).map(([cat, detail]) => detail && (
+                          <div key={cat} style={{ fontSize: '12px', background: 'var(--bg-app)', padding: '6px 12px', borderRadius: '8px', borderLeft: '3px solid hsl(var(--primary))' }}>
+                            <span style={{ fontWeight: 800, color: 'hsl(var(--primary))', fontSize: '10px', textTransform: 'uppercase', marginRight: '8px' }}>{cat}:</span>
+                            <span style={{ color: 'var(--text-main)' }}>{detail}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Notes Upfront */}
+                    {log.notes && (
+                      <div style={{ fontSize: '12px', color: 'var(--text-main)', fontStyle: 'italic', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', marginBottom: '10px' }}>
+                        "{log.notes}"
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 700, color: log.log_scope === 'general' ? '#ec4899' : '#8b5cf6' }}>
+                        {log.log_scope === 'general' ? 'MARKETING' : 'BOOKING'}
+                      </span>
+                      <span>•</span>
+                      <span>{log.customer_outcome}</span>
+                      {log.agent && (
+                        <>
+                          <span>•</span>
+                          <span>By {log.agent.name}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Callback Action Bar */}
+                    {log.callback_required && (
+                      <div style={{ 
+                        marginTop: '12px', padding: '10px', borderRadius: '12px', 
+                        background: 'rgba(239, 68, 68, 0.05)', border: '1px dashed rgba(239, 68, 68, 0.3)',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '10px', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '6px', fontWeight: 900 }}>CALLBACK</span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444' }}>
+                               {log.contact_phone || log.client?.phone || 'No phone'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                               Scheduled: {log.callback_datetime ? new Date(log.callback_datetime).toLocaleString() : 'Not set'}
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const num = log.contact_phone || log.client?.phone;
+                            if (num) {
+                              navigator.clipboard.writeText(num);
+                              setToast({ message: 'Number copied!', type: 'success' });
+                            }
+                          }}
+                          style={{
+                            padding: '6px 12px', borderRadius: '8px', background: 'white', color: '#1e293b', 
+                            border: '1px solid #e2e8f0', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '4px'
+                          }}
+                        >
+                          Copy Number
+                        </button>
                       </div>
                     )}
                   </div>
                 </div>
-                {log.callback_required && (
-                  <span style={{ fontSize: '10px', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '100px', fontWeight: 800 }}>CALLBACK</span>
-                )}
               </div>
             )) : <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>No recent call logs found.</p>}
           </div>
@@ -282,32 +469,47 @@ const CallLoggingPage = () => {
             )}
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {callTypes.map(t => (
-                <button 
-                  key={t}
-                  type="button"
-                  onClick={() => setFormData({...formData, call_type: t})}
-                  style={{
-                    padding: '8px 12px', borderRadius: '10px', border: '1px solid',
-                    borderColor: formData.call_type === t ? 'hsl(var(--primary))' : 'var(--border-color)',
-                    background: formData.call_type === t ? 'hsla(var(--primary), 0.1)' : 'transparent',
-                    color: formData.call_type === t ? 'hsl(var(--primary))' : 'var(--text-muted)',
-                    fontSize: '11px', fontWeight: 700, cursor: 'pointer'
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
+              {callTypes.map(t => {
+                const isSelected = formData.call_type.includes(t);
+                return (
+                  <button 
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                        const newTypes = isSelected 
+                          ? formData.call_type.filter(x => x !== t)
+                          : [...formData.call_type, t];
+                        setFormData({ ...formData, call_type: newTypes.length > 0 ? newTypes : ['General Inquiry'] });
+                    }}
+                    style={{
+                      padding: '8px 12px', borderRadius: '10px', border: '1px solid',
+                      borderColor: isSelected ? 'hsl(var(--primary))' : 'var(--border-color)',
+                      background: isSelected ? 'hsla(var(--primary), 0.1)' : 'transparent',
+                      color: isSelected ? 'hsl(var(--primary))' : 'var(--text-muted)',
+                      fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+                    }}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
             </div>
 
-            {formData.call_type === 'Flight' && (
-              <Input 
-                label="Airline Inquiry" 
-                placeholder="e.g. Emirates flight status" 
-                value={formData.airline_inquiry} 
-                onChange={(e) => setFormData({...formData, airline_inquiry: e.target.value})}
-              />
-            )}
+            {formData.call_type.length > 0 && formData.call_type.map(t => (
+              <div key={t} style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, marginBottom: '6px', color: 'hsl(var(--primary))', textTransform: 'uppercase' }}>{t} Inquiry</label>
+                <input 
+                  type="text"
+                  placeholder={`Details for ${t.toLowerCase()}...`}
+                  value={formData.airline_inquiry[t] || ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    airline_inquiry: { ...formData.airline_inquiry, [t]: e.target.value }
+                  })}
+                  style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
+                />
+              </div>
+            ))}
 
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Outcome</label>
@@ -345,6 +547,17 @@ const CallLoggingPage = () => {
           </form>
         </Card>
       </div>
+
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+          background: toast.type === 'success' ? '#22c55e' : '#ef4444', color: 'white',
+          padding: '12px 24px', borderRadius: '12px', fontWeight: 700, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+          zIndex: 9999
+        }}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 };

@@ -11,6 +11,17 @@ class Car extends Model
         'car_type',
         'company',
         'capacity',
-        'price_per_day'
+        'price_per_day',
+        'pickup_location',
+        'drop_off_location',
+        'pickup_at',
+        'drop_off_at',
+        'driver_name',
+        'driver_dob',
+        'adult_count',
+        'child_count',
+        'infant_count',
+        'pay_now_amount',
+        'pay_at_pickup_amount'
     ];
 }

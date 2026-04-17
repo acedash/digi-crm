@@ -367,7 +367,7 @@ const ChargeQueuePage = () => {
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Type</div>
                     <div style={{ fontWeight: 700, color: authType === 'change_charge' ? '#f59e0b' : '#2563eb', marginTop: '4px' }}>
-                      {authType === 'change_charge' ? 'Change Charge' : 'Initial Approval'}
+                      {authType === 'change_charge' ? 'Change Charge' : 'Initial approval by client'}
                     </div>
                   </div>
                   <div>

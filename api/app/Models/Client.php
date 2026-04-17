@@ -66,6 +66,11 @@ class Client extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function latestBooking()
+    {
+        return $this->hasOne(Booking::class)->latestOfMany();
+    }
+
     public function cards()
     {
         return $this->hasMany(ClientCard::class);

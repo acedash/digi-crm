@@ -96,8 +96,10 @@ class CallLogController extends Controller
                         $log->client?->email ?: $log->contact_email,
                         $log->client?->phone ?: $log->contact_phone,
                         $log->lead_source,
-                        $log->call_type,
-                        $log->airline_inquiry,
+                        is_array($log->call_type) ? implode(', ', $log->call_type) : $log->call_type,
+                        is_array($log->airline_inquiry) 
+                            ? collect($log->airline_inquiry)->map(fn($val, $key) => "$key: $val")->implode(' | ') 
+                            : $log->airline_inquiry,
                         $log->customer_outcome,
                         $log->callback_required ? 'Yes' : 'No',
                         $log->callback_datetime,
@@ -119,8 +121,8 @@ class CallLogController extends Controller
             'contact_email' => 'nullable|email|max:255',
             'contact_phone' => 'nullable|string|max:50',
             'lead_source' => 'nullable|string|max:255',
-            'call_type' => 'required|string', // Flight, Hotel, Cruise, General Inquiry
-            'airline_inquiry' => 'nullable|string',
+            'call_type' => 'required', // Now an array or string
+            'airline_inquiry' => 'nullable',
             'customer_outcome' => 'required|string', // Booking created, Inquiry only, Follow up required, Call dropped
             'notes' => 'nullable|string',
             'callback_required' => 'boolean',

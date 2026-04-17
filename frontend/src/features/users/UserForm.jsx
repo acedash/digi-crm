@@ -11,7 +11,8 @@ import {
   X,
   Info,
   ChevronDown,
-  Briefcase
+  Briefcase,
+  CheckCircle2
 } from 'lucide-react';
 import userService from './userService';
 import Button from '../../components/ui/Button';
@@ -231,10 +232,15 @@ const UserForm = ({ user, onClose, onSuccess }) => {
               </section>
 
               <section>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                   <Shield size={18} style={{ color: 'hsl(var(--primary))' }} />
                   <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Access & Security</h3>
                 </div>
+                {user && (
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px', fontStyle: 'italic' }}>
+                    * Leave blank to keep the current password.
+                  </p>
+                )}
                 
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-muted)' }}>
@@ -270,10 +276,11 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                 </div>
 
                 <Input 
-                  label={user ? 'New Password (leave blank to keep current)' : "Account Password"}
+                  label="Account Password"
                   icon={Lock}
                   type="password"
-                  placeholder="••••••••"
+                  placeholder=""
+                  autoComplete="new-password"
                   value={formData.password} 
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   required={!user} 
@@ -394,15 +401,21 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                               </div>
                               <div
                                 style={{
-                                  minWidth: '18px',
-                                  width: '18px',
-                                  height: '18px',
-                                  borderRadius: '999px',
-                                  border: isSelected ? '5px solid #60a5fa' : '2px solid var(--border-color)',
-                                  background: isSelected ? '#ffffff' : 'transparent',
-                                  boxSizing: 'border-box',
+                                  minWidth: '20px',
+                                  width: '20px',
+                                  height: '20px',
+                                  borderRadius: '6px',
+                                  border: isSelected ? 'none' : '2px solid var(--border-color)',
+                                  background: isSelected ? 'hsl(var(--primary))' : 'transparent',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  transition: '0.2s'
                                 }}
-                              />
+                              >
+                                {isSelected && <CheckCircle2 size={14} />}
+                              </div>
                             </button>
                           );
                         })

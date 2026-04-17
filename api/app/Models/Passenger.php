@@ -22,6 +22,7 @@ class Passenger extends Model
         'date_of_birth',
         'gender',
         'title',
+        'type',
     ];
 
     public function getActivitylogOptions(): LogOptions

@@ -23,9 +23,21 @@ class ClientService
         return $this->clientRepository->getAll($search);
     }
 
-    public function listClientDirectory(array $filters = [], $user = null, int $perPage = 15): LengthAwarePaginator
+    public function listClientDirectory(array $filters = [], $user = null, int $perPage = 15): array
     {
-        return $this->clientRepository->getList($filters, $user, $perPage);
+        $paginator = $this->clientRepository->getList($filters, $user, $perPage);
+        
+        // Calculate global stats (Today/Yesterday)
+        $stats = [
+            'total' => \App\Models\Client::count(),
+            'today' => \App\Models\Client::whereDate('created_at', now()->toDateString())->count(),
+            'yesterday' => \App\Models\Client::whereDate('created_at', now()->subDay()->toDateString())->count(),
+        ];
+
+        return [
+            'data' => $paginator,
+            'stats' => $stats
+        ];
     }
 
     public function getClient($id): Client

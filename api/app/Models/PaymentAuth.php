@@ -38,12 +38,27 @@ class PaymentAuth extends Model
         'id_proof_path',
     ];
 
+    protected $appends = ['id_proof_url'];
+
     protected $casts = [
         'approved_at' => 'datetime',
         'collected_at' => 'datetime',
         'metadata' => 'array',
         'consent_snapshot' => 'array',
     ];
+
+    public function getIdProofUrlAttribute()
+    {
+        if (empty($this->id_proof_path)) {
+            return null;
+        }
+
+        if (str_starts_with($this->id_proof_path, 'data:image')) {
+            return $this->id_proof_path;
+        }
+
+        return app(\App\Services\BookingMailContextBuilder::class)->buildStorageUrl($this->id_proof_path);
+    }
 
     protected static function boot()
     {

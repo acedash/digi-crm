@@ -11,6 +11,7 @@ use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use App\Domains\Booking\Models\Booking;
 
 class BookingController extends Controller
 {
@@ -79,14 +80,14 @@ class BookingController extends Controller
         }
     }
 
-    public function reassign(Request $request, $id)
+    public function reassign(Request $request, Booking $booking)
     {
         $request->validate([
             'agent_id' => 'required|exists:users,id',
             'handoff_remark' => 'required|string|max:2000',
         ]);
         try {
-            $booking = $this->bookingService->reassign($id, $request->agent_id, $request->handoff_remark);
+            $booking = $this->bookingService->reassign($booking, $request->agent_id, $request->handoff_remark);
             return $this->successResponse($booking, 'Booking reassigned successfully');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage());

@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Payment Authorizations
     Route::post('/payment-authorizations', [PaymentAuthController::class, 'store']);
     Route::get('/bookings/{booking}/consent-proof', [PaymentAuthController::class, 'proofByBooking']);
+    Route::post('/payment-authorizations/{token}/refresh', [PaymentAuthController::class, 'refreshSnapshot']);
 
     // Bookings
     Route::get('/bookings', [BookingController::class, 'index']);
