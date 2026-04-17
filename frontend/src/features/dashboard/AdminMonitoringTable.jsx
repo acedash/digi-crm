@@ -32,7 +32,7 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
 
   useEffect(() => {
     fetchActivity();
-    const interval = setInterval(fetchActivity, 60000);
+    const interval = setInterval(fetchActivity, 300000); // Every 5 minutes
     return () => clearInterval(interval);
   }, []);
 

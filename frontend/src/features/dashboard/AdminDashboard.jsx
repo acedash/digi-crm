@@ -5,7 +5,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import dashboardService from './dashboardService';
 import AdminMonitoringTable from './AdminMonitoringTable';
-import { AreaChart, Area, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 const COLORS = ['#06B68A', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6'];
 
@@ -87,7 +87,7 @@ const AdminDashboard = () => {
       value: stats.staff.total,
       growth: stats.staff.growth,
       icon: Users,
-      color: 'var(--text-main)',
+      color: '#06B68A',
       onClick: () => navigate('/admin/users')
     },
     {
@@ -96,7 +96,7 @@ const AdminDashboard = () => {
       value: stats.clients.total,
       growth: stats.clients.growth,
       icon: Users,
-      color: '#60a5fa',
+      color: '#06B68A',
       onClick: () => navigate('/admin/clients')
     },
     {
@@ -114,7 +114,7 @@ const AdminDashboard = () => {
       value: stats.calls.total,
       growth: stats.calls.growth,
       icon: PhoneCall,
-      color: '#f59e0b',
+      color: '#06B68A',
       onClick: () => navigate('/admin/call-logs')
     },
     {
@@ -221,7 +221,7 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: '20px', alignItems: 'stretch' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', alignItems: 'stretch' }}>
         {stats.revenue_trends && stats.revenue_trends.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Global Revenue Trends (6 Months)</h3>
@@ -250,6 +250,29 @@ const AdminDashboard = () => {
                   />
                   <Area type="monotone" dataKey="revenue" stroke="#06B68A" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenueAdmin)" />
                 </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
+          <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Pending vs Confirmed Trends</h3>
+            <div style={{ height: '300px', width: '100%', flexGrow: 1 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
+                    itemStyle={{ fontWeight: 700 }}
+                    cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                  />
+                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
+                  <Bar dataKey="Confirmed" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Pending" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>

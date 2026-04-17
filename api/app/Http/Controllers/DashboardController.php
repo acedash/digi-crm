@@ -80,17 +80,20 @@ class DashboardController extends Controller
                     break;
             }
 
-            $getTrend = function ($modelClass, $cStart, $cEnd, $pStart, $pEnd, $countOnly = true) {
-                $query = $modelClass::query();
-                $current = $countOnly 
-                    ? $query->whereBetween('created_at', [$cStart, $cEnd])->count()
-                    : (float) $query->whereBetween('created_at', [$cStart, $cEnd])->sum('total_amount');
+            $getTrend = function ($table, $cStart, $cEnd, $pStart, $pEnd, $valueCol = null) {
+                // Single query using CASE WHEN instead of 2 separate queries
+                $selectRaw = $valueCol
+                    ? "SUM(CASE WHEN created_at BETWEEN ? AND ? THEN {$valueCol} ELSE 0 END) as current_val,
+                       SUM(CASE WHEN created_at BETWEEN ? AND ? THEN {$valueCol} ELSE 0 END) as prev_val"
+                    : "SUM(CASE WHEN created_at BETWEEN ? AND ? THEN 1 ELSE 0 END) as current_val,
+                       SUM(CASE WHEN created_at BETWEEN ? AND ? THEN 1 ELSE 0 END) as prev_val";
 
-                // Fresh query for previous
-                $prevQuery = $modelClass::query();
-                $previous = $countOnly 
-                    ? $prevQuery->whereBetween('created_at', [$pStart, $pEnd])->count()
-                    : (float) $prevQuery->whereBetween('created_at', [$pStart, $pEnd])->sum('total_amount');
+                $row = DB::table($table)
+                    ->selectRaw($selectRaw, [$cStart, $cEnd, $pStart, $pEnd])
+                    ->first();
+
+                $current = $valueCol ? (float) ($row->current_val ?? 0) : (int) ($row->current_val ?? 0);
+                $previous = $valueCol ? (float) ($row->prev_val ?? 0) : (int) ($row->prev_val ?? 0);
 
                 $growth = $previous > 0
                     ? round((($current - $previous) / $previous) * 100, 1)
@@ -99,11 +102,11 @@ class DashboardController extends Controller
                 return ['current' => $current, 'previous' => $previous, 'growth' => $growth];
             };
 
-            $bookingRevenueTrend = $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, false);
-            $bookingCountTrend = $getTrend(Booking::class, $currentStart, $currentEnd, $prevStart, $prevEnd, true);
-            $clientTrend = $getTrend(Client::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
-            $callTrend = $getTrend(CallLog::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
-            $staffTrend = $getTrend(User::class, $currentStart, $currentEnd, $prevStart, $prevEnd);
+            $bookingRevenueTrend = $getTrend('bookings', $currentStart, $currentEnd, $prevStart, $prevEnd, 'total_amount');
+            $bookingCountTrend   = $getTrend('bookings', $currentStart, $currentEnd, $prevStart, $prevEnd, null);
+            $clientTrend         = $getTrend('clients',  $currentStart, $currentEnd, $prevStart, $prevEnd, null);
+            $callTrend           = $getTrend('call_logs', $currentStart, $currentEnd, $prevStart, $prevEnd, null);
+            $staffTrend          = $getTrend('users',    $currentStart, $currentEnd, $prevStart, $prevEnd, null);
 
             $recentBookings = Booking::query()
                 ->select(['id', 'booking_reference', 'client_id', 'agent_id', 'status', 'total_amount', 'currency', 'created_at'])
@@ -124,19 +127,28 @@ class DashboardController extends Controller
                 ->limit(5)
                 ->get();
 
-            $totalStaffAll = User::count();
-            $activeStaff = User::whereIn('status', ['Active', 'On Call', 'active', 'on call'])->count();
-            $totalClientsAll = Client::count();
-            $totalBookingsAll = Booking::count();
-            $totalCallsAll = CallLog::where('log_scope', 'booking')->count();
-            $pendingApprovals = Booking::where('status', 'Pending')->count();
-            $readyToCharge = PaymentAuth::where('status', 'Approved')
-                ->whereNull('collected_at')
-                ->whereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                        ->from('booking_payment_auth')
-                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
-                })->count();
+            // Combine the 5 global count queries into one
+            $globalCounts = DB::selectOne("
+                SELECT
+                    (SELECT COUNT(*) FROM users) as total_staff,
+                    (SELECT COUNT(*) FROM users WHERE LOWER(status) IN ('active', 'on call')) as active_staff,
+                    (SELECT COUNT(*) FROM clients) as total_clients,
+                    (SELECT COUNT(*) FROM bookings) as total_bookings,
+                    (SELECT COUNT(*) FROM call_logs WHERE log_scope = 'booking') as total_calls,
+                    (SELECT COUNT(*) FROM bookings WHERE status = 'Pending') as pending_approvals,
+                    (SELECT COUNT(*) FROM payment_authorizations pa
+                        WHERE pa.status = 'Approved' AND pa.collected_at IS NULL
+                        AND EXISTS (SELECT 1 FROM booking_payment_auth bpa WHERE bpa.payment_auth_id = pa.id)
+                    ) as ready_to_charge
+            ");
+
+            $totalStaffAll    = $globalCounts->total_staff;
+            $activeStaff      = $globalCounts->active_staff;
+            $totalClientsAll  = $globalCounts->total_clients;
+            $totalBookingsAll = $globalCounts->total_bookings;
+            $totalCallsAll    = $globalCounts->total_calls;
+            $pendingApprovals = $globalCounts->pending_approvals;
+            $readyToCharge    = $globalCounts->ready_to_charge;
 
             $isSqlite = config('database.default') === 'sqlite';
             $monthFormat = $isSqlite ? "strftime('%m', created_at)" : "DATE_FORMAT(created_at, '%m')";
@@ -202,6 +214,7 @@ class DashboardController extends Controller
                 'charge_queue' => $chargeQueue,
                 'revenue_trends' => $revenueTrends,
                 'booking_status_distribution' => $bookingStatusDistribution,
+                'booking_status_trends' => $this->getStatusTrends(null, $trendStart, $monthFormat, $yearFormat),
                 'cache_timestamp' => now()->toDateTimeString(),
             ];
         });
@@ -288,6 +301,37 @@ class DashboardController extends Controller
                 ->groupBy('agent_id')
                 ->pluck('total_inquiries', 'agent_id');
 
+            // Categorized inquiry tags per agent
+            $agentInquiryDetails = CallLog::query()
+                ->select('agent_id', 'airline_inquiry', DB::raw('COUNT(*) as count'))
+                ->whereIn('agent_id', $teamIds)
+                ->where('log_scope', 'booking')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->whereNotNull('airline_inquiry')
+                ->where('airline_inquiry', '!=', '')
+                ->groupBy('agent_id', 'airline_inquiry')
+                ->get()
+                ->groupBy('agent_id');
+
+            // Per-agent revenue counts in the period
+            $agentRevenueCounts = Booking::query()
+                ->select('agent_id', DB::raw('SUM(total_amount) as total_revenue'))
+                ->whereIn('agent_id', $teamIds)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupBy('agent_id')
+                ->pluck('total_revenue', 'agent_id');
+
+            // Today's login times via UserActivity
+            $tz = config('app.timezone');
+            $startOfToday = now()->timezone($tz)->startOfDay()->toDateTimeString();
+            $loginActivities = \App\Models\UserActivity::query()
+                ->whereIn('user_id', $teamIds)
+                ->where('activity_type', 'login')
+                ->where('created_at', '>=', $startOfToday)
+                ->orderBy('created_at', 'asc')
+                ->get()
+                ->groupBy('user_id');
+
             // Inquiry Tags Breakdown
             $inquiryTags = CallLog::query()
                 ->select('airline_inquiry', DB::raw('COUNT(*) as count'))
@@ -343,7 +387,18 @@ class DashboardController extends Controller
                 'inquiry_tags' => $inquiryTags,
                 'status_breakdown' => $statusBreakdown,
                 'revenue_trends' => $revenueTrends,
-                'agent_performance' => $agents->map(function ($agent) use ($callCounts, $inquiryCounts, $agentPerfCounts) {
+                'booking_status_trends' => $this->getStatusTrends($teamIds, $trendStart, $monthFormat, $yearFormat),
+                'agent_performance' => $agents->map(function ($agent) use ($callCounts, $inquiryCounts, $agentPerfCounts, $agentInquiryDetails, $loginActivities, $agentRevenueCounts, $tz) {
+                    $inqDetails = $agentInquiryDetails->get($agent->id, collect())->map(function($item) {
+                        return [
+                            'tag' => $item->airline_inquiry,
+                            'count' => $item->count
+                        ];
+                    })->values();
+
+                    $login = $loginActivities->get($agent->id, collect())->first();
+                    $loginTime = $login ? $login->created_at->timezone($tz)->format('h:i A') : '--';
+
                     return [
                         'id' => $agent->id,
                         'name' => $agent->name,
@@ -352,6 +407,9 @@ class DashboardController extends Controller
                         'bookings_count' => (int) ($agentPerfCounts[$agent->id] ?? 0),
                         'calls_count' => (int) ($callCounts[$agent->id] ?? 0),
                         'inquiries_count' => (int) ($inquiryCounts[$agent->id] ?? 0),
+                        'inquiry_details' => $inqDetails,
+                        'revenue' => (float) ($agentRevenueCounts[$agent->id] ?? 0),
+                        'login_time' => $loginTime,
                     ];
                 })->values(),
                 'recent_bookings' => Booking::query()
@@ -525,7 +583,7 @@ class DashboardController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $data = Cache::remember('dashboard.admin-monitor', now()->addSeconds(30), function () {
+        $data = Cache::remember('dashboard.admin-monitor', now()->addMinutes(2), function () {
             $supervisors = User::role('supervisor')
                 ->with(['supervisedAgents' => function ($query) {
                     $query->select('users.id', 'users.status');
@@ -580,5 +638,54 @@ class DashboardController extends Controller
                 'month' => $monthName
             ];
         });
+    }
+
+    private function getStatusTrends($agentIds, $startDate, $monthFormat, $yearFormat)
+    {
+        $allRelevantStatuses = [
+            'Confirmed', 'Approved', 'Completed', 'Change Approved', 
+            'Pending', 'Draft', 'Awaiting Approval', 'Awaiting Change Approval', 'Work Pending'
+        ];
+
+        $query = Booking::query()
+            ->select(
+                DB::raw('COUNT(*) as count'),
+                DB::raw('status'),
+                DB::raw("$monthFormat as month_num"),
+                DB::raw("$yearFormat as year_num")
+            )
+            ->whereIn('status', $allRelevantStatuses)
+            ->where('created_at', '>=', $startDate);
+
+        if ($agentIds !== null) {
+            $query->whereIn('agent_id', $agentIds);
+        }
+
+        $results = $query->groupBy('year_num', 'month_num', 'status')
+            ->orderBy('year_num', 'asc')
+            ->orderBy('month_num', 'asc')
+            ->get();
+
+        $confirmedBuckets = ['Confirmed', 'Approved', 'Completed', 'Change Approved'];
+        
+        $trends = [];
+        foreach ($results as $row) {
+            $monthName = date("M", mktime(0, 0, 0, (int)$row->month_num, 1));
+            $key = $row->year_num . '-' . $row->month_num;
+            
+            if (!isset($trends[$key])) {
+                $trends[$key] = [
+                    'name' => $monthName,
+                    'Confirmed' => 0,
+                    'Pending' => 0
+                ];
+            }
+            
+            // Map the internal status to one of the two graph categories
+            $category = in_array($row->status, $confirmedBuckets) ? 'Confirmed' : 'Pending';
+            $trends[$key][$category] += (int) $row->count;
+        }
+
+        return array_values($trends);
     }
 }

@@ -205,18 +205,12 @@ const ClientList = ({ isEmbedded = false }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {services.slice(0, 2).map((srv, idx) => {
-             const type = srv.serviceable_type?.split('\\').pop() || 'Unknown';
-             let detail = '';
-             switch(type) {
-               case 'Flight': detail = srv.serviceable?.airline_code || srv.serviceable?.pnr || 'Flight'; break;
-               case 'Hotel': detail = srv.serviceable?.name || 'Hotel'; break;
-               case 'Cruise': detail = srv.serviceable?.cruise_name || 'Cruise'; break;
-               case 'Car': detail = srv.serviceable?.company || srv.serviceable?.car_type || 'Car'; break;
-               default: detail = 'Service';
-             }
+             // Derive type from serviceable_type string — no need to load full model
+             const typeRaw = srv.serviceable_type || '';
+             const type = typeRaw.split('\\').pop() || 'Service';
              return (
                <div key={idx} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>
-                 <strong style={{ opacity: 0.8 }}>{type}:</strong> <span style={{ color: 'var(--text-main)' }}>{detail}</span>
+                 <span style={{ opacity: 0.8, fontWeight: 600 }}>{type}</span>
                </div>
              );
           })}

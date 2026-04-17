@@ -7,6 +7,7 @@ use App\Domains\Booking\Models\Booking;
 use App\Domains\Booking\Services\BookingOrchestrator;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Cache;
 
 class BookingService
 {
@@ -85,12 +86,21 @@ class BookingService
             $query->where('agent_id', auth()->id());
         }
 
-        // Clone query for stats before pagination
-        $statsQuery = clone $query;
-        $stats = $statsQuery->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
-            ->groupBy('status')
-            ->pluck('count', 'status')
-            ->toArray();
+        // Cache the stats GROUP BY for 60s — avoids a full scan double-run on every page load.
+        // Key includes user+search+dates so different filters get independent caches.
+        $statsCacheKey = 'booking_stats.' . auth()->id() . '.' . md5(json_encode([
+            $search,
+            $params['start_date'] ?? '',
+            $params['end_date'] ?? '',
+        ]));
+
+        $stats = Cache::remember($statsCacheKey, 60, function () use ($query) {
+            $statsQuery = clone $query;
+            return $statsQuery->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
+        });
 
         // Total count (ignoring status if we want global total under these filters)
         $totalCount = array_sum($stats);

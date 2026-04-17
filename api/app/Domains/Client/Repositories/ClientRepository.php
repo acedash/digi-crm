@@ -53,7 +53,8 @@ class ClientRepository extends BaseRepository
             ])
             ->with([
                 'creator:id,name',
-                'latestBooking.services.serviceable'
+                'latestBooking',
+                'latestBooking.services:id,booking_id,serviceable_type,serviceable_id',
             ])
             ->withSum('bookings', 'total_amount')
             ->withCount(['passengers', 'bookings']);
@@ -145,15 +146,25 @@ class ClientRepository extends BaseRepository
         /** @var Client $client */
         $client = $this->model->query()
             ->with([
-                'agent',
-                'creator',
-                'passengers',
+                'agent:id,name',
+                'creator:id,name',
+                'passengers:id,client_id,first_name,last_name,middle_name,date_of_birth,gender,type',
                 'cards',
-                'bookings.services.serviceable',
-                'callLogs' => function ($query) {
-                    $query->latest('created_at');
+                // Limit to recent 20 bookings to avoid loading entire booking history on every profile view
+                'bookings' => function ($query) {
+                    $query->select(['id', 'client_id', 'agent_id', 'booking_reference', 'status', 'total_amount', 'currency', 'travel_date', 'created_at', 'details_json'])
+                          ->latest('created_at')
+                          ->limit(20)
+                          ->with([
+                              'services:id,booking_id,serviceable_type,serviceable_id',
+                              'services.serviceable',
+                          ]);
                 },
-                'callLogs.agent',
+                'callLogs' => function ($query) {
+                    $query->select(['id', 'client_id', 'agent_id', 'call_type', 'customer_outcome', 'notes', 'callback_required', 'callback_datetime', 'created_at'])
+                          ->latest('created_at');
+                },
+                'callLogs.agent:id,name',
             ])
             ->findOrFail($id);
         return $client;

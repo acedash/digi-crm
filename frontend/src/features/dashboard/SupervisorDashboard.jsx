@@ -25,7 +25,10 @@ import {
   ResponsiveContainer,
   PieChart, 
   Pie, 
-  Cell
+  Cell,
+  BarChart,
+  Bar,
+  Legend
 } from 'recharts';
 import userService from '../users/userService';
 import Card from '../../components/ui/Card';
@@ -219,7 +222,7 @@ const SupervisorDashboard = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
         <Card title="Clients with Bookings" icon={Users}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.total_clients || 0}</span>
+            <span style={{ fontSize: '32px', fontWeight: 800, color: '#06B68A' }}>{stats?.total_clients || 0}</span>
             <Users size={40} style={{ opacity: 0.1, marginBottom: '-8px' }} />
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Total number of clients handled by your team</div>
@@ -227,7 +230,7 @@ const SupervisorDashboard = () => {
 
         <Card title="Team Bookings" icon={TrendingUp}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '32px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.period_bookings || 0}</span>
+            <span style={{ fontSize: '32px', fontWeight: 800, color: '#06B68A' }}>{stats?.period_bookings || 0}</span>
             <TrendingUp size={40} style={{ opacity: 0.1, marginBottom: '-8px' }} />
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Bookings created by your team (Selected Period)</div>
@@ -235,7 +238,7 @@ const SupervisorDashboard = () => {
 
         <Card title="Revenue Generated" icon={CircleDollarSign}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '28px', fontWeight: 800, color: '#34d399' }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
               {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.daily_revenue || 0)}
             </span>
           </div>
@@ -263,7 +266,7 @@ const SupervisorDashboard = () => {
       </div>
 
       {/* Visual Activity Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.6fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
         <Card title="Monthly Revenue & Trends" subtitle="Team performance over the last 6 months" icon={TrendingUp}>
           <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -318,6 +321,28 @@ const SupervisorDashboard = () => {
             </div>
           </div>
         </Card>
+
+        {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
+          <Card title="Pending vs Confirmed" subtitle="Last 6 months closing trend" icon={TrendingUp}>
+            <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
+                    itemStyle={{ fontWeight: 700 }}
+                    cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                  />
+                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '10px' }} />
+                  <Bar dataKey="Confirmed" fill="#34d399" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Pending" fill="#60a5fa" radius={[4, 4, 0, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Tables - Performance and Recent Activity */}
@@ -328,10 +353,10 @@ const SupervisorDashboard = () => {
               <thead>
                 <tr style={{ textAlign: 'left' }}>
                   <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Agent</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Inquiries</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Calls</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bookings</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Login</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Inquiries (Details)</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Revenue</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>KPIs</th>
                 </tr>
               </thead>
               <tbody>
@@ -341,23 +366,51 @@ const SupervisorDashboard = () => {
                   <tr key={agent.id} style={{ background: 'var(--bg-input)', transition: 'transform 0.2s' }}>
                     <td style={{ padding: '16px', borderRadius: '16px 0 0 16px', border: '1px solid var(--border-color)', borderRight: 'none' }}>
                       <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{agent.name}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{agent.email}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: agent.status === 'Active' ? '#22c55e' : '#f59e0b' }} />
+                        {agent.status}
+                      </div>
                     </td>
                     <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-                      <span style={{ 
-                        padding: '4px 10px', 
-                        borderRadius: '8px', 
-                        fontSize: '11px', 
-                        fontWeight: 700,
-                        background: agent.status === 'Active' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                        color: agent.status === 'Active' ? '#22c55e' : '#f59e0b'
-                      }}>
-                        {agent.status}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Clock size={12} style={{ color: 'var(--text-muted)' }} />
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{agent.login_time || '--'}</span>
+                      </div>
                     </td>
-                    <td style={{ padding: '16px', fontWeight: 800, color: 'var(--text-main)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>{agent.inquiries_count}</td>
-                    <td style={{ padding: '16px', fontWeight: 800, color: '#60a5fa', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>{agent.calls_count}</td>
-                    <td style={{ padding: '16px', borderRadius: '0 16px 16px 0', border: '1px solid var(--border-color)', borderLeft: 'none', fontWeight: 800, color: '#a855f7' }}>{agent.bookings_count}</td>
+                    <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {agent.inquiry_details?.length > 0 ? agent.inquiry_details.map(detail => (
+                          <span key={detail.tag} style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(255,255,255,0.05)', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: '6px', 
+                            fontSize: '10px', 
+                            fontWeight: 700,
+                            color: 'var(--text-main)'
+                          }}>
+                            {detail.count} {detail.tag}
+                          </span>
+                        )) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{agent.inquiries_count} Total</span>}
+                      </div>
+                    </td>
+                    <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                      <div style={{ fontWeight: 800, color: '#22c55e', fontSize: '14px' }}>
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(agent.revenue || 0)}
+                      </div>
+                    </td>
+                    <td style={{ padding: '16px', borderRadius: '0 16px 16px 0', border: '1px solid var(--border-color)', borderLeft: 'none' }}>
+                       <div style={{ display: 'flex', gap: '12px' }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CALLS</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#60a5fa' }}>{agent.calls_count}</div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>BOOKINGS</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#a855f7' }}>{agent.bookings_count}</div>
+                          </div>
+                       </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
