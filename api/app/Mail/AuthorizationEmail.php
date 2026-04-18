@@ -129,7 +129,7 @@ class AuthorizationEmail extends Mailable
     {
         if (!empty($this->authorization->consent_snapshot['travellers'])) {
             return collect($this->authorization->consent_snapshot['travellers'])
-                ->map(fn ($traveller) => [
+                ->map(fn($traveller) => [
                     'name' => $traveller['name'] ?? '',
                     'dob' => $traveller['date_of_birth'] ?? null,
                 ]);
@@ -148,8 +148,8 @@ class AuthorizationEmail extends Mailable
 
                 return $travellers;
             })
-            ->filter(fn ($traveller) => filled($traveller['name']))
-            ->unique(fn ($traveller) => strtolower($traveller['name']) . '|' . ($traveller['dob'] ?? ''))
+            ->filter(fn($traveller) => filled($traveller['name']))
+            ->unique(fn($traveller) => strtolower($traveller['name']) . '|' . ($traveller['dob'] ?? ''))
             ->values();
     }
 
@@ -160,8 +160,8 @@ class AuthorizationEmail extends Mailable
         }
 
         $baseFare = (float) $this->authorization->bookings
-            ->flatMap(fn ($booking) => $booking->services ?? [])
-            ->sum(fn ($service) => (float) ($service->cost_price ?? 0));
+            ->flatMap(fn($booking) => $booking->services ?? [])
+            ->sum(fn($service) => (float) ($service->cost_price ?? 0));
 
         $grandTotal = (float) $this->authorization->total_amount;
 
@@ -206,7 +206,7 @@ class AuthorizationEmail extends Mailable
         }
 
         $labels = $this->authorization->bookings
-            ->flatMap(fn ($booking) => $booking->services ?? [])
+            ->flatMap(fn($booking) => $booking->services ?? [])
             ->map(function ($service) {
                 $type = strtolower(class_basename($service->serviceable_type ?? ''));
 
@@ -261,7 +261,7 @@ class AuthorizationEmail extends Mailable
                         'src' => $this->resolveImageSource($path, $resolvedUrl, 'ticket-' . $index),
                     ];
                 })
-                ->filter(fn ($ticket) => filled($ticket['src']))
+                ->filter(fn($ticket) => filled($ticket['src']))
                 ->values();
         }
 
@@ -283,7 +283,7 @@ class AuthorizationEmail extends Mailable
                         ];
                     });
             })
-            ->filter(fn ($ticket) => filled($ticket['src']))
+            ->filter(fn($ticket) => filled($ticket['src']))
             ->values();
     }
 
@@ -314,7 +314,7 @@ class AuthorizationEmail extends Mailable
                     'src' => $this->resolveImageSource($path, $resolvedUrl, $cidPrefix . '-' . $index),
                 ];
             })
-            ->filter(fn ($image) => filled($image['src']))
+            ->filter(fn($image) => filled($image['src']))
             ->values();
     }
 
@@ -324,8 +324,16 @@ class AuthorizationEmail extends Mailable
             return $resolvedUrl;
         }
 
+    protected function resolveImageSource(?string $path, ?string $resolvedUrl, string $contentId): ?string
+    {
+        if (filled($resolvedUrl) && $this->isPublicEmailImageUrl($resolvedUrl)) {
+            return $resolvedUrl;
+        }
+
         if (filled($path) && !str_starts_with($path, 'data:')) {
-            $absolutePath = storage_path('app/public/' . ltrim(preg_replace('#^/?storage/#', '', $path), '/'));
+            // Fix: Use Storage disk instead of hardcoded storage_path to support custom public roots (like Hostinger/uploads)
+            $normalizedPath = ltrim(preg_replace('#^/?(storage|uploads)/#', '', $path), '/');
+            $absolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($normalizedPath);
 
             if (is_file($absolutePath)) {
                 $normalizedContentId = str_contains($contentId, '@')
@@ -340,10 +348,18 @@ class AuthorizationEmail extends Mailable
         return $resolvedUrl;
     }
 
+        return $resolvedUrl;
+    }
+
     protected function isPublicEmailImageUrl(string $url): bool
     {
         if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
             return false;
+        }
+
+        // Allow our own public uploads route even on localhost for dev tests
+        if (str_contains($url, '/public/uploads/')) {
+            return true;
         }
 
         $host = strtolower(parse_url($url, PHP_URL_HOST) ?: '');
@@ -379,19 +395,19 @@ class AuthorizationEmail extends Mailable
         );
 
         $optionalBuilders = [
-            '{{ticket_images_html}}' => fn () => $this->buildTicketImagesHtml(),
-            '{{hotel_images_html}}' => fn () => $this->buildServiceImagesHtml('hotel_images', 'Hotel Pictures', 'hotel'),
-            '{{car_images_html}}' => fn () => $this->buildServiceImagesHtml('car_images', 'Rental Car Pictures', 'car'),
-            '{{cruise_images_html}}' => fn () => $this->buildServiceImagesHtml('cruise_images', 'Cruise Pictures', 'cruise'),
-            '{{travellers_html}}' => fn () => $this->buildTravellersHtml(),
-            '{{fare_breakdown_html}}' => fn () => $this->buildFareBreakdownHtml(),
-            '{{change_entries_html}}' => fn () => $this->buildChangeEntriesHtml(),
-            '{{card_allocations_html}}' => fn () => $this->buildCardAllocationsHtml(),
-            '{{declaration_html}}' => fn () => $this->buildDeclarationHtml(),
-            '{{terms_html}}' => fn () => $this->buildTermsHtml(),
-            '{{approval_button_html}}' => fn () => $this->buildApprovalButtonHtml(),
-            '{{support_html}}' => fn () => $this->buildSupportHtml(),
-            '{{signature_html}}' => fn () => $this->buildSignatureHtml(),
+            '{{ticket_images_html}}' => fn() => $this->buildTicketImagesHtml(),
+            '{{hotel_images_html}}' => fn() => $this->buildServiceImagesHtml('hotel_images', 'Hotel Pictures', 'hotel'),
+            '{{car_images_html}}' => fn() => $this->buildServiceImagesHtml('car_images', 'Rental Car Pictures', 'car'),
+            '{{cruise_images_html}}' => fn() => $this->buildServiceImagesHtml('cruise_images', 'Cruise Pictures', 'cruise'),
+            '{{travellers_html}}' => fn() => $this->buildTravellersHtml(),
+            '{{fare_breakdown_html}}' => fn() => $this->buildFareBreakdownHtml(),
+            '{{change_entries_html}}' => fn() => $this->buildChangeEntriesHtml(),
+            '{{card_allocations_html}}' => fn() => $this->buildCardAllocationsHtml(),
+            '{{declaration_html}}' => fn() => $this->buildDeclarationHtml(),
+            '{{terms_html}}' => fn() => $this->buildTermsHtml(),
+            '{{approval_button_html}}' => fn() => $this->buildApprovalButtonHtml(),
+            '{{support_html}}' => fn() => $this->buildSupportHtml(),
+            '{{signature_html}}' => fn() => $this->buildSignatureHtml(),
         ];
 
         $normalizedBody = $this->normalizeTemplateBody($body, array_merge(array_keys($baseReplacements), array_keys($optionalBuilders)));

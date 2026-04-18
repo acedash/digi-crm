@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../auth/useAuthStore';
 import dashboardService from './dashboardService';
 import { motion } from 'framer-motion';
@@ -17,7 +18,8 @@ import {
   Compass,
   Phone,
   CheckCircle2,
-  CircleDollarSign
+  CircleDollarSign,
+  Mail
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -26,6 +28,7 @@ import Toast from '../../components/ui/Toast';
 
 const AgentDashboard = () => {
   const MotionDiv = motion.div;
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -239,14 +242,14 @@ const AgentDashboard = () => {
             {[
               { title: "Register Client", desc: "Onboard a new traveler", icon: UserPlus, color: "#60a5fa" },
               { title: "Browse Routes", desc: "Explore curated packages", icon: Compass, color: "#f472b6" },
-              { title: "Authorization", desc: "Check supervisor status", icon: ShieldCheck, color: "#4ade80" }
+              { title: "Email Templates", desc: "Manage client communications", icon: Mail, color: "#10b981", onClick: () => navigate('/agent/settings') }
             ].map((action, idx) => (
               <MotionDiv 
                 key={idx}
                 whileHover={{ scale: 1.02, y: -5 }}
                 transition={{ type: 'spring', stiffness: 300 }}
               >
-                <Card>
+                <Card onClick={action.onClick} style={{ cursor: action.onClick ? 'pointer' : 'default' }}>
                   <div style={{ 
                     width: '48px', height: '48px', borderRadius: '14px',
                     background: 'rgba(255,255,255,0.03)',

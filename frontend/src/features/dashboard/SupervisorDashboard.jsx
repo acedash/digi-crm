@@ -13,8 +13,14 @@ import {
   Filter,
   CheckCircle2,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Mail,
+  UserPlus,
+  ShieldAlert,
+  LayoutDashboard
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { 
   AreaChart, 
   Area, 
@@ -39,6 +45,7 @@ import Toast from '../../components/ui/Toast';
 import { useAuthStore } from '../auth/useAuthStore';
 
 const SupervisorDashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [agents, setAgents] = useState([]);
   const [stats, setStats] = useState(null);
@@ -263,6 +270,48 @@ const SupervisorDashboard = () => {
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px' }}>Latest inquiries by category (Selected Period)</div>
         </Card>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Operations Shortcuts</h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Management console</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+          {[
+            { title: "Email Templates", desc: "Manage mail copies", icon: Mail, color: "#10b981", path: "/supervisor/settings" },
+            { title: "Team Activity", desc: "Monitor live logs", icon: Activity, color: "#60a5fa", path: "/supervisor/activity" },
+            { title: "Inquiry Reports", desc: "Performance data", icon: CircleDollarSign, color: "#f59e0b", path: "/supervisor/reports" },
+            { title: "Settings", desc: "Profile & preferences", icon: Users, color: "#8b5cf6", path: "/supervisor/settings" }
+          ].map((action, idx) => (
+            <motion.div 
+              key={idx}
+              whileHover={{ scale: 1.02, y: -2 }}
+              transition={{ type: 'spring', stiffness: 300 }}
+              onClick={() => navigate(action.path)}
+              style={{ cursor: 'pointer' }}
+            >
+              <Card>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ 
+                    width: '40px', height: '40px', borderRadius: '12px',
+                    background: `${action.color}15`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: action.color
+                  }}>
+                    <action.icon size={20} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '2px' }}>{action.title}</h3>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{action.desc}</p>
+                  </div>
+                  <ChevronRight size={14} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       {/* Visual Activity Charts */}

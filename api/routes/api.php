@@ -54,6 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/bookings/{booking}/reassign', [BookingController::class, 'reassign']);
     Route::post('/bookings/{booking}/send-template-email', [BookingController::class, 'sendTemplateEmail']);
 
+    Route::get('/admin/settings/mail-templates', [SettingsController::class, 'listMailTemplates']);
+    Route::put('/admin/settings/mail-templates', [SettingsController::class, 'updateMailTemplates']);
+
     // Admin Only
     Route::middleware('role:admin')->group(function () {
         Route::get('/admin/audit-logs', [\App\Http\Controllers\Admin\AuditController::class, 'index']);
@@ -62,10 +65,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/users', [\App\Http\Controllers\Admin\UserController::class, 'index']);
         Route::get('/admin/supervisors', [\App\Http\Controllers\Admin\UserController::class, 'getSupervisors']);
         Route::get('/admin/settings/mail', [SettingsController::class, 'showMailSettings']);
-        Route::get('/admin/settings/mail-templates', [SettingsController::class, 'listMailTemplates']);
         Route::post('/admin/users', [\App\Http\Controllers\Admin\UserController::class, 'store']);
         Route::put('/admin/settings/mail', [SettingsController::class, 'updateMailSettings']);
-        Route::put('/admin/settings/mail-templates', [SettingsController::class, 'updateMailTemplates']);
         Route::put('/admin/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'update']);
         Route::patch('/admin/users/{user}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus']);
         Route::get('/admin/payment-authorizations/charge-queue', [PaymentAuthController::class, 'chargeQueue']);

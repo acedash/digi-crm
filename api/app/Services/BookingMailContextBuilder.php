@@ -46,7 +46,7 @@ class BookingMailContextBuilder
             '{{cruise_images_html}}' => $this->buildImageGalleryHtml($cruiseImages, 'Cruise Pictures', 'Cruise Image'),
         ];
 
-        $body = strtr($template['body'] ?? '', array_merge($replacements, [
+        $replacements = array_merge($replacements, [
             '{{booking_summary_html}}' => $this->buildBookingSummaryHtml([
                 'booking_reference' => $booking->booking_reference,
                 'travel_date' => $travelDate,
@@ -62,16 +62,22 @@ class BookingMailContextBuilder
                 $booking->currency ?: 'USD'
             ),
             '{{support_html}}' => $this->buildSupportHtml(),
-        ]));
+        ]);
 
-        if (!str_contains($body, '<')) {
-            $body = nl2br(e($body));
+        $body = strtr($template['body'] ?? '', $replacements);
+        $subject = strtr($template['subject'] ?? 'Booking update', $replacements);
+
+        // Final pass: ensure all manually added images are absolute and signed
+        $processedBody = $this->processContentForAbsoluteUrls($body);
+
+        if (!str_contains($processedBody, '<')) {
+            $processedBody = nl2br(e($processedBody));
         }
 
         return [
-            'subject' => strtr($template['subject'] ?? 'Booking update', $replacements),
-            'body' => strtr($template['body'] ?? '', $replacements),
-            'body_html' => $body,
+            'subject' => $subject,
+            'body' => $body,
+            'body_html' => $processedBody,
             'client_name' => $clientName,
             'booking_reference' => $booking->booking_reference,
             'status' => $booking->status,
@@ -93,7 +99,7 @@ class BookingMailContextBuilder
     {
         $bookings = $authorization->bookings ?? collect();
         $firstBooking = $bookings->first();
-        $services = $bookings->flatMap(fn ($booking) => $booking->services ?? []);
+        $services = $bookings->flatMap(fn($booking) => $booking->services ?? []);
         $primaryFlight = $this->resolvePrimaryFlight($services);
 
         return [
@@ -117,15 +123,66 @@ class BookingMailContextBuilder
             return '';
         }
 
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'data:')) {
+        // Handle external URLs
+        if (preg_match('/^https?:\/\//', $path)) {
+            // If it's already a full URL that's NOT our localhost, return as is
+            if (!str_contains($path, 'localhost') && !str_contains($path, '127.0.0.1')) {
+                return $path;
+            }
+            // If it IS a local absolute URL, we extract the path to normalize it correctly below
+            if (preg_match('/^https?:\/\/[^\/]+\/(.*)$/', $path, $matches)) {
+                $path = $matches[1];
+            }
+        }
+
+        if (str_starts_with($path, 'data:')) {
             return $path;
         }
 
-        $normalizedPath = ltrim(preg_replace('#^/?storage/#', '', $path), '/');
-        $encodedPath = rtrim(strtr(base64_encode($normalizedPath), '+/', '-_'), '=');
-        $signature = hash_hmac('sha256', $normalizedPath, (string) config('app.key'));
+        // Robust Normalization: Strip storage, uploads, and redundant slashes
+        $normalizedPath = ltrim(preg_replace('#^/?(storage|uploads)/#', '', ltrim($path, '/')), '/');
+        $normalizedPath = preg_replace('#/+#', '/', $normalizedPath); // collapse double slashes
+        
+        if (empty($normalizedPath)) return '';
 
-        return rtrim(config('app.backend_url') ?: config('app.url'), '/') . '/api/email-assets/' . $encodedPath . '/' . $signature;
+        $baseUrl = config('app.url') ?: 'http://localhost';
+        
+        // Auto-detect host for local dev if URL is localhost
+        if (str_contains($baseUrl, 'localhost') || str_contains($baseUrl, '127.0.0.1')) {
+            if (request()) {
+                $baseUrl = request()->getSchemeAndHttpHost();
+            }
+        }
+
+        // Direct path approach as requested by user (adding /public/uploads/)
+        return rtrim($baseUrl, '/') . '/public/uploads/' . $normalizedPath;
+    }
+
+    /**
+     * Scans HTML content for <img> tags and converts relative paths to absolute signed URLs.
+     */
+    protected function processContentForAbsoluteUrls(?string $html): string
+    {
+        if (empty($html))
+            return '';
+
+        return preg_replace_callback('/(<img[^>]+src=")([^">]+)(")/i', function ($matches) {
+            $prefix = $matches[1];
+            $url = $matches[2];
+            $suffix = $matches[3];
+
+            // If it's already a valid external URL (not ours), ignore
+            if (preg_match('/^https?:\/\//', $url) && !str_contains($url, 'localhost') && !str_contains($url, '127.0.0.1')) {
+                if (!str_contains($url, '/public/uploads/')) {
+                    return $matches[0];
+                }
+            }
+
+            // Transform local/relative URLs to signed absolute ones
+            $absoluteUrl = $this->buildStorageUrl($url);
+
+            return $prefix . e($absoluteUrl) . $suffix;
+        }, $html);
     }
 
     protected function buildBookingSummaryHtml(array $context): string
@@ -198,10 +255,10 @@ class BookingMailContextBuilder
     protected function collectServiceImageUrls(Booking $booking, string $serviceType): array
     {
         return collect($booking->services ?? [])
-            ->filter(fn ($service) => strtolower(class_basename($service->serviceable_type ?? '')) === $serviceType)
-            ->flatMap(fn ($service) => collect(data_get($service, 'details_json.images', [])))
+            ->filter(fn($service) => strtolower(class_basename($service->serviceable_type ?? '')) === $serviceType)
+            ->flatMap(fn($service) => collect(data_get($service, 'details_json.images', [])))
             ->filter()
-            ->map(fn ($path) => $this->buildStorageUrl($path))
+            ->map(fn($path) => $this->buildStorageUrl($path))
             ->filter()
             ->values()
             ->all();
@@ -227,14 +284,14 @@ class BookingMailContextBuilder
     protected function resolvePrimaryFlight(Collection $services): ?Flight
     {
         return $services
-            ->map(fn ($service) => $service->serviceable)
-            ->first(fn ($serviceable) => $serviceable instanceof Flight);
+            ->map(fn($service) => $service->serviceable)
+            ->first(fn($serviceable) => $serviceable instanceof Flight);
     }
 
     protected function resolveServiceSummary(Collection $services): string
     {
         return $services
-            ->map(fn ($service) => class_basename($service->serviceable_type ?? 'Service'))
+            ->map(fn($service) => class_basename($service->serviceable_type ?? 'Service'))
             ->filter()
             ->unique()
             ->implode(', ') ?: 'Travel services';

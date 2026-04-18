@@ -119,22 +119,25 @@ const SettingsPage = () => {
   }, []);
 
   const loadSettings = async () => {
-    if (!isAdmin) {
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
-      const [mailResponse, templatesResponse] = await Promise.all([
-        settingsService.getMailSettings(),
-        settingsService.getMailTemplates(),
-      ]);
+      
+      const requests = [settingsService.getMailTemplates()];
+      if (isAdmin) {
+        requests.push(settingsService.getMailSettings());
+      }
 
-      setForm({
-        ...defaultForm,
-        ...mailResponse.data.data,
-      });
+      const responses = await Promise.all(requests);
+      const templatesResponse = responses[0];
+      const mailResponse = isAdmin ? responses[1] : null;
+
+      if (isAdmin && mailResponse) {
+        setForm({
+          ...defaultForm,
+          ...mailResponse.data.data,
+        });
+      }
+
       const nextTemplates = (templatesResponse.data.data || []).map((template) => (
         template.key === 'authorization'
           ? { ...template, terms_content: termsHtmlToPlainText(template.terms_content || '') }
@@ -189,7 +192,6 @@ const SettingsPage = () => {
   };
 
   const handleTemplateSubmit = async () => {
-    if (!isAdmin) return;
     try {
       setSavingTemplates(true);
       const response = await settingsService.updateMailTemplates(templates);
@@ -264,112 +266,113 @@ const SettingsPage = () => {
         </p>
       </div>
 
-      {!isAdmin ? (
-        <>
-          <Card title="Account Overview" subtitle="Your current CRM access" icon={ShieldCheck}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <Input label="Name" value={user?.name || ''} disabled />
-              <Input label="Email" value={user?.email || ''} disabled />
-              <Input label="Role" value={activeRole || 'User'} disabled />
-              <Input label="Status" value={user?.status || 'Active'} disabled />
+      {!isAdmin && (
+        <Card title="Workspace Settings" subtitle="Configurations available for your role" icon={ShieldCheck}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>Profile</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{user?.name}</div>
             </div>
-          </Card>
-
-          <Card title="Workspace Preferences" subtitle="Available settings for your role" icon={Mail}>
-            <div style={{ display: 'grid', gap: '12px', color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.7 }}>
-              <div>Theme mode can be changed anytime from the toggle in the top bar.</div>
-              <div>SMTP configuration and customer email templates are available only to admin users.</div>
-              <div>If you need email or system-setting changes, please contact your admin.</div>
+            <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>Access Role</div>
+              <div style={{ fontWeight: 700, color: 'hsl(var(--primary))' }}>{activeRole?.toUpperCase()}</div>
             </div>
-          </Card>
-        </>
-      ) : (
-        <>
-      <Card title="SMTP Configuration" subtitle="Mail server used for customer approval emails" icon={Mail}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '16px' }}>
-          <Input
-            label="SMTP Host"
-            icon={Server}
-            value={form.host}
-            onChange={(e) => handleChange('host', e.target.value)}
-            placeholder="smtp.gmail.com"
-          />
-          <Input
-            label="Port"
-            value={form.port}
-            onChange={(e) => handleChange('port', e.target.value)}
-            placeholder="587"
-          />
-        </div>
+            <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>Permissions</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Templates Enabled</div>
+            </div>
+          </div>
+        </Card>
+      )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <Input
-            label="Username"
-            value={form.username}
-            onChange={(e) => handleChange('username', e.target.value)}
-            placeholder="mailer@example.com"
-          />
-          <Input
-            label="Password"
-            type="password"
-            value={form.password}
-            onChange={(e) => handleChange('password', e.target.value)}
-            placeholder="Leave blank to keep existing password"
-          />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 1fr', gap: '16px', alignItems: 'end' }}>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
-              Encryption
-            </label>
-            <select
-              value={form.encryption}
-              onChange={(e) => handleChange('encryption', e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '12px',
-                padding: '12px 16px',
-                color: 'var(--text-main)',
-                fontSize: '14px',
-                outline: 'none',
-              }}
-            >
-              <option value="tls">TLS</option>
-              <option value="ssl">SSL</option>
-              <option value="none">None</option>
-            </select>
+      {isAdmin && (
+        <Card title="SMTP Configuration" subtitle="Mail server used for customer approval emails" icon={Mail}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '16px' }}>
+            <Input
+              label="SMTP Host"
+              icon={Server}
+              value={form.host}
+              onChange={(e) => handleChange('host', e.target.value)}
+              placeholder="smtp.gmail.com"
+            />
+            <Input
+              label="Port"
+              value={form.port}
+              onChange={(e) => handleChange('port', e.target.value)}
+              placeholder="587"
+            />
           </div>
 
-          <Input
-            label="From Email"
-            value={form.from_address}
-            onChange={(e) => handleChange('from_address', e.target.value)}
-            placeholder="noreply@example.com"
-          />
-          <Input
-            label="From Name"
-            icon={ShieldCheck}
-            value={form.from_name}
-            onChange={(e) => handleChange('from_name', e.target.value)}
-            placeholder="Digi CRM"
-          />
-        </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Input
+              label="Username"
+              value={form.username}
+              onChange={(e) => handleChange('username', e.target.value)}
+              placeholder="mailer@example.com"
+            />
+            <Input
+              label="Password"
+              type="password"
+              value={form.password}
+              onChange={(e) => handleChange('password', e.target.value)}
+              placeholder="Leave blank to keep existing password"
+            />
+          </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button variant="primary" icon={Save} onClick={handleSubmit} isLoading={saving}>
-            Save SMTP Settings
-          </Button>
-        </div>
-      </Card>
+          <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 1fr', gap: '16px', alignItems: 'end' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                Encryption
+              </label>
+              <select
+                value={form.encryption}
+                onChange={(e) => handleChange('encryption', e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  color: 'var(--text-main)',
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              >
+                <option value="tls">TLS</option>
+                <option value="ssl">SSL</option>
+                <option value="none">None</option>
+              </select>
+            </div>
 
+            <Input
+              label="From Email"
+              value={form.from_address}
+              onChange={(e) => handleChange('from_address', e.target.value)}
+              placeholder="noreply@example.com"
+            />
+            <Input
+              label="From Name"
+              icon={ShieldCheck}
+              value={form.from_name}
+              onChange={(e) => handleChange('from_name', e.target.value)}
+              placeholder="Digi CRM"
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button variant="primary" icon={Save} onClick={handleSubmit} isLoading={saving}>
+              Save SMTP Settings
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Email Templates Card - Now visible to all roles */}
       <Card 
         title="Email Templates" 
         subtitle="Manage customer-facing mail copy for the CRM lifecycle" 
         icon={Mail}
-        extra={isAdmin && (
+        extra={(
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setActiveTab('edit')}
@@ -672,10 +675,6 @@ const SettingsPage = () => {
           ) : null}
         </div>
       </Card>
-
-        </>
-      )}
-
       <Toast
         message={toast.message}
         type={toast.type}

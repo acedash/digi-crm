@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ClipboardList, PhoneCall, CircleDollarSign, RefreshCw, Calendar as CalendarIcon } from 'lucide-react';
+import { 
+  Users, 
+  ClipboardList, 
+  PhoneCall, 
+  CircleDollarSign, 
+  RefreshCw, 
+  Calendar as CalendarIcon,
+  Settings,
+  Shield,
+  Layout,
+  Clock,
+  Mail,
+  UserPlus,
+  ChevronRight
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import dashboardService from './dashboardService';
@@ -219,6 +234,48 @@ const AdminDashboard = () => {
             </Card>
           </div>
         ))}
+      </div>
+
+      <div style={{ marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Quick Operations</h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>System shortcuts</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+          {[
+            { title: "Email Templates", desc: "Manage mail copies", icon: Mail, color: "#10b981", path: "/admin/settings" },
+            { title: "System Users", desc: "Manage team access", icon: UserPlus, color: "#60a5fa", path: "/admin/users" },
+            { title: "Settings", desc: "SMTP & configuration", icon: Settings, color: "#f59e0b", path: "/admin/settings" },
+            { title: "Audit Trail", desc: "Security logs", icon: Shield, color: "#8b5cf6", path: "/admin/system-audit" }
+          ].map((action, idx) => (
+            <motion.div 
+              key={idx}
+              whileHover={{ scale: 1.02, y: -2 }}
+              transition={{ type: 'spring', stiffness: 300 }}
+              onClick={() => navigate(action.path)}
+              style={{ cursor: 'pointer' }}
+            >
+              <Card>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ 
+                    width: '40px', height: '40px', borderRadius: '12px',
+                    background: `${action.color}15`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: action.color
+                  }}>
+                    <action.icon size={20} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '2px' }}>{action.title}</h3>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{action.desc}</p>
+                  </div>
+                  <ChevronRight size={14} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', alignItems: 'stretch' }}>
