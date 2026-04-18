@@ -139,8 +139,21 @@ class BookingMailContextBuilder
             return $path;
         }
 
-        // Robust Normalization: Strip storage, uploads, and redundant slashes
-        $normalizedPath = ltrim(preg_replace('#^/?(storage|uploads)/#', '', ltrim($path, '/')), '/');
+        // Aggressive Normalization: Focusing on the actual asset folders
+        // This handles cases like "core/uploads/tickets/..." or "storage/tickets/..."
+        $cleanPath = ltrim($path, '/');
+        
+        // Find the beginning of our known asset categories to strip everything before it
+        // We look for common folders: tickets, hotels, car_images, cruise_images, flights, signatures
+        if (preg_match('#(?:tickets|hotels|car_images|cruise_images|flights|signatures|uploads)/(.+)$#i', $cleanPath, $matches)) {
+            $normalizedPath = $matches[0];
+            // Now strip the 'uploads/' if it was captured as the category start
+            $normalizedPath = ltrim(preg_replace('#^/?uploads/#', '', $normalizedPath), '/');
+        } else {
+            // Fallback: just strip storage/ or uploads/ from the start
+            $normalizedPath = ltrim(preg_replace('#^/?(storage|uploads)/#', '', $cleanPath), '/');
+        }
+        
         $normalizedPath = preg_replace('#/+#', '/', $normalizedPath); // collapse double slashes
         
         if (empty($normalizedPath)) return '';
