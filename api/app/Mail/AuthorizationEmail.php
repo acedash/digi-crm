@@ -324,12 +324,6 @@ class AuthorizationEmail extends Mailable
             return $resolvedUrl;
         }
 
-    protected function resolveImageSource(?string $path, ?string $resolvedUrl, string $contentId): ?string
-    {
-        if (filled($resolvedUrl) && $this->isPublicEmailImageUrl($resolvedUrl)) {
-            return $resolvedUrl;
-        }
-
         if (filled($path) && !str_starts_with($path, 'data:')) {
             // Fix: Use Storage disk instead of hardcoded storage_path to support custom public roots (like Hostinger/uploads)
             $normalizedPath = ltrim(preg_replace('#^/?(storage|uploads)/#', '', $path), '/');
@@ -344,9 +338,6 @@ class AuthorizationEmail extends Mailable
                 return 'cid:' . $normalizedContentId;
             }
         }
-
-        return $resolvedUrl;
-    }
 
         return $resolvedUrl;
     }

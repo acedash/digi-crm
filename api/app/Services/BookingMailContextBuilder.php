@@ -67,7 +67,7 @@ class BookingMailContextBuilder
         $body = strtr($template['body'] ?? '', $replacements);
         $subject = strtr($template['subject'] ?? 'Booking update', $replacements);
 
-        // Final pass: ensure all manually added images are absolute and signed
+        // Final pass: ensure all manually added images are absolute
         $processedBody = $this->processContentForAbsoluteUrls($body);
 
         if (!str_contains($processedBody, '<')) {
@@ -144,13 +144,10 @@ class BookingMailContextBuilder
         $cleanPath = ltrim($path, '/');
         
         // Find the beginning of our known asset categories to strip everything before it
-        // We look for common folders: tickets, hotels, car_images, cruise_images, flights, signatures
         if (preg_match('#(?:tickets|hotels|car_images|cruise_images|flights|signatures|uploads)/(.+)$#i', $cleanPath, $matches)) {
             $normalizedPath = $matches[0];
-            // Now strip the 'uploads/' if it was captured as the category start
             $normalizedPath = ltrim(preg_replace('#^/?uploads/#', '', $normalizedPath), '/');
         } else {
-            // Fallback: just strip storage/ or uploads/ from the start
             $normalizedPath = ltrim(preg_replace('#^/?(storage|uploads)/#', '', $cleanPath), '/');
         }
         
@@ -171,9 +168,6 @@ class BookingMailContextBuilder
         return rtrim($baseUrl, '/') . '/public/uploads/' . $normalizedPath;
     }
 
-    /**
-     * Scans HTML content for <img> tags and converts relative paths to absolute signed URLs.
-     */
     protected function processContentForAbsoluteUrls(?string $html): string
     {
         if (empty($html))
@@ -184,16 +178,13 @@ class BookingMailContextBuilder
             $url = $matches[2];
             $suffix = $matches[3];
 
-            // If it's already a valid external URL (not ours), ignore
             if (preg_match('/^https?:\/\//', $url) && !str_contains($url, 'localhost') && !str_contains($url, '127.0.0.1')) {
                 if (!str_contains($url, '/public/uploads/')) {
                     return $matches[0];
                 }
             }
 
-            // Transform local/relative URLs to signed absolute ones
             $absoluteUrl = $this->buildStorageUrl($url);
-
             return $prefix . e($absoluteUrl) . $suffix;
         }, $html);
     }
@@ -219,7 +210,6 @@ class BookingMailContextBuilder
         }
 
         $html .= '</table></div>';
-
         return $html;
     }
 
@@ -228,7 +218,6 @@ class BookingMailContextBuilder
         if (!filled($flightImageUrl)) {
             return '';
         }
-
         return '<div style="margin-bottom:24px;"><h2 style="margin:0 0 14px;font-size:18px;">Flight Image</h2><img src="' . e($flightImageUrl) . '" alt="Flight Image" style="width:100%;border-radius:12px;border:1px solid #e5e7eb;display:block;"></div>';
     }
 
@@ -256,7 +245,6 @@ class BookingMailContextBuilder
         }
 
         $html .= '</div>';
-
         return $html;
     }
 
@@ -284,13 +272,10 @@ class BookingMailContextBuilder
         }
 
         $html = '<div style="margin-bottom:24px;"><h2 style="margin:0 0 14px;font-size:18px;">' . e($title) . '</h2>';
-
         foreach (array_values($urls) as $index => $url) {
             $html .= '<div style="margin-bottom:12px;"><img src="' . e($url) . '" alt="' . e($altPrefix . ' ' . ($index + 1)) . '" style="width:100%;border-radius:12px;border:1px solid #e5e7eb;display:block;"></div>';
         }
-
         $html .= '</div>';
-
         return $html;
     }
 
