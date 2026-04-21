@@ -53,7 +53,9 @@ class ClientRepository extends BaseRepository
             ])
             ->with([
                 'creator:id,name',
-                'latestBooking',
+                'latestBooking' => function($q) {
+                    $q->select(['bookings.id', 'bookings.client_id', 'bookings.agent_id', 'bookings.booking_reference', 'bookings.status', 'bookings.total_amount', 'bookings.currency', 'bookings.created_at']);
+                },
                 'latestBooking.services:id,booking_id,serviceable_type,serviceable_id',
             ])
             ->withSum('bookings', 'total_amount')

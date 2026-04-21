@@ -128,7 +128,7 @@ class DashboardController extends Controller
                 ->get();
 
             $chargeQueue = PaymentAuth::query()
-                ->select(['id', 'client_id', 'currency', 'total_amount', 'approved_at', 'metadata', 'consent_snapshot', 'status', 'collected_at'])
+                ->select(['id', 'client_id', 'currency', 'total_amount', 'approved_at', 'status', 'collected_at']) // Strictly avoid consent_snapshot/metadata
                 ->whereExists(function ($query) {
                     $query->select(DB::raw(1))->from('booking_payment_auth')->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
                 })
@@ -430,7 +430,7 @@ class DashboardController extends Controller
                     ->take(5)
                     ->get(),
                 'recent_inquiries' => CallLog::query()
-                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'airline_inquiry', 'call_type', 'customer_outcome'])
+                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'airline_inquiry', 'call_type', 'customer_outcome']) // Avoid heavy 'notes' in summary
                     ->with(['agent:id,name', 'client:id,name,first_name,last_name'])
                     ->whereIn('agent_id', $teamIds)
                     ->where('log_scope', 'booking')
