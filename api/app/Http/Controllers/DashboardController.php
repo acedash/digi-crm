@@ -314,17 +314,28 @@ class DashboardController extends Controller
                 })
                 ->get(['id', 'name', 'email', 'status']);
 
-            // 2. Simplified Tag & Status breakdowns
-            $inquiryTags = CallLog::query()
-                ->select('airline_inquiry as tag', DB::raw('COUNT(*) as count'))
+            // 2. Aggregate Inquiry Tags from JSON keys
+            $rawInquiries = CallLog::query()
                 ->whereIn('agent_id', $teamIds)
                 ->where('log_scope', 'booking')
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->whereNotNull('airline_inquiry')
-                ->where('airline_inquiry', '!=', '')
-                ->groupBy('airline_inquiry')
-                ->orderBy('count', 'desc')
-                ->get();
+                ->pluck('airline_inquiry');
+
+            $tagCounts = [];
+            foreach ($rawInquiries as $inquiry) {
+                if (is_array($inquiry)) {
+                    foreach ($inquiry as $tag => $detail) {
+                        if ($detail && count(array_filter([$detail]))) {
+                            $tagCounts[$tag] = ($tagCounts[$tag] ?? 0) + 1;
+                        }
+                    }
+                }
+            }
+            
+            $inquiryTags = collect($tagCounts)->map(fn($count, $tag) => ['tag' => $tag, 'count' => $count])
+                ->sortByDesc('count')
+                ->values();
 
             $statusBreakdown = Booking::query()
                 ->select('status', DB::raw('COUNT(*) as count'))

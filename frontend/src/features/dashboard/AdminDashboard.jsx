@@ -242,8 +242,8 @@ const AdminDashboard = () => {
         {stats.revenue_trends && stats.revenue_trends.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Global Revenue Trends (1 Year)</h3>
-            <div style={{ height: '300px', width: '100%', flexGrow: 1 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ height: '300px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <LineChart data={stats.revenue_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.3} />
                   <XAxis 
@@ -290,8 +290,8 @@ const AdminDashboard = () => {
         {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Pending vs Confirmed Trends</h3>
-            <div style={{ height: '300px', width: '100%', flexGrow: 1 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ height: '300px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
@@ -314,8 +314,8 @@ const AdminDashboard = () => {
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Booking Status</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Current period distribution</p>
-            <div style={{ height: '300px', width: '100%', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <PieChart>
                   <Pie
                     data={stats.booking_status_distribution}

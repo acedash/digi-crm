@@ -286,9 +286,7 @@ const SupervisorDashboard = () => {
         <Card title="Inquiry Tags" icon={Phone}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', minHeight: '40px' }}>
             {inquiryTags.length > 0 ? inquiryTags.map((t, idx) => {
-              const displayLabel = t.tag && t.tag.toLowerCase() !== 'inquiry' 
-                ? t.tag.replace(/inquiry/gi, '').trim() 
-                : 'General';
+              const displayLabel = t.tag || 'General';
               
               return (
                 <div key={idx} style={{ 
@@ -319,7 +317,7 @@ const SupervisorDashboard = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
         <Card title="Monthly Revenue & Trends" subtitle="Team performance over the last 6 months" icon={TrendingUp}>
           <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={revenueData}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -342,7 +340,7 @@ const SupervisorDashboard = () => {
 
         <Card title="Booking Status" subtitle="Team distribution" icon={CheckCircle2}>
           <div style={{ height: '300px', width: '100%', marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>
                 <Pie
                   data={statusData}
@@ -375,7 +373,7 @@ const SupervisorDashboard = () => {
         {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
           <Card title="Pending vs Confirmed" subtitle="Last 6 months closing trend" icon={TrendingUp}>
             <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />

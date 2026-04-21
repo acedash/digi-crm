@@ -26,6 +26,14 @@ import Card from '../../components/ui/Card';
 import activityService from '../activity-tracker/activityService';
 import Toast from '../../components/ui/Toast';
 
+// Inline SVG fallback for missing icons
+const ShieldCheck = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>
+);
+
 const AgentDashboard = () => {
   const MotionDiv = motion.div;
   const navigate = useNavigate();
@@ -232,46 +240,6 @@ const AgentDashboard = () => {
           </div>
         </Card>
         
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Operations Shortcuts</h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Streamlined workflow</p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-            {[
-              { title: "Register Client", desc: "Onboard a new traveler", icon: UserPlus, color: "#60a5fa" },
-              { title: "Browse Routes", desc: "Explore curated packages", icon: Compass, color: "#f472b6" },
-              { title: "Email Templates", desc: "Manage client communications", icon: Mail, color: "#10b981", onClick: () => navigate('/agent/settings') }
-            ].map((action, idx) => (
-              <MotionDiv 
-                key={idx}
-                whileHover={{ scale: 1.02, y: -5 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-              >
-                <Card onClick={action.onClick} style={{ cursor: action.onClick ? 'pointer' : 'default' }}>
-                  <div style={{ 
-                    width: '48px', height: '48px', borderRadius: '14px',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.05)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    marginBottom: '20px', color: action.color
-                  }}>
-                    <action.icon size={24} />
-                  </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>{action.title}</h3>
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>{action.desc}</p>
-                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'hsl(var(--primary))' }}>LAUNCH</span>
-                    <ChevronRight size={14} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                  </div>
-                </Card>
-              </MotionDiv>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Activity Breakdown Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
         <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid rgba(96, 165, 250, 0.2)' }}>
@@ -336,6 +304,7 @@ const AgentDashboard = () => {
           </div>
         </div>
       </div>
+      </div>
       <Toast 
         message={toast.message} 
         type={toast.type} 
@@ -344,10 +313,5 @@ const AgentDashboard = () => {
     </div>
   );
 };
-
-// Simple Fallback for missing icons
-const ShieldCheck = ({ size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
-);
 
 export default AgentDashboard;

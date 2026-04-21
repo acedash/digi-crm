@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, ShieldAlert, Globe, Compass, ShieldCheck, Plane } from 'lucide-react';
+import { Mail, Lock, LogIn, ShieldAlert, Globe, Compass, Plane, Sparkles } from 'lucide-react';
 import { useAuthStore } from './useAuthStore';
 import authService from './authService';
-import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import logo from '../../assets/logo.jpg';
@@ -14,8 +13,44 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const user = useAuthStore((state) => state.user);
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
+  const cardRef = useRef(null);
+
+  // 3D Tilt Values
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const mouseX = useSpring(x, { stiffness: 150, damping: 20 });
+  const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
+
+  const rotateX = useTransform(mouseY, [-0.5, 0.5], [10, -10]);
+  const rotateY = useTransform(mouseX, [-0.5, 0.5], [-10, 10]);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
+
+  const handleMouseMove = (e) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseXPos = e.clientX - rect.left;
+    const mouseYPos = e.clientY - rect.top;
+    const xPct = (mouseXPos / width) - 0.5;
+    const yPct = (mouseYPos / height) - 0.5;
+    x.set(xPct);
+    y.set(yPct);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,244 +62,285 @@ const LoginPage = () => {
       localStorage.setItem('token', data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError('Invalid email or password. Please try again.');
+      setError('Identity authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Styled components logic for shimmer
-  const shimmerStyle = {
-    position: 'absolute',
-    top: 0,
-    left: '-100%',
-    width: '50%',
-    height: '100%',
-    background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent)',
-    transform: 'skewX(-25deg)',
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, scale: 0.98 },
+    visible: { 
+      opacity: 1, 
+      scale: 1,
+      transition: { 
+        duration: 0.8,
+        ease: "easeOut",
+        staggerChildren: 0.1,
+        delayChildren: 0.3
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+    }
   };
 
   return (
     <div style={{ 
       minHeight: '100vh', 
       display: 'flex', 
-      flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-      background: 'var(--bg-app)',
-      overflow: 'hidden'
+      alignItems: 'center', 
+      justifyContent: 'center',
+      background: '#020617',
+      fontFamily: "'Inter', sans-serif",
+      position: 'relative',
+      overflow: 'hidden',
+      padding: '20px'
     }}>
-      {/* Left Panel: Brand & Welcome */}
-      <div style={{ 
-        flex: 1.2, 
-        background: 'linear-gradient(135deg, #06B68A 0%, #059669 100%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px',
-        color: 'white',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Geometric Texture Overlay */}
+      
+      {/* Aurora Ambient Background */}
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0 }}>
+        <motion.div
+          animate={{ 
+            scale: [1, 1.2, 1],
+            x: [0, 100, 0],
+            y: [0, 50, 0],
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+          style={{ 
+            position: 'absolute', top: '-20%', left: '-10%', width: '600px', height: '600px',
+            background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)',
+            filter: 'blur(100px)'
+          }}
+        />
+        <motion.div
+          animate={{ 
+            scale: [1.2, 1, 1.2],
+            x: [0, -100, 0],
+            y: [0, -50, 0],
+          }}
+          transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+          style={{ 
+            position: 'absolute', bottom: '-20%', right: '-10%', width: '600px', height: '600px',
+            background: 'radial-gradient(circle, rgba(6, 78, 59, 0.2) 0%, transparent 70%)',
+            filter: 'blur(100px)'
+          }}
+        />
+        
+        {/* Fine Grain / Noise Overlay */}
         <div style={{ 
-            position: 'absolute', 
-            inset: 0, 
-            opacity: 0.05, 
-            backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
-            backgroundSize: '32px 32px',
-            zIndex: 0
+          position: 'absolute', inset: 0, 
+          backgroundImage: 'url("https://grainy-gradients.vercel.app/noise.svg")',
+          opacity: 0.04, mixBlendMode: 'overlay', pointerEvents: 'none'
         }} />
+      </div>
 
-        {/* Floating Travel Icons */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        ref={cardRef}
+        style={{ 
+          width: '100%', maxWidth: '390px', 
+          position: 'relative', zIndex: 1,
+          perspective: '1000px'
+        }}
+      >
         <motion.div
-            animate={{ 
-                y: [0, -20, 0],
-                rotate: [0, 5, 0]
+          style={{
+            rotateX,
+            rotateY,
+            transformStyle: 'preserve-3d',
+            background: 'rgba(15, 23, 42, 0.4)',
+            backdropFilter: 'blur(32px) saturate(160%)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '32px',
+            padding: '48px 32px',
+            boxShadow: '0 40px 80px -20px rgba(0,0,0,0.6), inset 0 1px 0 0 rgba(255,255,255,0.05)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Shimmer Sweep Effect */}
+          <motion.div
+            animate={{ x: ['-200%', '200%'] }}
+            transition={{ duration: 7, repeat: Infinity, ease: 'linear', delay: 1 }}
+            style={{
+              position: 'absolute', top: 0, bottom: 0, width: '40%',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent)',
+              transform: 'skewX(-20deg)',
+              pointerEvents: 'none'
             }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ position: 'absolute', top: '15%', left: '15%', opacity: 0.15, zIndex: 0 }}
-        >
-            <Plane size={48} />
-        </motion.div>
+          />
 
-        <motion.div
-            animate={{ 
-                y: [0, 25, 0],
-                rotate: [0, -8, 0]
-            }}
-            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-            style={{ position: 'absolute', bottom: '20%', left: '25%', opacity: 0.15, zIndex: 0 }}
-        >
-            <Compass size={40} />
-        </motion.div>
+          {/* Floating Brand Mark */}
+          <motion.div variants={itemVariants} style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+            <div 
+               style={{ 
+                 width: '88px', height: '88px', 
+                 borderRadius: '50%',
+                 overflow: 'hidden',
+                 border: '2.5px solid rgba(16, 185, 129, 0.3)',
+                 boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                 background: '#020617'
+               }}
+            >
+              <img src={logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          </motion.div>
 
-        <motion.div
-            animate={{ 
-                y: [0, -15, 0],
-                x: [0, 10, 0]
-            }}
-            transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-            style={{ position: 'absolute', top: '25%', right: '20%', opacity: 0.2, zIndex: 0 }}
-        >
-            <Globe size={54} />
-        </motion.div>
+          <header style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <motion.h1 variants={itemVariants} style={{ fontSize: '32px', fontWeight: 950, color: 'white', letterSpacing: '-1.5px', marginBottom: '4px' }}>
+              Digi <span style={{ color: '#10b981' }}>Circle</span>
+            </motion.h1>
+            <motion.p variants={itemVariants} style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2.5px' }}>
+              Executive Access Control
+            </motion.p>
+          </header>
 
-        <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8 }}
-            style={{ textAlign: 'center', zIndex: 1 }}
-        >
-            <motion.div 
-                whileHover={{ scale: 1.05 }}
+          <AnimatePresence mode="wait">
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
                 style={{ 
-                    width: '140px', 
-                    height: '140px', 
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 24px',
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  border: '1px solid rgba(239, 68, 68, 0.12)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  marginBottom: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  color: '#f87171',
+                  fontSize: '13px',
+                  fontWeight: 600
                 }}
-            >
-                <img src={logo} alt="Digi CRM" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              >
+                <ShieldAlert size={18} />
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <motion.div variants={itemVariants}>
+              <Input
+                label="AGENT IDENTITY"
+                placeholder="agent@digicircle.com"
+                icon={Mail}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                variant="transparent"
+                required
+              />
             </motion.div>
-            <h1 style={{ fontSize: '56px', fontWeight: 900, letterSpacing: '-3px', marginBottom: '16px', lineHeight: 1 }}>
-                Digi <span style={{ opacity: 0.6 }}>Circle</span>
-            </h1>
-            <p style={{ fontSize: '22px', fontWeight: 500, opacity: 0.9, maxWidth: '420px', margin: '0 auto', lineHeight: 1.5, letterSpacing: '-0.5px' }}>
-                Your destination for <span style={{ borderBottom: '2px solid rgba(255,255,255,0.3)' }}>smarter</span> travel business.
+            
+            <motion.div variants={itemVariants}>
+              <Input
+                label="SECURITY KEY"
+                placeholder="••••••••"
+                icon={Lock}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                variant="transparent"
+                required
+              />
+            </motion.div>
+
+            <motion.div variants={itemVariants} style={{ marginTop: '8px', position: 'relative' }}>
+              <Button 
+                type="submit" 
+                variant="primary" 
+                size="lg" 
+                fullWidth
+                isLoading={loading}
+                style={{ 
+                  height: '54px',
+                  fontSize: '15px',
+                  fontWeight: 850,
+                  borderRadius: '16px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  boxShadow: '0 15px 30px -5px rgba(16, 185, 129, 0.3)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1.5px',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Button Light Sweep */}
+                <motion.div
+                  animate={{ x: ['-100%', '200%'] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", repeatDelay: 1 }}
+                  style={{
+                    position: 'absolute', top: 0, bottom: 0, width: '30%',
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                    transform: 'skewX(-30deg)',
+                    pointerEvents: 'none'
+                  }}
+                />
+                <LogIn size={20} style={{ marginRight: '12px', position: 'relative', zIndex: 1 }} />
+                <span style={{ position: 'relative', zIndex: 1 }}>SignIn Securely</span>
+              </Button>
+            </motion.div>
+          </form>
+
+          <motion.footer variants={itemVariants} style={{ marginTop: '32px', textAlign: 'center' }}>
+            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>
+              © 2026 Digi Circle • Executive Console
             </p>
+          </motion.footer>
         </motion.div>
-      </div>
+      </motion.div>
 
-      {/* Right Panel: Login Form */}
-      <div style={{ 
-        flex: 1, 
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '60px',
-        background: 'var(--bg-app)'
-      }}>
-        <div style={{ width: '100%', maxWidth: '400px' }}>
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                style={{ marginBottom: '48px' }}
-            >
-                <h2 style={{ fontSize: '32px', fontWeight: 850, color: 'var(--text-main)', marginBottom: '8px', letterSpacing: '-1px' }}>
-                    Welcome <span className="premium-gradient-text">Back</span>
-                </h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '16px', fontWeight: 500 }}>
-                    Access your travel console securely.
-                </p>
-            </motion.div>
+      {/* Atmospheric Accents */}
+      <motion.div
+        animate={{ 
+          rotate: [0, 360],
+          scale: [1, 1.2, 1]
+        }}
+        transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+        style={{ position: 'absolute', bottom: '10%', left: '10%', opacity: 0.04, color: 'white', pointerEvents: 'none' }}
+      >
+        <Sparkles size={160} />
+      </motion.div>
 
-            <AnimatePresence mode="wait">
-                {error && (
-                <motion.div
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0 }}
-                    style={{ 
-                        background: 'rgba(239, 68, 68, 0.05)', 
-                        border: '1px solid rgba(239, 68, 68, 0.15)',
-                        borderRadius: '16px',
-                        padding: '14px 20px',
-                        marginBottom: '32px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        color: '#ef4444',
-                        fontSize: '14px',
-                        fontWeight: 600
-                    }}
-                >
-                    <ShieldAlert size={20} />
-                    {error}
-                </motion.div>
-                )}
-            </AnimatePresence>
+      {/* Gliding Planes */}
+      <motion.div
+        animate={{ 
+          x: ['-10vw', '110vw'],
+          y: ['10vh', '15vh'],
+          rotate: [15, 20, 15]
+        }}
+        transition={{ duration: 45, repeat: Infinity, ease: 'linear' }}
+        style={{ position: 'absolute', top: '20%', left: 0, opacity: 0.03, color: 'white', pointerEvents: 'none' }}
+      >
+        <Plane size={100} style={{ transform: 'rotate(90deg)' }} />
+      </motion.div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                >
-                    <Input
-                        label="Email Address"
-                        placeholder="agent@digicircle.com"
-                        icon={Mail}
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                </motion.div>
-                
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <Input
-                        label="Security Key"
-                        placeholder="••••••••"
-                        icon={Lock}
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                </motion.div>
-
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                >
-                    <Button 
-                        type="submit" 
-                        variant="primary" 
-                        size="lg" 
-                        style={{ 
-                            width: '100%', 
-                            height: '56px',
-                            fontSize: '17px',
-                            fontWeight: 800,
-                            letterSpacing: '0.5px',
-                            position: 'relative',
-                            overflow: 'hidden',
-                            boxShadow: '0 15px 30px -10px rgba(6, 182, 138, 0.4)'
-                        }}
-                        isLoading={loading}
-                    >
-                        <motion.div
-                            animate={{ left: '150%' }}
-                            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3, ease: 'easeInOut' }}
-                            style={shimmerStyle}
-                        />
-                        <LogIn size={20} style={{ marginRight: '10px' }} />
-                        Access Console
-                    </Button>
-                </motion.div>
-            </form>
-
-            <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                style={{ marginTop: '56px', textAlign: 'center' }}
-            >
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    © 2026 Kreyton Digicircle Private Limited
-                </p>
-            </motion.div>
-        </div>
-      </div>
+      <motion.div
+        animate={{ 
+          x: ['110vw', '-10vw'],
+          y: ['70vh', '65vh'],
+          rotate: [-195, -200, -195]
+        }}
+        transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+        style={{ position: 'absolute', top: 0, left: 0, opacity: 0.02, color: 'white', pointerEvents: 'none' }}
+      >
+        <Plane size={140} style={{ transform: 'rotate(90deg)' }} />
+      </motion.div>
     </div>
   );
 };

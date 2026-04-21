@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarDays, X, Eye, EyeOff } from 'lucide-react';
 
-const Input = ({ label, icon: Icon, error, style, className, onClear, required, ...props }) => {
+const Input = ({ label, icon: Icon, error, style, className, onClear, required, variant, inputStyle, ...props }) => {
   const [showPassword, setShowPassword] = useState(false);
   const isDateField = props.type === 'date' || props.type === 'datetime-local';
   const isPasswordField = props.type === 'password';
@@ -13,29 +13,33 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
 
   const inputType = isPasswordField ? (showPassword ? 'text' : 'password') : props.type;
 
+  const isTransparent = variant === 'transparent';
+
   return (
     <div className={className} style={{ marginBottom: '20px', ...style }}>
       {label && (
         <label style={{ 
           display: 'block', 
-          fontSize: '13px', 
-          fontWeight: 600, 
-          marginBottom: '8px',
-          color: 'var(--text-muted)'
+          fontSize: '12px', 
+          fontWeight: 800, 
+          marginBottom: '10px',
+          color: 'rgba(255, 255, 255, 0.4)',
+          textTransform: 'uppercase',
+          letterSpacing: '1.5px'
         }}>
           {label}
-          {required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
+          {required && <span style={{ color: '#10b981', marginLeft: '4px' }}>*</span>}
         </label>
       )}
       <div style={{ position: 'relative' }}>
         {Icon && (
           <div style={{ 
             position: 'absolute', 
-            left: '14px', 
+            left: '16px', 
             top: '50%', 
             transform: 'translateY(-50%)',
-            color: 'var(--text-muted)',
-            opacity: 0.5
+            color: 'rgba(255, 255, 255, 0.3)',
+            zIndex: 10
           }}>
             <Icon size={18} />
           </div>
@@ -44,11 +48,10 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
           <div
             style={{
               position: 'absolute',
-              right: '14px',
+              right: '16px',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'var(--text-muted)',
-              opacity: 0.9,
+              color: 'rgba(255, 255, 255, 0.4)',
               pointerEvents: 'none',
               display: 'flex',
               alignItems: 'center',
@@ -63,19 +66,20 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
             onClick={onClear}
             style={{
               position: 'absolute',
-              right: isDateField ? '44px' : '14px',
+              right: isDateField ? '48px' : '16px',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'var(--text-muted)',
+              color: 'rgba(255, 255, 255, 0.4)',
               background: 'none',
               border: 'none',
-              padding: '4px',
+              padding: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               zIndex: 10,
-              opacity: 0.6
+              opacity: 0.6,
+              transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
             onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
@@ -89,23 +93,23 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
             onClick={togglePasswordVisibility}
             style={{
               position: 'absolute',
-              right: '14px',
+              right: '16px',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'var(--text-muted)',
+              color: 'rgba(255, 255, 255, 0.4)',
               background: 'none',
               border: 'none',
-              padding: '4px',
+              padding: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               zIndex: 10,
-              opacity: 0.85,
-              transition: 'opacity 0.2s'
+              opacity: 0.8,
+              transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.8'}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
@@ -116,25 +120,28 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
           type={inputType}
           style={{
             width: '100%',
-            background: 'var(--bg-input)',
-            border: `1px solid ${error ? '#ef4444' : 'var(--border-color)'}`,
-            borderRadius: '12px',
-            padding: '12px 16px',
-            paddingLeft: Icon ? '44px' : '16px',
-            paddingRight: (isDateField || showClear || isPasswordField) ? '44px' : '16px',
-            color: 'var(--text-main)',
+            background: isTransparent ? 'rgba(255,255,255,0.02)' : 'var(--bg-input)',
+            border: `1px solid ${error ? '#ef4444' : (isTransparent ? 'rgba(255,255,255,0.08)' : 'var(--border-color)')}`,
+            borderRadius: '14px',
+            padding: '14px 18px',
+            paddingLeft: Icon ? '48px' : '18px',
+            paddingRight: (isDateField || showClear || isPasswordField) ? '48px' : '18px',
+            color: 'white',
             fontSize: '14px',
+            fontWeight: 500,
             outline: 'none',
-            transition: 'var(--transition-smooth)',
-            ...props.style
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            ...inputStyle
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = 'hsl(var(--primary))';
-            e.target.style.boxShadow = '0 0 0 4px hsla(var(--primary), 0.1)';
+            e.target.style.borderColor = '#10b981';
+            e.target.style.background = 'rgba(16, 185, 129, 0.05)';
+            e.target.style.boxShadow = '0 0 0 4px rgba(16, 185, 129, 0.1), 0 0 20px rgba(16, 185, 129, 0.05)';
             if (props.onFocus) props.onFocus(e);
           }}
           onBlur={(e) => {
-            e.target.style.borderColor = error ? '#ef4444' : 'var(--border-color)';
+            e.target.style.borderColor = error ? '#ef4444' : (isTransparent ? 'rgba(255,255,255,0.08)' : 'var(--border-color)');
+            e.target.style.background = isTransparent ? 'rgba(255,255,255,0.02)' : 'var(--bg-input)';
             e.target.style.boxShadow = 'none';
             if (props.onBlur) props.onBlur(e);
           }}
