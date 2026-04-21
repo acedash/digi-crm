@@ -38,17 +38,16 @@ class BookingService
                 'agent_id',
                 'booking_reference',
                 'status',
-                'total_amount',
                 'currency',
-                'details_json',
+                // Strip details_json from list view to keep payload small
                 'created_at',
             ])
             ->with([
                 'client:id,agent_id,first_name,last_name,name,phone,email',
                 'agent:id,name',
                 'services:id,booking_id,serviceable_type,serviceable_id',
-                'services.serviceable',
-                'paymentAuthorizations',
+                'services.serviceable:id,airline_code,departure_city,arrival_city,name,vendor_name,car_type,cruise_line,ship_name',
+                'paymentAuthorizations:id,status,collected_at,approved_at',
             ])
             ->withCount('passengers')
             ->orderBy('created_at', 'desc');
@@ -87,9 +86,8 @@ class BookingService
             $query->where('agent_id', auth()->id());
         }
 
-        // Cache the stats GROUP BY for 60s — avoids a full scan double-run on every page load.
-        // Key includes user+search+dates so different filters get independent caches.
-        $statsCacheKey = 'booking_stats.' . auth()->id() . '.' . md5(json_encode([
+        // Cache the stats GROUP BY for 300s (5 mins)
+        $statsCacheKey = 'booking_stats.v2.' . auth()->id() . '.' . md5(json_encode([
             $search,
             $params['start_date'] ?? '',
             $params['end_date'] ?? '',

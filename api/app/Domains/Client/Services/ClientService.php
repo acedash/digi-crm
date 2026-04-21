@@ -33,15 +33,17 @@ class ClientService
         $yesterdayStart = now()->subDay()->startOfDay();
         $yesterdayEnd = now()->subDay()->endOfDay();
 
-        $stats = [
-            'total' => \App\Models\Client::count(),
-            'today' => \App\Models\Client::where('created_at', '>=', $todayStart)
-                ->where('created_at', '<=', $todayEnd)
-                ->count(),
-            'yesterday' => \App\Models\Client::where('created_at', '>=', $yesterdayStart)
-                ->where('created_at', '<=', $yesterdayEnd)
-                ->count(),
-        ];
+        $stats = \Illuminate\Support\Facades\Cache::remember('clients.directory_stats', 600, function() use ($todayStart, $todayEnd, $yesterdayStart, $yesterdayEnd) {
+            return [
+                'total' => \App\Models\Client::count(),
+                'today' => \App\Models\Client::where('created_at', '>=', $todayStart)
+                    ->where('created_at', '<=', $todayEnd)
+                    ->count(),
+                'yesterday' => \App\Models\Client::where('created_at', '>=', $yesterdayStart)
+                    ->where('created_at', '<=', $yesterdayEnd)
+                    ->count(),
+            ];
+        });
 
         return [
             'data' => $paginator,
