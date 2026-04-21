@@ -379,15 +379,13 @@ class DashboardController extends Controller
                     return ['name' => $monthName, 'revenue' => (float)$item->amount];
                 });
 
-            // Optimized Total Clients (Avoid slow whereHas subquery)
+            // Optimized Total Clients (JOIN is often faster than whereExists for small sets on high-load servers)
             $totalClients = DB::table('clients')
+                ->join('bookings', 'bookings.client_id', '=', 'clients.id')
                 ->whereIn('clients.agent_id', $teamIds)
-                ->whereExists(function($q) use ($startDate, $endDate) {
-                    $q->select(DB::raw(1))
-                      ->from('bookings')
-                      ->whereColumn('bookings.client_id', 'clients.id')
-                      ->whereBetween('bookings.created_at', [$startDate, $endDate]);
-                })->count();
+                ->whereBetween('bookings.created_at', [$startDate, $endDate])
+                ->distinct('clients.id')
+                ->count('clients.id');
 
             return [
                 'total_clients' => $totalClients,

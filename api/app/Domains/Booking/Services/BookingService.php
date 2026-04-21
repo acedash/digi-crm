@@ -37,7 +37,7 @@ class BookingService
                 'agent:id,name',
                 'services:id,booking_id,serviceable_type,serviceable_id',
                 'services.serviceable',
-                'paymentAuthorizations:id,status,collected_at,approved_at',
+                'paymentAuthorizations:id,status,collected_at,approved_at,total_amount,currency', // Strictly avoid consent_snapshot/digital_signature
             ])
             ->withCount('passengers')
             ->orderBy('created_at', 'desc');
@@ -83,9 +83,11 @@ class BookingService
             $params['end_date'] ?? '',
         ]));
 
-        $stats = Cache::remember($statsCacheKey, 60, function () use ($query) {
+        $stats = Cache::remember($statsCacheKey, 300, function () use ($query) {
             $statsQuery = clone $query;
-            return $statsQuery->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            // Clear eager loads and unnecessary parts for the stats count
+            return $statsQuery->setEagerLoads([])
+                ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
                 ->groupBy('status')
                 ->pluck('count', 'status')
                 ->toArray();
@@ -354,9 +356,9 @@ class BookingService
                         ?? ($details['latest_reassignment_remark'] ?? null),
                     'status_remark' => $details['status_remark'] ?? null,
                     'was_reassigned' => $history->isNotEmpty(),
-                    'reassignment_history' => $history->all(),
+                    'reassignment_history' => $history->take(-3)->all(), // Only send last 3 entries to save space
                     'payment_authorizations' => $booking->paymentAuthorizations,
-                    'details_json' => $details,
+                    // REMOVED 'details_json' => $details from the response to save massive bandwidth (20MB -> 100KB)
                 ];
             })
         );
