@@ -20,7 +20,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import dashboardService from './dashboardService';
 import AdminMonitoringTable from './AdminMonitoringTable';
-import { AreaChart, Area, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 const COLORS = ['#06B68A', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6'];
 
@@ -151,10 +151,11 @@ const AdminDashboard = () => {
   ];
 
   const periods = [
+    { id: 'all', label: 'All Time' },
     { id: 'daily', label: 'Daily' },
+    { id: 'yesterday', label: 'Yesterday' },
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
-    { id: 'yearly', label: 'Yearly' },
     { id: 'custom', label: 'Custom Date' },
   ];
 
@@ -236,77 +237,51 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      <div style={{ marginBottom: '8px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Quick Operations</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>System shortcuts</p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-          {[
-            { title: "Email Templates", desc: "Manage mail copies", icon: Mail, color: "#10b981", path: "/admin/settings" },
-            { title: "System Users", desc: "Manage team access", icon: UserPlus, color: "#60a5fa", path: "/admin/users" },
-            { title: "Settings", desc: "SMTP & configuration", icon: Settings, color: "#f59e0b", path: "/admin/settings" },
-            { title: "Audit Trail", desc: "Security logs", icon: Shield, color: "#8b5cf6", path: "/admin/system-audit" }
-          ].map((action, idx) => (
-            <motion.div 
-              key={idx}
-              whileHover={{ scale: 1.02, y: -2 }}
-              transition={{ type: 'spring', stiffness: 300 }}
-              onClick={() => navigate(action.path)}
-              style={{ cursor: 'pointer' }}
-            >
-              <Card>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ 
-                    width: '40px', height: '40px', borderRadius: '12px',
-                    background: `${action.color}15`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: action.color
-                  }}>
-                    <action.icon size={20} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '2px' }}>{action.title}</h3>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{action.desc}</p>
-                  </div>
-                  <ChevronRight size={14} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', alignItems: 'stretch' }}>
         {stats.revenue_trends && stats.revenue_trends.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Global Revenue Trends (6 Months)</h3>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Global Revenue Trends (1 Year)</h3>
             <div style={{ height: '300px', width: '100%', flexGrow: 1 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.revenue_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRevenueAdmin" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06B68A" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#06B68A" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
+                <LineChart data={stats.revenue_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.3} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 11, fill: 'var(--text-muted)', fontWeight: 600 }} 
+                    dy={10} 
+                  />
                   <YAxis 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fontSize: 12, fill: 'var(--text-muted)' }} 
+                    tick={{ fontSize: 11, fill: 'var(--text-muted)', fontWeight: 600 }} 
                     tickFormatter={(val) => `$${val >= 1000 ? (val/1000).toFixed(1) + 'k' : val}`}
                   />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                    itemStyle={{ color: 'var(--text-main)', fontWeight: 700 }}
-                    labelStyle={{ color: 'var(--text-muted)', marginBottom: '4px' }}
-                    formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']}
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: '16px', 
+                      border: '1px solid rgba(255, 255, 255, 0.1)', 
+                      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+                      padding: '12px'
+                    }}
+                    itemStyle={{ color: '#06B68A', fontWeight: 800, fontSize: '14px' }}
+                    labelStyle={{ color: 'rgba(255, 255, 255, 0.6)', marginBottom: '4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}
+                    formatter={(value) => [`$${value.toLocaleString()}`, 'Monthly Revenue']}
                   />
-                  <Area type="monotone" dataKey="revenue" stroke="#06B68A" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenueAdmin)" />
-                </AreaChart>
+                  <Line 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stroke="#06B68A" 
+                    strokeWidth={4} 
+                    dot={{ r: 4, fill: '#06B68A', strokeWidth: 2, stroke: 'var(--bg-card)' }}
+                    activeDot={{ r: 6, strokeWidth: 0, fill: '#06B68A' }}
+                    filter="drop-shadow(0px 4px 8px rgba(6, 182, 138, 0.4))"
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>

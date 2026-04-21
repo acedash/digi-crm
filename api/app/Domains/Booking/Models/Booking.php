@@ -105,4 +105,12 @@ class Booking extends Model
     {
         return $this->hasMany(BookingService::class);
     }
+
+    /**
+     * Get the payment authorizations associated with this booking.
+     */
+    public function paymentAuthorizations()
+    {
+        return $this->belongsToMany(\App\Models\PaymentAuth::class, 'booking_payment_auth', 'booking_id', 'payment_auth_id');
+    }
 }

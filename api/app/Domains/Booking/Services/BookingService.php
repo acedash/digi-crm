@@ -48,6 +48,7 @@ class BookingService
                 'agent:id,name',
                 'services:id,booking_id,serviceable_type,serviceable_id',
                 'services.serviceable',
+                'paymentAuthorizations',
             ])
             ->withCount('passengers')
             ->orderBy('created_at', 'desc');
@@ -114,7 +115,7 @@ class BookingService
                 'Total' => $totalCount,
                 'Approved' => ($stats['Approved'] ?? 0) + ($stats['Confirmed'] ?? 0) + ($stats['Change Approved'] ?? 0),
                 'Drafts' => $stats['Draft'] ?? 0,
-                'Pending' => $stats['Pending'] ?? 0,
+                'Pending' => ($stats['Pending'] ?? 0) + ($stats['Awaiting Cards'] ?? 0),
                 'Work Pending' => $stats['Work Pending'] ?? 0,
                 'Completed' => $stats['Completed'] ?? 0,
                 'Rejected' => ($stats['Rejected'] ?? 0) + ($stats['Change Rejected'] ?? 0) + ($stats['Cancelled'] ?? 0),
@@ -366,6 +367,8 @@ class BookingService
                     'status_remark' => $details['status_remark'] ?? null,
                     'was_reassigned' => $history->isNotEmpty(),
                     'reassignment_history' => $history->all(),
+                    'payment_authorizations' => $booking->paymentAuthorizations,
+                    'details_json' => $details,
                 ];
             })
         );

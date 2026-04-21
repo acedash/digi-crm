@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, Briefcase, Download, MoreHorizontal, FileText, Table } from 'lucide-react';
+import { PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, Briefcase, Download, MoreHorizontal, FileText, Table, Phone, Mail } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -123,7 +123,8 @@ const CallLoggingPage = () => {
         Date: new Date(log.created_at).toLocaleString(),
         Scope: log.log_scope === 'general' ? 'Marketing' : 'Booking',
         Client: log.client ? `${log.client.first_name} ${log.client.last_name}` : log.contact_name,
-        Contact: log.contact_phone || log.client?.phone || '',
+        Phone: log.contact_phone || log.client?.phone || '',
+        Email: log.contact_email || log.client?.email || '',
         Types: (log.call_type || []).join(', '),
         Inquiries: typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k,v]) => `${k}: ${v}`).join(' | ') : log.airline_inquiry,
         Outcome: log.customer_outcome,
@@ -305,6 +306,21 @@ const CallLoggingPage = () => {
                           {t}
                         </span>
                       ))}
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', marginBottom: '12px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {(log.contact_phone || log.client?.phone) && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-app)', padding: '4px 10px', borderRadius: '8px' }}>
+                          <Phone size={12} style={{ color: 'hsl(var(--primary))' }} />
+                          <span style={{ color: 'var(--text-main)' }}>{log.contact_phone || log.client?.phone}</span>
+                        </div>
+                      )}
+                      {(log.contact_email || log.client?.email) && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-app)', padding: '4px 10px', borderRadius: '8px' }}>
+                          <Mail size={12} style={{ color: 'hsl(var(--primary))' }} />
+                          <span style={{ color: 'var(--text-main)' }}>{log.contact_email || log.client?.email}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Inquiry Details Upfront */}

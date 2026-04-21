@@ -8,7 +8,8 @@ const dashboardService = {
         return api.get(url);
     },
     getAgentMonitor: () => api.get('/dashboard/agent-monitor'),
-    getAdminMonitor: () => api.get('/dashboard/admin-monitor')
+    getAdminMonitor: () => api.get('/dashboard/admin-monitor'),
+    getAgentReport: (agentId) => api.get(`/dashboard/agent-report/${agentId}`)
 };
 
 export default dashboardService;

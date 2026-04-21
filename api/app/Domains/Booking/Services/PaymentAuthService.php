@@ -30,11 +30,16 @@ class PaymentAuthService
     public function createAuthorization(array $bookingIds, int $clientId, array $options = [])
     {
         $auth = DB::transaction(function () use ($bookingIds, $clientId, $options) {
-            $bookings = \App\Domains\Booking\Models\Booking::with(['services.serviceable'])
-                ->whereIn('id', $bookingIds)
-                ->get();
-
             $authorizationType = $options['authorization_type'] ?? 'initial';
+            $isCardCollection = $authorizationType === 'card_collection';
+
+            $bookings = collect();
+            if (!$isCardCollection) {
+                $bookings = \App\Domains\Booking\Models\Booking::with(['services.serviceable'])
+                    ->whereIn('id', $bookingIds)
+                    ->get();
+            }
+
             $cardAllocations = collect($options['card_allocations'] ?? [])
                 ->map(fn ($allocation) => [
                     'holder_name' => $allocation['holder_name'] ?? null,
@@ -46,12 +51,16 @@ class PaymentAuthService
                 ->values();
             $changeEntries = collect($options['change_entries'] ?? [])->values()->all();
 
-            $totalAmount = $authorizationType === 'change_charge'
-                ? (float) $cardAllocations->sum('amount')
-                : (float) $bookings->sum('total_amount');
-            $currency = $bookings->first()->currency ?? 'USD';
+            $totalAmount = 0;
+            if ($authorizationType === 'change_charge') {
+                $totalAmount = (float) $cardAllocations->sum('amount');
+            } elseif ($authorizationType === 'initial') {
+                $totalAmount = (float) $bookings->sum('total_amount');
+            }
 
-            if ($totalAmount <= 0) {
+            $currency = $isCardCollection ? 'USD' : ($bookings->first()->currency ?? 'USD');
+
+            if (!$isCardCollection && $totalAmount <= 0) {
                 throw new \RuntimeException('Authorization amount must be greater than zero.');
             }
 
@@ -92,6 +101,10 @@ class PaymentAuthService
 
             $auth->bookings()->attach($bookingIds);
 
+            if ($authorizationType === 'card_collection') {
+                return $this->repository->findByToken($auth->token);
+            }
+
             if ($authorizationType === 'initial') {
                 $auth->bookings()->update([
                     'status' => 'Awaiting Approval',
@@ -106,7 +119,9 @@ class PaymentAuthService
             return $this->repository->findByToken($auth->token);
         });
 
-        $this->authorizationMailer->send($auth);
+        if ($options['send_email'] ?? true) {
+            $this->authorizationMailer->send($auth);
+        }
 
         return $auth;
     }
@@ -127,6 +142,101 @@ class PaymentAuthService
     public function getChargeQueue(string $view = 'pending', array $filters = [])
     {
         return $this->repository->getChargeQueue($view, $filters);
+    }
+
+    public function collectCardDetails(string $token, array $data)
+    {
+        $auth = $this->repository->findByToken($token);
+    
+        if (!$auth || $auth->status !== 'Pending') {
+            throw new \RuntimeException('This link is invalid or has already been used.');
+        }
+    
+        $cards = $data['cards'] ?? [];
+        if (empty($cards)) {
+            throw new \RuntimeException('No card details provided.');
+        }
+    
+        // Optional: Strict validation against total_amount if it's set
+        if ($auth->total_amount > 0) {
+            $sum = collect($cards)->sum('amount');
+            if (abs($sum - $auth->total_amount) > 0.01) {
+                throw new \RuntimeException(sprintf('Total card allocation (%s) must match requested amount (%s).', number_format($sum, 2), number_format($auth->total_amount, 2)));
+            }
+        }
+    
+        return DB::transaction(function () use ($auth, $data, $cards) {
+            $collectedCardIds = [];
+            $allocations = [];
+            $maskedCards = [];
+    
+            foreach ($cards as $cardData) {
+                // 1. Create the Client Card (Encrypted automatically by model)
+                $card = \App\Models\ClientCard::create([
+                    'client_id' => $auth->client_id,
+                    'card_holder_name' => $cardData['card_holder_name'],
+                    'card_number' => $cardData['card_number'],
+                    'last_4' => substr($cardData['card_number'], -4),
+                    'expiry_month' => $cardData['expiry_month'],
+                    'expiry_year' => $cardData['expiry_year'],
+                    'cvv' => $cardData['cvv'],
+                    'billing_address' => $cardData['billing_address'] ?? null,
+                    'currency' => $cardData['currency'] ?? ($auth->currency ?? 'USD'),
+                    'is_primary' => false,
+                ]);
+    
+                $collectedCardIds[] = $card->id;
+                $allocations[] = [
+                    'card_id' => $card->id,
+                    'last_4' => $card->last_4,
+                    'amount' => (float) ($cardData['amount'] ?? 0),
+                    'holder_name' => $card->card_holder_name,
+                ];
+                $maskedCards[] = 'XXXX' . $card->last_4 . ' ($' . number_format($cardData['amount'], 2) . ')';
+            }
+    
+            // 2. Mark authorization link as Approved/Collected
+            $summary = count($cards) > 1 
+                ? count($cards) . ' Cards: ' . implode(', ', $maskedCards)
+                : $maskedCards[0];
+    
+            $auth->update([
+                'status' => 'Approved',
+                'approved_at' => now(),
+                'ip_address' => $data['ip_address'] ?? null,
+                'user_agent' => $data['user_agent'] ?? null,
+                'masked_card' => substr($summary, 0, 255),
+                'metadata' => array_merge($auth->metadata ?? [], [
+                    'collected_card_ids' => $collectedCardIds,
+                    'card_allocations' => $allocations,
+                    'collection_method' => 'public_link'
+                ])
+            ]);
+    
+            // 3. Sync cards to associated bookings so they appear in existing UI
+            foreach ($auth->bookings as $booking) {
+                $details = $booking->details_json ?? [];
+                $paymentCards = $details['payment_cards'] ?? [];
+    
+                foreach ($cards as $cardData) {
+                    $paymentCards[] = [
+                        'holder_name' => $cardData['card_holder_name'],
+                        'number' => $cardData['card_number'],
+                        'exp' => $cardData['expiry_month'] . '/' . $cardData['expiry_year'],
+                        'cvv' => $cardData['cvv'],
+                        'amount' => (float) ($cardData['amount'] ?? 0),
+                        'currency' => $cardData['currency'] ?? ($booking->currency ?? 'USD'),
+                        'remarks' => 'Collected via secure link',
+                        'collected_at' => now()->toDateTimeString(),
+                    ];
+                }
+    
+                $details['payment_cards'] = $paymentCards;
+                $booking->update(['details_json' => $details]);
+            }
+    
+            return $auth;
+        });
     }
 
     public function markCharged(int $paymentAuthId, array $data = [])
@@ -522,5 +632,15 @@ class PaymentAuthService
         $auth->save();
 
         return $auth;
+    }
+
+    public function sendAuthEmail(int $id): void
+    {
+        $auth = $this->repository->findById($id);
+        if (!$auth) {
+            throw new \RuntimeException('Authorization not found.');
+        }
+
+        $this->authorizationMailer->send($auth);
     }
 }

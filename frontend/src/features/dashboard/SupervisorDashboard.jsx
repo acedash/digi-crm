@@ -129,69 +129,102 @@ const SupervisorDashboard = () => {
   
   const COLORS = ['#60a5fa', '#34d399', '#f59e0b', '#8b5cf6', '#f87171'];
 
+  const periods = [
+    { id: 'all', label: 'All Time' },
+    { id: 'daily', label: 'Today' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'custom', label: 'Custom' },
+  ];
+
   const renderFilterBar = () => (
     <div style={{ 
       display: 'flex', 
       flexWrap: 'wrap',
       justifyContent: 'space-between', 
       alignItems: 'center', 
-      gap: '16px',
+      gap: '20px',
       background: 'var(--bg-card)',
-      padding: '16px 24px',
-      borderRadius: '20px',
+      padding: '20px 24px',
+      borderRadius: '24px',
       border: '1px solid var(--border-color)',
-      marginBottom: '8px'
+      marginBottom: '8px',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)'
     }}>
-      <div style={{ display: 'flex', gap: '8px' }}>
-        {['daily', 'weekly', 'monthly', 'custom'].map((p) => (
+      <div style={{ 
+        display: 'flex', 
+        gap: '4px', 
+        background: 'var(--bg-input)', 
+        padding: '4px', 
+        borderRadius: '14px', 
+        border: '1px solid var(--border-color)' 
+      }}>
+        {periods.map((p) => (
           <button
-            key={p}
-            onClick={() => setPeriod(p)}
+            key={p.id}
+            onClick={() => setPeriod(p.id)}
             style={{
-              padding: '8px 16px',
-              borderRadius: '12px',
+              padding: '8px 20px',
+              borderRadius: '10px',
               fontSize: '13px',
-              fontWeight: 600,
-              textTransform: 'capitalize',
-              border: '1px solid var(--border-color)',
-              background: period === p ? 'hsl(var(--primary))' : 'var(--bg-app)',
-              color: period === p ? 'white' : 'var(--text-muted)',
+              fontWeight: 700,
+              border: 'none',
+              background: period === p.id ? 'var(--bg-card)' : 'transparent',
+              color: period === p.id ? 'hsl(var(--primary))' : 'var(--text-muted)',
               cursor: 'pointer',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              boxShadow: period === p.id ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
             }}
           >
-            {p === 'daily' ? 'Today' : p}
+            {p.label}
           </button>
         ))}
       </div>
 
-      {period === 'custom' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>From:</span>
-            <input 
-              type="date" 
-              value={customRange.start} 
-              onChange={e => setCustomRange({...customRange, start: e.target.value})}
-              style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
-            />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {period === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', padding: '6px 12px', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+              <input 
+                type="date" 
+                value={customRange.start} 
+                onChange={e => setCustomRange({...customRange, start: e.target.value})}
+                style={{ padding: '4px', border: 'none', background: 'transparent', color: 'var(--text-main)', fontSize: '13px', outline: 'none' }}
+              />
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 800 }}>-</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input 
+                type="date" 
+                value={customRange.end} 
+                onChange={e => setCustomRange({...customRange, end: e.target.value})}
+                style={{ padding: '4px', border: 'none', background: 'transparent', color: 'var(--text-main)', fontSize: '13px', outline: 'none' }}
+              />
+            </div>
+            <button 
+              onClick={handleApplyCustomFilter}
+              style={{
+                marginLeft: '8px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                background: 'hsl(var(--primary))',
+                color: 'white',
+                border: 'none',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Apply
+            </button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>To:</span>
-            <input 
-              type="date" 
-              value={customRange.end} 
-              onChange={e => setCustomRange({...customRange, end: e.target.value})}
-              style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
-            />
-          </div>
-          <Button variant="primary" size="sm" onClick={handleApplyCustomFilter}>Apply</Button>
-        </div>
-      )}
+        )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
-        <Clock size={14} />
-        Last synced: {new Date().toLocaleTimeString()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, background: 'var(--bg-input)', padding: '8px 16px', borderRadius: '12px' }}>
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></div>
+          Last synced: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
       </div>
     </div>
   );
@@ -230,7 +263,6 @@ const SupervisorDashboard = () => {
         <Card title="Clients with Bookings" icon={Users}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '32px', fontWeight: 800, color: '#06B68A' }}>{stats?.total_clients || 0}</span>
-            <Users size={40} style={{ opacity: 0.1, marginBottom: '-8px' }} />
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Total number of clients handled by your team</div>
         </Card>
@@ -238,7 +270,6 @@ const SupervisorDashboard = () => {
         <Card title="Team Bookings" icon={TrendingUp}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '32px', fontWeight: 800, color: '#06B68A' }}>{stats?.period_bookings || 0}</span>
-            <TrendingUp size={40} style={{ opacity: 0.1, marginBottom: '-8px' }} />
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Bookings created by your team (Selected Period)</div>
         </Card>

@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/authorize/{token}', [PaymentAuthController::class, 'show']);
 Route::post('/authorize/{token}/approve', [PaymentAuthController::class, 'approve']);
 Route::post('/authorize/{token}/reject', [PaymentAuthController::class, 'reject']);
+Route::post('/authorize/{token}/submit-card', [PaymentAuthController::class, 'submitCardDetails']);
 Route::get('/email-assets/{encodedPath}/{signature}', [PublicEmailAssetController::class, 'show']);
 
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -35,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/stats', [\App\Http\Controllers\DashboardController::class, 'getStats']);
     Route::get('/dashboard/agent-monitor', [\App\Http\Controllers\DashboardController::class, 'getAgentMonitor']);
     Route::get('/dashboard/admin-monitor', [\App\Http\Controllers\DashboardController::class, 'getAdminMonitor']);
+    Route::get('/dashboard/agent-report/{agentId}', [\App\Http\Controllers\DashboardController::class, 'getAgentStatsReport']);
 
     Route::group(['prefix' => 'admin'], function () {
         Route::apiResource('clients', ClientController::class);
@@ -42,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Payment Authorizations
     Route::post('/payment-authorizations', [PaymentAuthController::class, 'store']);
+    Route::post('/payment-authorizations/{id}/send-email', [PaymentAuthController::class, 'sendEmail']);
     Route::get('/bookings/{booking}/consent-proof', [PaymentAuthController::class, 'proofByBooking']);
     Route::post('/payment-authorizations/{token}/refresh', [PaymentAuthController::class, 'refreshSnapshot']);
 

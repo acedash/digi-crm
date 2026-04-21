@@ -43,6 +43,7 @@ class BookingRepository extends BaseRepository
                 'passengers',
                 'services',
                 'services.serviceable',
+                'paymentAuthorizations',
             ])
             ->find($id);
     }

@@ -14,6 +14,8 @@ import { useAuthStore } from '../auth/useAuthStore';
 import Card from '../../components/ui/Card';
 import dashboardService from '../dashboard/dashboardService';
 
+import AgentReportSlideOver from '../dashboard/components/AgentReportSlideOver';
+
 const AgentMonitorPage = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.roles?.includes('admin') || user?.roles?.[0]?.name === 'admin';
@@ -22,6 +24,8 @@ const AgentMonitorPage = () => {
   const [monitoringSummary, setMonitoringSummary] = useState({ supervisors: 0, active: 0, break: 0 });
 
   const [globalPeriod, setGlobalPeriod] = useState('daily');
+  const [selectedAgentId, setSelectedAgentId] = useState(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   // Independent stats data
   const [bookStats, setBookStats] = useState(null);
@@ -64,24 +68,24 @@ const AgentMonitorPage = () => {
     {
       title: 'Bookings Created',
       subtitle: `Created this ${globalPeriod}`,
-      value: bookStats?.total || stats.bookings.total,
-      growth: bookStats?.growth || stats.bookings.growth,
+      value: bookStats?.total || stats?.bookings?.total || 0,
+      growth: bookStats?.growth || stats?.bookings?.growth || 0,
       icon: ClipboardList,
       color: '#06B68A',
     },
     {
       title: 'Calls Picked',
       subtitle: `Logs this ${globalPeriod}`,
-      value: callStats?.total || stats.calls.total,
-      growth: callStats?.growth || stats.calls.growth,
+      value: callStats?.total || stats?.calls?.total || 0,
+      growth: callStats?.growth || stats?.calls?.growth || 0,
       icon: PhoneCall,
       color: '#f59e0b',
     },
     {
       title: 'Revenue',
       subtitle: `Revenue this ${globalPeriod}`,
-      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(revStats?.period_total || stats.revenue.period_total) || 0),
-      growth: revStats?.growth || stats.revenue.growth,
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(revStats?.period_total || stats?.revenue?.period_total) || 0),
+      growth: revStats?.growth || stats?.revenue?.growth || 0,
       icon: CircleDollarSign,
       color: '#06B68A',
     },
@@ -135,21 +139,41 @@ const AgentMonitorPage = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-12px', position: 'relative', zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg-card)', padding: '4px 8px 4px 12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Period:</span>
-          <select
-            value={globalPeriod}
-            onChange={(e) => { setGlobalPeriod(e.target.value); fetchLocalizedStats(e.target.value); }}
-            style={{
-              background: 'transparent', border: 'none',
-              color: 'var(--text-main)', fontSize: '12px', fontWeight: 700, padding: '4px 2px 4px 4px', cursor: 'pointer', outline: 'none'
-            }}
-          >
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          background: 'var(--bg-card)', 
+          padding: '4px', 
+          borderRadius: '12px', 
+          border: '1px solid var(--border-color)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          gap: '4px'
+        }}>
+          <div style={{ padding: '0 8px 0 10px', fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Period:
+          </div>
+          {['daily', 'weekly', 'monthly'].map((p) => (
+            <button
+              key={p}
+              onClick={() => { setGlobalPeriod(p); fetchLocalizedStats(p); }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 700,
+                textTransform: 'capitalize',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                background: globalPeriod === p ? 'hsl(var(--primary))' : 'transparent',
+                color: globalPeriod === p ? 'white' : 'var(--text-main)',
+                boxShadow: globalPeriod === p ? '0 4px 10px hsla(var(--primary) / 0.3)' : 'none'
+              }}
+            >
+              {p}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -180,9 +204,18 @@ const AgentMonitorPage = () => {
         )}
         
         <div>
-          <AgentActivityTable />
+          <AgentActivityTable onViewReport={(id) => {
+            setSelectedAgentId(id);
+            setIsReportOpen(true);
+          }} />
         </div>
       </div>
+
+      <AgentReportSlideOver 
+        isOpen={isReportOpen} 
+        onClose={() => setIsReportOpen(false)} 
+        agentId={selectedAgentId} 
+      />
     </div>
   );
 };

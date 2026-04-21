@@ -43,30 +43,30 @@ class PaymentAuthRepository extends BaseRepository
         if ($view === 'charged') {
             $query->whereNotNull('collected_at')->latest('collected_at');
             if (!empty($filters['startDate'])) {
-                $query->whereDate('collected_at', '>=', $filters['startDate']);
+                $query->where('collected_at', '>=', \Illuminate\Support\Carbon::parse($filters['startDate'])->startOfDay());
             }
             if (!empty($filters['endDate'])) {
-                $query->whereDate('collected_at', '<=', $filters['endDate']);
+                $query->where('collected_at', '<=', \Illuminate\Support\Carbon::parse($filters['endDate'])->endOfDay());
             }
         } elseif ($view === 'all') {
             $query->latest('approved_at');
             if (!empty($filters['startDate'])) {
-                $query->whereDate('approved_at', '>=', $filters['startDate']);
+                $query->where('approved_at', '>=', \Illuminate\Support\Carbon::parse($filters['startDate'])->startOfDay());
             }
             if (!empty($filters['endDate'])) {
-                $query->whereDate('approved_at', '<=', $filters['endDate']);
+                $query->where('approved_at', '<=', \Illuminate\Support\Carbon::parse($filters['endDate'])->endOfDay());
             }
         } else {
             $query->whereNull('collected_at')->latest('approved_at');
             if (!empty($filters['startDate'])) {
-                $query->whereDate('approved_at', '>=', $filters['startDate']);
+                $query->where('approved_at', '>=', \Illuminate\Support\Carbon::parse($filters['startDate'])->startOfDay());
             }
             if (!empty($filters['endDate'])) {
-                $query->whereDate('approved_at', '<=', $filters['endDate']);
+                $query->where('approved_at', '<=', \Illuminate\Support\Carbon::parse($filters['endDate'])->endOfDay());
             }
         }
 
-        return $query->get();
+        return $query->paginate(25);
     }
 
     public function findByIdForCollection(int $id)

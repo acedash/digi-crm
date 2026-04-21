@@ -16,6 +16,7 @@ class BookingRequest extends FormRequest
         $status = $this->input('status');
         $isDraft = $status === 'Draft';
         $isStatusOnly = $this->input('update_mode') === 'status_only';
+        $isRequestingCard = $this->boolean('request_card_collection');
 
         return [
             'client_id' => 'nullable|exists:clients,id',
@@ -27,7 +28,24 @@ class BookingRequest extends FormRequest
             'passengers' => 'nullable|array',
             'passengers.*' => 'exists:passengers,id',
             'new_client' => 'nullable|array',
+            'new_client.first_name' => ($isDraft || $isStatusOnly) ? 'nullable|string|max:100' : 'required_without:client_id|string|max:100',
+            'new_client.last_name' => ($isDraft || $isStatusOnly) ? 'nullable|string|max:100' : 'required_without:client_id|string|max:100',
+            'new_client.email' => 'nullable|email|max:255',
+            'new_client.alternate_email' => 'nullable|email|max:255',
+            'new_client.phone' => [
+                ($isDraft || $isStatusOnly) ? 'nullable' : 'required_without:client_id',
+                'string',
+                'max:20',
+                'regex:/^([0-9\s\-\+\(\)]*)$/',
+                'min:7'
+            ],
+            'new_client.alternate_phone' => 'nullable|string|max:20|regex:/^([0-9\s\-\+\(\)]*)$/',
+            'new_client.date_of_birth' => 'nullable|date',
+            'new_client.gender' => 'nullable|in:Male,Female,Other',
+            'new_client.address' => 'nullable|string|max:500',
+            
             'new_passengers' => 'nullable|array',
+            'request_card_collection' => 'nullable|boolean',
             
             // Services: Required for non-draft, non-status-only updates
             'services' => ($isDraft || $isStatusOnly) ? 'nullable|array' : 'required|array|min:1',
@@ -56,19 +74,19 @@ class BookingRequest extends FormRequest
             'services.*.cruise_details.operator' => ($isDraft ? 'nullable' : 'required_with:services.*.cruise_details') . '|string|max:255',
             'services.*.cruise_details.cruise_name' => ($isDraft ? 'nullable' : 'required_if:services.*.type,cruise') . '|string|max:255',
             
-            // Payment Cards: Required only for non-draft updates if they are provided
+            // Payment Cards: Required only for non-draft updates if they are provided AND not requesting a collection
             'payment_cards' => 'nullable|array',
-            'payment_cards.*.holder_name' => ($isDraft ? 'nullable' : 'required_with:payment_cards') . '|string|max:255',
-            'payment_cards.*.number' => ($isDraft ? 'nullable' : 'required_with:payment_cards') . '|string|min:13|max:19',
+            'payment_cards.*.holder_name' => ($isDraft || $isRequestingCard) ? 'nullable' : 'required_with:payment_cards|string|max:255',
+            'payment_cards.*.number' => ($isDraft || $isRequestingCard) ? 'nullable' : 'required_with:payment_cards|string|min:13|max:19',
             'payment_cards.*.exp' => [
-                $isDraft ? 'nullable' : 'required_with:payment_cards',
+                ($isDraft || $isRequestingCard) ? 'nullable' : 'required_with:payment_cards',
                 'string',
                 'regex:/^(0[1-9]|1[0-2])\/\d{2}$/'
             ],
             'payment_cards.*.cvv' => 'nullable|string|min:3|max:4',
-            'payment_cards.*.amount' => ($isDraft ? 'nullable' : 'required_with:payment_cards') . '|numeric|min:0.01',
+            'payment_cards.*.amount' => ($isDraft || $isRequestingCard) ? 'nullable' : 'required_with:payment_cards|numeric|min:0.01',
             'payment_cards.*.currency' => 'nullable|string|size:3',
-
+ 
             'change_charge_cards_to_sync' => 'nullable|array',
             'change_charge_cards_to_sync.*.holder_name' => 'required_with:change_charge_cards_to_sync|string|max:255',
             'change_charge_cards_to_sync.*.number' => 'required_with:change_charge_cards_to_sync|string|min:13|max:19',

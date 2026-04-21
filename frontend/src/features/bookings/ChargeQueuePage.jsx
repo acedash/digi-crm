@@ -110,6 +110,8 @@ const ChargeQueuePage = () => {
   const [revealedCards, setRevealedCards] = useState({});
   const [collectionReference, setCollectionReference] = useState('');
   const [collectionNotes, setCollectionNotes] = useState('');
+  const [meta, setMeta] = useState({ total: 0, current_page: 1, last_page: 1 });
+  const [stats, setStats] = useState({ initial: 0, modified: 0 }); 
   const [toast, setToast] = useState({ message: '', type: 'error' });
 
   const getFilterParams = useCallback(() => {
@@ -142,12 +144,30 @@ const ChargeQueuePage = () => {
     return params;
   }, [period, startDate, endDate]);
 
-  const loadQueue = useCallback(async () => {
+  const loadQueue = useCallback(async (page = 1) => {
     setLoading(true);
     try {
-      const params = getFilterParams();
+      const params = { ...getFilterParams(), page };
       const response = await paymentAuthService.getChargeQueue(viewFilter, params);
-      setQueue(response.data.data || []);
+      
+      // Handle Laravel Pagination Structure
+      const result = response.data.data;
+      if (result && result.data) {
+        setQueue(result.data);
+        setMeta({
+          total: result.total,
+          current_page: result.current_page,
+          last_page: result.last_page
+        });
+
+        // Update local stats for the visual cards
+        const initialCount = result.data.filter(item => (item.consent_snapshot?.authorization_type || item.metadata?.authorization_type || 'initial') === 'initial').length;
+        const modifiedCount = result.data.filter(item => (item.consent_snapshot?.authorization_type || item.metadata?.authorization_type) === 'change_charge').length;
+        setStats({ initial: initialCount, modified: modifiedCount });
+      } else {
+        setQueue([]);
+        setMeta({ total: 0, current_page: 1, last_page: 1 });
+      }
     } catch (error) {
       setToast({ message: error?.response?.data?.message || 'Failed to load charge queue.', type: 'error' });
     } finally {
@@ -226,58 +246,65 @@ const ChargeQueuePage = () => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {[
-            { value: 'all', label: 'All Records' },
-            { value: 'pending', label: 'Pending Charge' },
-            { value: 'charged', label: 'Charged History' },
-          ].map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setViewFilter(option.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '999px',
-                border: '1px solid var(--border-color)',
-                background: viewFilter === option.value ? 'hsl(var(--primary))' : 'var(--bg-card)',
-                color: viewFilter === option.value ? 'white' : 'var(--text-main)',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 8px' }} />
-          {[
-            { value: 'all', label: 'All Time' },
-            { value: 'daily', label: 'Daily' },
-            { value: 'yesterday', label: 'Yesterday' },
-            { value: 'weekly', label: 'Weekly' },
-            { value: 'monthly', label: 'Month Wise' },
-            { value: 'custom', label: 'Custom Date' },
-          ].map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setPeriod(option.value)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                background: period === option.value ? 'var(--text-main)' : 'transparent',
-                color: period === option.value ? 'var(--bg-app)' : 'var(--text-muted)',
-                fontSize: '11px',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            {[
+              { value: 'all', label: 'All Records' },
+              { value: 'pending', label: 'Pending Charge' },
+              { value: 'charged', label: 'Charged History' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setViewFilter(option.value)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: viewFilter === option.value ? 'var(--bg-card)' : 'transparent',
+                  color: viewFilter === option.value ? 'var(--text-main)' : 'var(--text-muted)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: viewFilter === option.value ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            {[
+              { value: 'all', label: 'All Time' },
+              { value: 'daily', label: 'Daily' },
+              { value: 'yesterday', label: 'Yesterday' },
+              { value: 'weekly', label: 'Weekly' },
+              { value: 'monthly', label: 'Monthly' },
+              { value: 'custom', label: 'Custom Date' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setPeriod(option.value)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: period === option.value ? 'var(--bg-card)' : 'transparent',
+                  color: period === option.value ? 'var(--text-main)' : 'var(--text-muted)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: period === option.value ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {period === 'custom' && (
@@ -307,17 +334,17 @@ const ChargeQueuePage = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-        <Card title="Records" subtitle="Based on the current filter" icon={BadgeDollarSign}>
-          <div style={{ fontSize: '30px', fontWeight: 800, color: '#16a34a' }}>{queue.length}</div>
+        <Card title="Records" subtitle="Total in current queue" icon={BadgeDollarSign}>
+          <div style={{ fontSize: '30px', fontWeight: 800, color: '#16a34a' }}>{meta.total}</div>
         </Card>
-        <Card title="Initial approval by client" subtitle="Original booking authorizations" icon={ShieldCheck}>
+        <Card title="Initial Approval" subtitle="Current page count" icon={ShieldCheck}>
           <div style={{ fontSize: '30px', fontWeight: 800, color: '#2563eb' }}>
-            {queue.filter((item) => (item.consent_snapshot?.authorization_type || item.metadata?.authorization_type || 'initial') === 'initial').length}
+            {stats.initial}
           </div>
         </Card>
-        <Card title="Modified Charges" subtitle="Post-approval updated amounts" icon={CreditCard}>
+        <Card title="Modified Charges" subtitle="Current page count" icon={CreditCard}>
           <div style={{ fontSize: '30px', fontWeight: 800, color: '#f59e0b' }}>
-            {queue.filter((item) => (item.consent_snapshot?.authorization_type || item.metadata?.authorization_type) === 'change_charge').length}
+            {stats.modified}
           </div>
         </Card>
       </div>
@@ -438,6 +465,32 @@ const ChargeQueuePage = () => {
             })
           )}
         </div>
+
+        {!loading && meta.last_page > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', padding: '16px', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+              Page <strong>{meta.current_page}</strong> of <strong>{meta.last_page}</strong> ({meta.total} total)
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={meta.current_page === 1}
+                onClick={() => loadQueue(meta.current_page - 1)}
+              >
+                Previous
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={meta.current_page === meta.last_page}
+                onClick={() => loadQueue(meta.current_page + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectedRecord && (

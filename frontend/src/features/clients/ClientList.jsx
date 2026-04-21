@@ -243,7 +243,7 @@ const ClientList = ({ isEmbedded = false }) => {
           </div>
           <div style={{ position: 'relative', zIndex: 9999 }} ref={exportDropdownRef}>
             <Button variant="primary" icon={Download} onClick={() => setShowExportOptions(!showExportOptions)}>
-              Export List
+              Export Format
             </Button>
             {showExportOptions && (
               <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, backgroundColor: '#1e2235', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', minWidth: '180px' }}>

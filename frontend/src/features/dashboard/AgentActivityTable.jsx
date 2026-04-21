@@ -4,7 +4,7 @@ import Card from '../../components/ui/Card';
 import dashboardService from './dashboardService';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const AgentActivityTable = () => {
+const AgentActivityTable = ({ onViewReport }) => {
   const MotionTr = motion.tr;
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +96,7 @@ const AgentActivityTable = () => {
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bookings Created</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Daily Revenue</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Break Time</th>
+              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -172,6 +173,30 @@ const AgentActivityTable = () => {
                           </div>
                           {agent.break_time}
                         </div>
+                      </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                        <button
+                          onClick={() => onViewReport && onViewReport(agent.id)}
+                          style={{ 
+                            background: 'rgba(96, 165, 250, 0.1)', 
+                            border: '1px solid rgba(96, 165, 250, 0.2)', 
+                            color: '#60a5fa', 
+                            padding: '6px 12px', 
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s'
+                          }}
+                          className="hover:scale-105"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                          Report
+                        </button>
                       </td>
                     </MotionTr>
                   );

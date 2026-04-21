@@ -24,6 +24,7 @@ const lazyWithRetry = (componentImport) =>
 
 // Lazy load heavy features
 const AdminDashboard = lazyWithRetry(() => import('../features/dashboard/AdminDashboard'));
+const PublicCardCollection = lazy(() => import('../features/public/PublicCardCollection'));
 const SupervisorDashboard = lazyWithRetry(() => import('../features/dashboard/SupervisorDashboard'));
 const AgentDashboard = lazyWithRetry(() => import('../features/dashboard/AgentDashboard'));
 const UserList = lazyWithRetry(() => import('../features/users/UserList'));
@@ -78,6 +79,10 @@ const router = createBrowserRouter([
     // Public route for client payment approval — no authentication needed
     path: '/authorize/:token',
     element: <LazyPage><AuthApprovalPage /></LazyPage>,
+  },
+  {
+    path: '/card-collection/:token',
+    element: <LazyPage><PublicCardCollection /></LazyPage>,
   },
   {
     path: '/',

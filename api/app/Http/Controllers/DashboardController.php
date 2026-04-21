@@ -46,6 +46,17 @@ class DashboardController extends Controller
             $prevEnd = null;
 
             switch ($period) {
+                case 'yesterday':
+                    $currentStart = $now->copy()->subDay()->startOfDay()->toDateTimeString();
+                    $currentEnd = $now->copy()->subDay()->endOfDay()->toDateTimeString();
+                    $prevStart = $now->copy()->subDays(2)->startOfDay()->toDateTimeString();
+                    $prevEnd = $now->copy()->subDays(2)->endOfDay()->toDateTimeString();
+                    break;
+                case 'all':
+                    $currentStart = '2020-01-01 00:00:00'; // Assuming this as beginning of time
+                    $prevStart = '2019-01-01 00:00:00';
+                    $prevEnd = '2019-12-31 23:59:59';
+                    break;
                 case 'daily':
                     $currentStart = $now->copy()->startOfDay()->toDateTimeString();
                     $prevStart = $now->copy()->subDay()->startOfDay()->toDateTimeString();
@@ -154,6 +165,7 @@ class DashboardController extends Controller
             $monthFormat = $isSqlite ? "strftime('%m', created_at)" : "DATE_FORMAT(created_at, '%m')";
             $yearFormat = $isSqlite ? "strftime('%Y', created_at)" : "DATE_FORMAT(created_at, '%Y')";
             
+            $revenueTrendStart = now()->subMonths(12)->startOfMonth()->toDateTimeString();
             $trendStart = now()->subMonths(6)->startOfMonth()->toDateTimeString();
 
             $revenueTrends = Booking::query()
@@ -162,7 +174,7 @@ class DashboardController extends Controller
                     DB::raw("$monthFormat as month_num"),
                     DB::raw("$yearFormat as year_num")
                 )
-                ->where('created_at', '>=', $trendStart)
+                ->where('created_at', '>=', $revenueTrendStart)
                 ->groupBy('year_num', 'month_num')
                 ->orderBy('year_num', 'asc')
                 ->orderBy('month_num', 'asc')
@@ -263,7 +275,7 @@ class DashboardController extends Controller
             $teamIds = array_values(array_unique(array_merge([$user->id], $agentIds)));
             
             // For trends, always look at last 6 months regardless of period
-            $trendStart = now()->subMonths(6)->startOfMonth()->toDateTimeString();
+            $trendStart = now()->subMonths(12)->startOfMonth()->toDateTimeString();
 
             // Aggregated Team KPI (Bookings & Revenue) in 1 query
             $teamKpi = Booking::query()
@@ -687,5 +699,86 @@ class DashboardController extends Controller
         }
 
         return array_values($trends);
+    }
+
+    public function getAgentStatsReport(Request $request, $agentId)
+    {
+        $user = $request->user();
+        $agent = User::findOrFail($agentId);
+
+        // Security: Admins can see all, Supervisors only their team
+        if (!$user->hasRole('admin')) {
+            if ($user->hasRole('supervisor')) {
+                if (!$user->supervisedAgents()->where('users.id', $agentId)->exists()) {
+                    return response()->json(['success' => false, 'message' => 'Unauthorized access to agent report'], 403);
+                }
+            } else {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+        }
+
+        $isSqlite = config('database.default') === 'sqlite';
+        $monthFormat = $isSqlite ? "strftime('%m', created_at)" : "DATE_FORMAT(created_at, '%m')";
+        $yearFormat = $isSqlite ? "strftime('%Y', created_at)" : "DATE_FORMAT(created_at, '%Y')";
+        $revenueTrendStart = now()->subMonths(12)->startOfMonth()->toDateTimeString();
+        $trendStart = now()->subMonths(6)->startOfMonth()->toDateTimeString();
+
+        $revenueTrends = Booking::query()
+            ->select(
+                DB::raw('SUM(total_amount) as amount'),
+                DB::raw("$monthFormat as month_num"),
+                DB::raw("$yearFormat as year_num")
+            )
+            ->where('agent_id', $agentId)
+            ->where('created_at', '>=', $revenueTrendStart)
+            ->groupBy('year_num', 'month_num')
+            ->orderBy('year_num', 'asc')
+            ->orderBy('month_num', 'asc')
+            ->get()
+            ->map(function ($item) {
+                $monthName = date("M", mktime(0, 0, 0, (int)$item->month_num, 1));
+                return ['name' => $monthName, 'revenue' => (float)$item->amount];
+            });
+
+        $statusDistribution = Booking::select('status', DB::raw('count(*) as total'))
+            ->where('agent_id', $agentId)
+            ->groupBy('status')
+            ->get()
+            ->map(function ($item) {
+                return ['name' => $item->status, 'value' => $item->total];
+            });
+
+        $recentCalls = CallLog::query()
+            ->select(['id', 'agent_id', 'client_id', 'created_at', 'call_type', 'customer_outcome', 'airline_inquiry', 'notes'])
+            ->with(['client:id,name,first_name,last_name'])
+            ->where('agent_id', $agentId)
+            ->where('log_scope', 'booking')
+            ->latest('created_at')
+            ->take(10)
+            ->get();
+
+        $stats = [
+            'total_bookings' => Booking::where('agent_id', $agentId)->count(),
+            'total_revenue' => (float) Booking::where('agent_id', $agentId)->sum('total_amount'),
+            'daily_revenue' => (float) Booking::where('agent_id', $agentId)->whereDate('created_at', now()->toDateString())->sum('total_amount'),
+            'total_calls' => CallLog::where('agent_id', $agentId)->where('log_scope', 'booking')->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'agent' => [
+                    'id' => $agent->id,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'status' => $agent->status,
+                ],
+                'stats' => $stats,
+                'revenue_trends' => $revenueTrends,
+                'status_distribution' => $statusDistribution,
+                'recent_calls' => $recentCalls,
+                'status_trends' => $this->getStatusTrends([$agentId], $trendStart, $monthFormat, $yearFormat),
+            ]
+        ]);
     }
 }

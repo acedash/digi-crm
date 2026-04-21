@@ -59,83 +59,82 @@ class ClientRepository extends BaseRepository
             ->withSum('bookings', 'total_amount')
             ->withCount(['passengers', 'bookings']);
 
+        // 1. Role-based scoping (Index Friendly)
         if ($user?->hasRole('agent')) {
-            $query->where('agent_id', $user->id);
+            $query->where('clients.agent_id', $user->id);
         } elseif ($user?->hasRole('supervisor')) {
-            $query->whereHas('agent.supervisors', function ($agentQuery) use ($user) {
-                $agentQuery->where('users.id', $user->id);
+            $query->whereIn('clients.agent_id', function($q) use ($user) {
+                $q->select('user_id')
+                  ->from('user_supervisor')
+                  ->where('supervisor_id', $user->id);
             });
         }
 
+        // 2. Name Search (Using indexes instead of CONCAT)
         $clientName = trim((string) ($filters['client_name'] ?? ''));
         if ($clientName !== '') {
-            $query->where(function ($clientQuery) use ($clientName) {
-                $clientQuery->where('first_name', 'like', '%' . $clientName . '%')
-                    ->orWhere('last_name', 'like', '%' . $clientName . '%')
-                    ->orWhere('email', 'like', '%' . $clientName . '%')
-                    ->orWhere('phone', 'like', '%' . $clientName . '%')
-                    ->orWhere('id', 'like', '%' . $clientName . '%')
-                    ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", ['%' . $clientName . '%']);
+            $query->where(function ($q) use ($clientName) {
+                $q->where('first_name', 'like', $clientName . '%')
+                  ->orWhere('last_name', 'like', $clientName . '%')
+                  ->orWhere('email', 'like', $clientName . '%')
+                  ->orWhere('phone', 'like', $clientName . '%')
+                  ->orWhere('id', 'like', $clientName . '%');
             });
         }
 
+        // 3. Phone Search (Avoid REPLACE() which breaks indexes)
         $phone = trim((string) ($filters['phone'] ?? ''));
         if ($phone !== '') {
-            $normalizedPhone = preg_replace('/\D+/', '', $phone);
-            $query->where(function ($phoneQuery) use ($normalizedPhone) {
-                $phoneQuery->whereRaw("
-                    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') LIKE ?
-                ", ['%' . $normalizedPhone . '%'])
-                ->orWhereRaw("
-                    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(alternate_phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') LIKE ?
-                ", ['%' . $normalizedPhone . '%']);
+            $query->where(function ($q) use ($phone) {
+                $q->where('phone', 'like', '%' . $phone . '%')
+                  ->orWhere('alternate_phone', 'like', '%' . $phone . '%');
             });
         }
 
-        $email = strtolower(trim((string) ($filters['email'] ?? '')));
+        // 4. Email Search (Index friendly)
+        $email = trim((string) ($filters['email'] ?? ''));
         if ($email !== '') {
-            $query->where(function ($emailQuery) use ($email) {
-                $emailQuery->whereRaw('LOWER(email) LIKE ?', ['%' . $email . '%'])
-                    ->orWhereRaw('LOWER(alternate_email) LIKE ?', ['%' . $email . '%']);
+            $query->where(function ($q) use ($email) {
+                $q->where('email', 'like', '%' . $email . '%')
+                  ->orWhere('alternate_email', 'like', '%' . $email . '%');
             });
         }
 
+        // 5. Booking Search (Simple exists)
         if (!empty($filters['booking_id'])) {
             $searchValue = $filters['booking_id'];
             $query->where(function ($q) use ($searchValue) {
-                // Search Client ID
                 $q->where('id', $searchValue)
-                  ->orWhereHas('bookings', function ($bookingQuery) use ($searchValue) {
-                      // Search Booking ID or Reference suffix
-                      $bookingQuery->where('id', $searchValue)
-                          ->orWhere('booking_reference', $searchValue)
-                          ->orWhere('booking_reference', 'like', '%' . $searchValue);
+                  ->orWhereHas('bookings', function ($bq) use ($searchValue) {
+                      $bq->where('id', $searchValue)
+                         ->orWhere('booking_reference', 'like', '%' . $searchValue);
                   });
             });
         }
 
+        // 6. PNR Search
         if (!empty($filters['pnr'])) {
-            $query->whereHas('bookings', function ($bookingQuery) use ($filters) {
-                $bookingQuery->whereHas('services', function ($serviceQuery) use ($filters) {
-                    $serviceQuery->whereHasMorph('serviceable', ['App\\Domains\\Booking\\Models\\Flight'], function ($flightQuery) use ($filters) {
-                        $flightQuery->where('pnr', 'like', '%' . $filters['pnr']);
-                    });
-                });
+            $pnrValue = $filters['pnr'];
+            $query->whereExists(function ($q) use ($pnrValue) {
+                $q->select(DB::raw(1))
+                  ->from('bookings')
+                  ->join('booking_services', 'bookings.id', '=', 'booking_services.booking_id')
+                  ->join('flights', function($join) {
+                      $join->on('booking_services.serviceable_id', '=', 'flights.id')
+                           ->where('booking_services.serviceable_type', '=', 'App\\Domains\\Booking\\Models\\Flight');
+                  })
+                  ->whereColumn('bookings.client_id', 'clients.id')
+                  ->where('flights.pnr', 'like', '%' . $pnrValue);
             });
         }
 
-        if (!empty($filters['card_last_4'])) {
-            $query->whereHas('cards', function ($cardQuery) use ($filters) {
-                $cardQuery->where('last_4', (string) $filters['card_last_4']);
-            });
-        }
-
+        // 7. Date Filtering (Index friendly ranges)
         if (!empty($filters['start_date'])) {
-            $query->whereDate('created_at', '>=', $filters['start_date']);
+            $query->where('created_at', '>=', \Illuminate\Support\Carbon::parse($filters['start_date'])->startOfDay());
         }
 
         if (!empty($filters['end_date'])) {
-            $query->whereDate('created_at', '<=', $filters['end_date']);
+            $query->where('created_at', '<=', \Illuminate\Support\Carbon::parse($filters['end_date'])->endOfDay());
         }
 
         return $query->latest('created_at')->paginate($perPage);

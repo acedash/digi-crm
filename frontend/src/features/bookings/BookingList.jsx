@@ -21,7 +21,9 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  FileJson
+  FileJson,
+  CreditCard,
+  ClipboardList
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -240,19 +242,30 @@ const BookingList = ({ onCreate, onEdit }) => {
     
     setConfirmModal({
       open: true,
-      title: 'Send Payment Approval',
-      message: `Are you sure you want to send an approval request for ${booking.booking_reference} to ${clientName} (${email})?`,
+      title: 'Send Payment Link',
+      message: `Are you sure you want to send the secure link for ${booking.booking_reference} to ${clientName} (${email})?`,
       confirmLabel: 'Send Request',
       tone: 'primary',
       onConfirm: async () => {
         try {
           setConfirmModal(prev => ({ ...prev, isLoading: true }));
           setSendingApprovalId(booking.id);
-          await paymentAuthService.create({
-            client_id: booking.client_id,
-            booking_ids: [booking.id],
-          });
-          setToast({ message: `Approval email sent to ${booking.client?.email || 'client'}`, type: 'success' });
+          
+          // Check for existing pending card collection link
+          const pendingCollection = (booking.payment_authorizations || booking.paymentAuthorizations || [])
+            .find(a => a.authorization_type === 'card_collection' && String(a.status).toLowerCase() === 'pending');
+
+          if (pendingCollection) {
+            await paymentAuthService.sendEmail(pendingCollection.id);
+            setToast({ message: `Collection link emailed to ${booking.client?.email || 'client'}`, type: 'success' });
+          } else {
+            await paymentAuthService.create({
+              client_id: booking.client_id,
+              booking_ids: [booking.id],
+            });
+            setToast({ message: `Approval email sent to ${booking.client?.email || 'client'}`, type: 'success' });
+          }
+          
           setConfirmModal({ open: false });
         } catch (error) {
           setConfirmModal({ open: false });
@@ -371,7 +384,8 @@ const BookingList = ({ onCreate, onEdit }) => {
     'Change Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' },
     'Work Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' },
-    'Draft': { icon: FileText, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)', shadow: 'rgba(148, 163, 184, 0.2)' }
+    'Draft': { icon: FileText, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)', shadow: 'rgba(148, 163, 184, 0.2)' },
+    'Awaiting Cards': { icon: CreditCard, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', shadow: 'rgba(245, 158, 11, 0.2)' }
   };
 
   const getStatusGuidance = (status) => {
@@ -433,9 +447,10 @@ const BookingList = ({ onCreate, onEdit }) => {
       }}>
         <Icon size={12} strokeWidth={3} />
         {status === 'Pending' ? 'Email Send Pending' : 
-         status === 'Awaiting Approval' ? 'Pending approval' :
-         status === 'Approved' ? 'Initial approval by client' : 
+         status === 'Awaiting Approval' ? 'Pending Approval' :
+         status === 'Approved' ? 'Initial Approval By Client' : 
          status === 'Completed' ? 'Work Completed' : 
+         status === 'Awaiting Cards' ? 'Pending Card Details' :
          status}
       </div>
     );
@@ -663,9 +678,9 @@ const BookingList = ({ onCreate, onEdit }) => {
         marginBottom: '40px' 
       }}>
         {[
-          { label: 'Total Bookings', value: stats.Total, icon: Package, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
+          { label: 'Total Bookings', value: stats.Total, icon: ClipboardList, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
           {
-            label: 'Approved',
+            label: 'Initial Approval By Client',
             value: stats.Approved,
             icon: CheckCircle2,
             color: '#06B68A',
@@ -693,7 +708,7 @@ const BookingList = ({ onCreate, onEdit }) => {
             bg: 'rgba(148, 163, 184, 0.1)'
           },
           {
-            label: 'Booking Only',
+            label: 'Email Send Pending',
             value: stats.Pending,
             icon: Clock,
             color: '#f59e0b',
@@ -778,7 +793,7 @@ const BookingList = ({ onCreate, onEdit }) => {
                 icon={Download} 
                 onClick={() => setShowExportOptions(!showExportOptions)}
               >
-                Export List
+                Export Format
               </Button>
               {showExportOptions && (
                 <div style={{ 
@@ -813,7 +828,7 @@ const BookingList = ({ onCreate, onEdit }) => {
           
         {/* Row 2: Status Chips */}
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Work Pending', 'Completed', 'Cancelled'].map(status => (
+          {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Awaiting Cards', 'Work Pending', 'Completed', 'Cancelled'].map(status => (
             <button 
               key={status}
               onClick={() => setFilterType(status)}
@@ -833,9 +848,10 @@ const BookingList = ({ onCreate, onEdit }) => {
             >
               {status === 'all' ? 'All' : 
                status === 'Pending' ? 'Email Send Pending' : 
-               status === 'Awaiting Approval' ? 'Pending approval' :
-               status === 'Approved' ? 'Initial approval by client' : 
+               status === 'Awaiting Approval' ? 'Pending Approval' :
+               status === 'Approved' ? 'Initial Approval By Client' : 
                status === 'Completed' ? 'Work Completed' : 
+               status === 'Awaiting Cards' ? 'Pending Card Details' :
                status}
             </button>
           ))}
@@ -875,16 +891,57 @@ const BookingList = ({ onCreate, onEdit }) => {
             const isSendingFutureCredit = sendingTemplateAction === `${booking.id}:cancellation_future_credit`;
             const isSendingRefund = sendingTemplateAction === `${booking.id}:cancellation_refund`;
             
+            // Calculate Card Collection Context
+            const cards = booking.details_json?.payment_cards || [];
+            const totalCollected = cards.reduce((sum, card) => sum + (Number(card.amount) || 0), 0);
+            const authorizations = booking.payment_authorizations || booking.paymentAuthorizations || [];
+            const hasPendingLink = authorizations.some(a => 
+              (a.authorization_type === 'card_collection' || a.metadata?.authorization_type === 'card_collection') && 
+              String(a.status).toLowerCase() === 'pending'
+            );
+
+            // Determine Override Status
+            let customStatusBadge = getStatusStyle(booking.status);
+            let customStatusColor = statusColor;
+            
+            // Priority: Life-cycle statuses (Approved, Completed, Cancelled, Work Pending) should not be overridden by card collection indicator
+            const isAdvancedStatus = ['Approved', 'Completed', 'Cancelled', 'Rejected', 'Work Pending', 'Awaiting Approval'].includes(booking.status);
+
+            if (!isAdvancedStatus && cards.length > 0) {
+              customStatusColor = '#059669'; // Success Green
+              customStatusBadge = (
+                <div style={{ 
+                  display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', 
+                  borderRadius: '100px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
+                  background: 'rgba(5, 150, 105, 0.1)', color: '#059669', border: '1px solid rgba(5, 150, 105, 0.2)'
+                }}>
+                  <ShieldCheck size={10} strokeWidth={3} /> Cards Collected
+                </div>
+              );
+            } else if (!isAdvancedStatus && hasPendingLink) {
+              customStatusColor = '#f59e0b'; // Warning Orange
+              customStatusBadge = (
+                <div style={{ 
+                  display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', 
+                  borderRadius: '100px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
+                  background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)'
+                }}>
+                  <RefreshCw size={10} className="spin-slow" /> Pending Card Details
+                </div>
+              );
+            }
+
             return (
               <BookingRow
                 key={booking.id}
                 booking={booking}
                 index={index}
                 canReassign={canReassign}
-                statusColor={statusColor}
-                statusBadge={getStatusStyle(booking.status)}
+                statusColor={customStatusColor}
+                statusBadge={customStatusBadge}
                 statusGuidance={getStatusGuidance(booking.status)}
                 approvalActionLabel={getApprovalActionLabel(booking.status)}
+                totalCollected={totalCollected}
                 isSendingApproval={isSendingApproval}
                 isSendingFlightChange={isSendingFlightChange}
                 isSendingFutureCredit={isSendingFutureCredit}

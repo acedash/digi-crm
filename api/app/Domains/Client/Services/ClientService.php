@@ -27,11 +27,20 @@ class ClientService
     {
         $paginator = $this->clientRepository->getList($filters, $user, $perPage);
         
-        // Calculate global stats (Today/Yesterday)
+        // Calculate global stats (Today/Yesterday) using index-friendly queries
+        $todayStart = now()->startOfDay();
+        $todayEnd = now()->endOfDay();
+        $yesterdayStart = now()->subDay()->startOfDay();
+        $yesterdayEnd = now()->subDay()->endOfDay();
+
         $stats = [
             'total' => \App\Models\Client::count(),
-            'today' => \App\Models\Client::whereDate('created_at', now()->toDateString())->count(),
-            'yesterday' => \App\Models\Client::whereDate('created_at', now()->subDay()->toDateString())->count(),
+            'today' => \App\Models\Client::where('created_at', '>=', $todayStart)
+                ->where('created_at', '<=', $todayEnd)
+                ->count(),
+            'yesterday' => \App\Models\Client::where('created_at', '>=', $yesterdayStart)
+                ->where('created_at', '<=', $yesterdayEnd)
+                ->count(),
         ];
 
         return [

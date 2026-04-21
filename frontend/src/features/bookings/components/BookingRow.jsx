@@ -21,6 +21,7 @@ import {
   Copy,
   Car,
   Ship,
+  ClipboardList
 } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 
@@ -153,8 +154,10 @@ const BookingRow = ({
   onMarkPending,
   onEdit,
   onDelete,
+  totalCollected = 0,
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const [copiedLink, setCopiedLink] = React.useState(false);
   const [showHistory, setShowHistory] = React.useState(false);
 
   const handleCopyId = (e) => {
@@ -162,6 +165,13 @@ const BookingRow = ({
     navigator.clipboard.writeText(booking.booking_reference || booking.id.toString());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+ 
+  const handleCopyLink = (token) => {
+    const link = `${window.location.origin}/card-collection/${token}`;
+    navigator.clipboard.writeText(link);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
   const clientDisplayName = getClientDisplayName(booking);
@@ -201,34 +211,46 @@ const BookingRow = ({
           }}
         >
           {/* Group 1: Booking / Client */}
-          <div style={{ minWidth: '0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-               <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 800, background: 'rgba(96, 165, 250, 0.12)', color: '#60a5fa', padding: '3px 8px', borderRadius: '4px', letterSpacing: '0.05em' }}>
-                 #{booking.id}
-               </span>
-               <div 
-                onClick={handleCopyId}
-                title="Click to copy reference"
-                style={{ 
-                  fontSize: '14px', 
-                  fontWeight: 800, 
-                  color: copied ? '#06B68A' : 'var(--text-main)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'copy',
-                  padding: '2px 6px',
-                  borderRadius: '6px',
-                  transition: 'all 0.2s',
-                  letterSpacing: '0.03em',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
-              >
-                <span>{booking.booking_reference}</span>
-                {copied ? <Check size={14} /> : <Copy size={14} style={{ opacity: 0.5 }} />}
-              </div>
+          <div style={{ minWidth: '0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+              <span style={{ 
+                fontFamily: 'monospace', 
+                fontSize: '11px', 
+                fontWeight: 800, 
+                background: 'rgba(96, 165, 250, 0.12)', 
+                color: '#60a5fa', 
+                padding: '3px 8px', 
+                borderRadius: '4px', 
+                letterSpacing: '0.05em', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '4px',
+                whiteSpace: 'nowrap'
+              }}>
+                <ClipboardList size={12} /> #{booking.id}
+              </span>
+            </div>
+            
+            <div 
+              onClick={handleCopyId}
+              title="Click to copy reference"
+              style={{ 
+                fontSize: '14px', 
+                fontWeight: 800, 
+                color: copied ? '#06B68A' : 'var(--text-main)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'copy',
+                padding: '2px 0',
+                borderRadius: '6px',
+                transition: 'all 0.2s',
+                letterSpacing: '0.03em',
+                alignSelf: 'flex-start'
+              }}
+            >
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{booking.booking_reference}</span>
+              {copied ? <Check size={14} /> : <Copy size={14} style={{ opacity: 0.5 }} />}
             </div>
             
             <div onClick={onOpenClient} style={{ cursor: 'pointer' }}>
@@ -374,9 +396,17 @@ const BookingRow = ({
           </div>
 
           {/* Group 4: Status / Amount */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(Number(booking.total_amount) || 0)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ fontSize: '18px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                {new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(Number(booking.total_amount) || 0)}
+              </div>
+              {totalCollected > 0 && (
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#059669' }}></div>
+                   Collected: {new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(totalCollected)}
+                </div>
+              )}
             </div>
             {statusBadge}
           </div>
@@ -486,6 +516,27 @@ const BookingRow = ({
               tone="danger"
               title="Delete permanently"
             />
+
+            {(booking.payment_authorizations || booking.paymentAuthorizations || [])
+              .filter(a => (a.authorization_type === 'card_collection' || a.metadata?.authorization_type === 'card_collection') && String(a.status).toLowerCase() === 'pending')
+              .map(auth => (
+                <React.Fragment key={auth.id}>
+                  <ActionChip
+                    icon={copiedLink ? Check : ShieldCheck}
+                    label={copiedLink ? 'Copied' : 'Copy Link'}
+                    onClick={() => handleCopyLink(auth.token)}
+                    tone={copiedLink ? 'success' : 'warning'}
+                    title="Copy secure card collection link"
+                  />
+                  <ActionChip
+                    icon={Mail}
+                    label="Email Link"
+                    onClick={() => onSendApproval(booking)}
+                    tone="primary"
+                    title="Send card collection email to client"
+                  />
+                </React.Fragment>
+              ))}
           </div>
         </div>
       </Card>

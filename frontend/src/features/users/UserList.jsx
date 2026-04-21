@@ -13,10 +13,17 @@ import {
   UserCheck,
   UserX,
   PhoneCall,
-  ClipboardList
+  ClipboardList,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  FileJson
 } from 'lucide-react';
 import userService from './userService';
 import UserForm from './UserForm';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -34,10 +41,24 @@ const UserList = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const exportDropdownRef = React.useRef(null);
 
   useEffect(() => {
     loadUsers();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
+        setShowExportOptions(false);
+      }
+    };
+    if (showExportOptions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportOptions]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -99,31 +120,61 @@ const UserList = () => {
     return { label: 'not logged in', color: 'var(--text-muted)', bg: 'rgba(255, 255, 255, 0.05)' };
   };
 
-  const handleDownloadCSV = () => {
-    const headers = ['Staff ID', 'Name', 'Email', 'Role', 'Status', 'Last Login'];
-    const rows = filteredUsers.map(u => [
-      u.user_custom_id,
-      u.name,
-      u.email,
-      u.roles?.[0]?.name || u.roles?.[0] || 'Staff',
-      u.is_active ? 'Enabled' : 'Disabled',
-      formatLastLogin(u)
-    ]);
-
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `team_members_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportPDF = () => {
+    try {
+      const doc = new jsPDF();
+      const tableColumn = ["Staff ID", "Name", "Email", "Role", "Status", "Last Login"];
+      const tableRows = filteredUsers.map(u => [
+        u.user_custom_id || 'N/A',
+        u.name,
+        u.email,
+        u.roles?.[0]?.name || u.roles?.[0] || 'Staff',
+        u.is_active ? 'Enabled' : 'Disabled',
+        formatLastLogin(u)
+      ]);
+      
+      autoTable(doc, { 
+        head: [tableColumn], 
+        body: tableRows, 
+        startY: 20,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [30, 34, 53] }
+      });
+      doc.text("Team Members Export", 14, 15);
+      doc.save(`Team_Export_${new Date().toISOString().split('T')[0]}.pdf`);
+      setShowExportOptions(false);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("PDF Export failed.");
+    }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportExcel = () => {
+    const data = filteredUsers.map(u => ({
+      'Staff ID': u.user_custom_id,
+      'Name': u.name,
+      'Email': u.email,
+      'Role': u.roles?.[0]?.name || u.roles?.[0] || 'Staff',
+      'Status': u.is_active ? 'Enabled' : 'Disabled',
+      'Last Login': formatLastLogin(u),
+      'Created At': new Date(u.created_at).toLocaleDateString()
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Team");
+    XLSX.writeFile(wb, `Team_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    setShowExportOptions(false);
+  };
+
+  const handleExportJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredUsers, null, 2));
+    const dt = document.createElement('a');
+    dt.setAttribute("href", dataStr);
+    dt.setAttribute("download", `Team_Export_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(dt);
+    dt.click();
+    document.body.removeChild(dt);
+    setShowExportOptions(false);
   };
 
   return (
@@ -158,9 +209,23 @@ const UserList = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button variant="outline" size="sm" onClick={handleDownloadCSV}>CSV</Button>
-            <Button variant="outline" size="sm" onClick={handlePrint}>PDF</Button>
+          <div style={{ position: 'relative', zIndex: 999 }} ref={exportDropdownRef}>
+            <Button variant="glass" icon={Download} onClick={() => setShowExportOptions(!showExportOptions)}>
+              Export Format
+            </Button>
+            {showExportOptions && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, backgroundColor: '#1e2235', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', minWidth: '180px' }}>
+                <button onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  <FileText size={16} /> As PDF Report
+                </button>
+                <button onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#06B68A', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  <FileSpreadsheet size={16} /> As Excel Data
+                </button>
+                <button onClick={handleExportJSON} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f59e0b', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  <FileJson size={16} /> As Raw JSON
+                </button>
+              </div>
+            )}
           </div>
           <Button variant="primary" icon={UserPlus} onClick={handleAddMember}>
             Add Team Member
@@ -214,8 +279,8 @@ const UserList = () => {
               <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Role</th>
               <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reports To</th>
               <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activity Status</th>
-              <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Status</th>
               <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Last Login</th>
+              <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Status</th>
               <th style={{ padding: '20px 24px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Setting & Actions</th>
             </tr>
           </thead>
@@ -291,6 +356,11 @@ const UserList = () => {
                     </span>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>
+                      {formatLastLogin(user)}
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 24px' }}>
                     <span style={{ 
                       padding: '4px 10px', borderRadius: '6px', fontSize: '10px', fontWeight: 700,
                       textTransform: 'uppercase',
@@ -300,11 +370,6 @@ const UserList = () => {
                     }}>
                       {user.is_active ? 'Enabled' : 'Disabled'}
                     </span>
-                  </td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>
-                      {formatLastLogin(user)}
-                    </div>
                   </td>
                   <td className="no-print" style={{ padding: '16px 24px', textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>

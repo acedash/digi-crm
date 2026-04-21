@@ -320,10 +320,7 @@ class AuthorizationEmail extends Mailable
 
     protected function resolveImageSource(?string $path, ?string $resolvedUrl, string $contentId): ?string
     {
-        if (filled($resolvedUrl) && $this->isPublicEmailImageUrl($resolvedUrl)) {
-            return $resolvedUrl;
-        }
-
+        // 1. Prioritize CID embedding for local files - this is the MOST RELIABLE method
         if (filled($path) && !str_starts_with($path, 'data:')) {
             // Fix: Use Storage disk instead of hardcoded storage_path to support custom public roots (like Hostinger/uploads)
             $normalizedPath = ltrim(preg_replace('#^/?(storage|uploads)/#', '', $path), '/');
@@ -337,6 +334,11 @@ class AuthorizationEmail extends Mailable
 
                 return 'cid:' . $normalizedContentId;
             }
+        }
+
+        // 2. Fallback to the Public URL if file not found locally or if it's external
+        if (filled($resolvedUrl) && $this->isPublicEmailImageUrl($resolvedUrl)) {
+            return $resolvedUrl;
         }
 
         return $resolvedUrl;

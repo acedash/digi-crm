@@ -1,6 +1,6 @@
 // Refactored Modular Booking Form
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Lock, ShieldCheck, Copy, ExternalLink, Check } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import bookingService from './bookingService';
@@ -11,6 +11,7 @@ import api from '../../services/api';
 import { useAuthStore } from '../auth/useAuthStore';
 import Card from '../../components/ui/Card';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import Modal from '../../components/ui/Modal';
 
 // Sub-components
 import PassengerSection from './components/PassengerSection';
@@ -210,6 +211,11 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     car: false,
     cruise: false,
   });
+
+  const [requestCardOnSave, setRequestCardOnSave] = useState(false);
+  const [collectionLink, setCollectionLink] = useState('');
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   // Reassignment Dropdown
   const [availableAgents, setAvailableAgents] = useState([]);
@@ -770,6 +776,37 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     return (sum % 10) === 0;
   };
 
+  const handleRequestCardDetails = async () => {
+    if (!selectedClientId) {
+      setToast({ message: "Please select or create a client first.", type: 'error' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await paymentAuthService.create({
+        client_id: selectedClientId,
+        booking_ids: [],
+        authorization_type: 'card_collection'
+      });
+      
+      const link = `${window.location.origin}/card-collection/${res.data.data.token}`;
+      setCollectionLink(link);
+      setShowLinkModal(true);
+      setIsCopied(false);
+    } catch (error) {
+      setToast({ message: error?.response?.data?.message || 'Failed to generate card collection link.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(collectionLink);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   const handleSubmit = async (forcedStatus = null) => {
     // Determine the status. If forcedStatus is provided (e.g. from handleSaveDraft), use it.
     // Otherwise, if it's currently a Draft, transition it to 'Pending' on confirm.
@@ -792,6 +829,18 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
         if (missingPrimary.length > 0) {
           return setToast({ message: `Missing fields: ${missingPrimary.join(', ')}`, type: 'error' });
+        }
+
+        // Phone format validation
+        const phoneRegex = /^([0-9\s\-\+\(\)]*)$/;
+        if (!phoneRegex.test(newClient.phone) || newClient.phone.replace(/\D/g, '').length < 7) {
+          return setToast({ message: "Please enter a valid phone number (at least 7 digits).", type: 'error' });
+        }
+
+        // Email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newClient.email)) {
+          return setToast({ message: "Please enter a valid email address.", type: 'error' });
         }
       }
     }
@@ -915,7 +964,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     const grandTotal = calculateTotal();
     const totalAllocated = paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
 
-    if (!isChangeWorkflow && statusToSubmit !== 'Draft') {
+    if (!isChangeWorkflow && statusToSubmit !== 'Draft' && totalAllocated > 0) {
       if (Math.abs(totalAllocated - grandTotal) > 0.01) return setToast({ message: "The total amount assigned to your payment cards must equal the booking's Grand Total.", type: 'error' });
 
       for (let i = 0; i < paymentCards.length; i++) {
@@ -965,7 +1014,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
       new_client: bookingId ? newClient : (selectedClientId ? null : newClient),
       new_passengers: newPassengers,
       services: servicesPayload,
-      payment_cards: paymentCards,
+      payment_cards: requestCardOnSave ? [] : paymentCards.filter(c => c.holder_name || c.number || c.amount),
+      request_card_collection: requestCardOnSave,
       cards_to_sync: paymentCards.filter(c => !c.number.includes('•') && !c.number.includes('*')),
       change_charge_cards_to_sync: changeChargeCards
         .filter((card) => card.isNew && (parseFloat(card.amount) || 0) > 0)
@@ -1229,7 +1279,13 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
             </div>
           </Card>
         ) : (
-          <PaymentSection paymentCards={paymentCards} setPaymentCards={setPaymentCards} grandTotal={calculateTotal()} />
+          <PaymentSection 
+            paymentCards={paymentCards} 
+            setPaymentCards={setPaymentCards} 
+            grandTotal={calculateTotal()} 
+            requestCardOnSave={requestCardOnSave}
+            setRequestCardOnSave={setRequestCardOnSave}
+          />
         )}
         <FlightSection 
           flight={flight} 
@@ -1423,6 +1479,39 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />
       </>
+      )}
+
+      {showLinkModal && (
+        <Modal 
+          isOpen={showLinkModal} 
+          onClose={() => setShowLinkModal(false)}
+          title="Secure Card Collection Link"
+        >
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '20px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <ShieldCheck size={32} />
+            </div>
+            <p style={{ fontSize: '15px', color: 'var(--text-main)', fontWeight: 700, marginBottom: '10px' }}>Secure Link Generated</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
+              Copy this link and send it to your client. They can securely upload their card details without you seeing the sensitive data.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '8px', padding: '12px', borderRadius: '12px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', marginBottom: '24px', alignItems: 'center' }}>
+              <div style={{ flex: 1, fontSize: '12px', color: 'var(--text-main)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {collectionLink}
+              </div>
+              <Button size="sm" variant={isCopied ? 'success' : 'primary'} icon={isCopied ? Check : Copy} onClick={copyToClipboard}>
+                {isCopied ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Button variant="ghost" icon={ExternalLink} onClick={() => window.open(collectionLink, '_blank')}>
+                Preview Page
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

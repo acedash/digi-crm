@@ -16,10 +16,16 @@ import {
   Eye,
   EyeOff,
   Calendar,
-  ShieldCheck,
   Users,
+  Copy,
+  Check,
+  ExternalLink,
+  Send,
+  Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import bookingService from './bookingService';
+import paymentAuthService from './paymentAuthService';
 import { BACKEND_BASE_URL } from '../../services/api';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -36,6 +42,9 @@ const BookingDetailsPage = () => {
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const [showCards, setShowCards] = useState({});
 
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
   const fetchBooking = useCallback(async () => {
     if (isFetchingRef.current) return;
     try {
@@ -51,6 +60,24 @@ const BookingDetailsPage = () => {
       isFetchingRef.current = false;
     }
   }, [id]);
+
+  const handleSendEmail = async (authId) => {
+    try {
+      setSendingEmail(true);
+      await paymentAuthService.sendEmail(authId);
+      setToast({ message: 'Authorization email sent to client successfully.', type: 'success' });
+    } catch (error) {
+      setToast({ message: error?.response?.data?.message || 'Failed to send email.', type: 'error' });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleCopyLink = (link) => {
+    navigator.clipboard.writeText(link);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   useEffect(() => {
     fetchBooking();
@@ -223,6 +250,57 @@ const BookingDetailsPage = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Secure Card Collection Status */}
+          {(booking.payment_authorizations || booking.paymentAuthorizations || [])
+            .filter(a => (a.authorization_type === 'card_collection' || a.metadata?.authorization_type === 'card_collection') && String(a.status).toLowerCase() === 'pending')
+            .map(auth => {
+              const link = `${window.location.origin}/card-collection/${auth.token}`;
+            return (
+              <Card key={auth.id} style={{ padding: '24px', border: '1px solid rgba(16, 185, 129, 0.2)', background: 'rgba(16, 185, 129, 0.04)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldCheck size={20} color="#10b981" /> Secure Card Collection
+                  </h3>
+                  <div style={{ padding: '4px 10px', borderRadius: '20px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase' }}>
+                    Action Required
+                  </div>
+                </div>
+                
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '20px' }}>
+                  You requested card details from the client. Share this secure link so they can upload their payment information safely.
+                </p>
+
+                <div style={{ display: 'flex', gap: '8px', padding: '12px', borderRadius: '12px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', marginBottom: '20px', alignItems: 'center' }}>
+                  <div style={{ flex: 1, fontSize: '12px', color: 'var(--text-main)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {link}
+                  </div>
+                  <Button size="sm" variant={copiedLink ? 'success' : 'outline'} icon={copiedLink ? Check : Copy} onClick={() => handleCopyLink(link)}>
+                    {copiedLink ? 'Copied' : 'Copy'}
+                  </Button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <Button 
+                    variant="primary" 
+                    icon={sendingEmail ? Loader2 : Send} 
+                    onClick={() => handleSendEmail(auth.id)}
+                    disabled={sendingEmail}
+                    style={{ flex: 1 }}
+                  >
+                    {sendingEmail ? 'Sending...' : 'Email Link to Client'}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    icon={ExternalLink} 
+                    onClick={() => window.open(link, '_blank')}
+                  >
+                    Preview Page
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+
           <Card style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ClipboardList size={18} color="#60a5fa" /> Booking Services

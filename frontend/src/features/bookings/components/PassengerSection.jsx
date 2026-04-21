@@ -1,4 +1,4 @@
-import { User, Trash2, Plus } from 'lucide-react';
+import { User, Trash2, Plus, Search } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
@@ -21,7 +21,15 @@ const PassengerSection = ({
   matchesLoading = false,
   onSelectMatchedClient,
   onClearMatchedClient,
+  onRequestCardDetails,
 }) => {
+  const handlePhoneChange = (e, field) => {
+    const value = e.target.value;
+    // Allow digits, plus, spaces, dashes, and parentheses but strip everything else
+    const filtered = value.replace(/[^0-9\+\-\s\(\)]/g, '');
+    setNewClient({ ...newClient, [field]: filtered });
+  };
+
   return (
     <Card style={{ padding: 0 }}>
       <SectionHeader icon={User} title="1. Card Holder & Travelers" isActive={true} />
@@ -36,18 +44,55 @@ const PassengerSection = ({
         </div>
 
         {!isEditMode ? (
-          <div style={{ marginBottom: '20px', padding: '16px', borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-              Use Existing Client
+          <div style={{ 
+            marginBottom: '24px', 
+            padding: '24px', 
+            borderRadius: '20px', 
+            border: '2px solid rgba(6, 182, 138, 0.45)', 
+            background: 'linear-gradient(135deg, rgba(6, 182, 138, 0.14) 0%, rgba(5, 150, 105, 0.06) 100%)',
+            boxShadow: '0 8px 30px rgba(6, 182, 138, 0.08)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ 
+              position: 'absolute', 
+              top: '-15px', 
+              right: '-15px', 
+              opacity: 0.08, 
+              color: '#06B68A' 
+            }}>
+              <Search size={120} />
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '12px' }}>
-              Search by client name, email, or phone to attach this booking to an existing profile.
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+              <div style={{ 
+                width: '28px', 
+                height: '28px', 
+                borderRadius: '8px', 
+                background: '#06B68A', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: 'white',
+                boxShadow: '0 4px 10px rgba(6, 182, 138, 0.3)'
+              }}>
+                <Search size={16} />
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.01em' }}>
+                Use Existing Client
+              </div>
+            </div>
+            
+            <div style={{ fontSize: '13px', color: 'var(--text-main)', opacity: 0.8, lineHeight: 1.6, marginBottom: '20px', maxWidth: '85%', fontWeight: 500 }}>
+              Search by client name, email, or phone to instantly populate booking details from an existing profile.
             </div>
             <Input
               label="Search Existing Client"
-              placeholder="Start typing name, email, or phone"
+              placeholder="Search by name, email, or phone..."
               value={existingClientSearch}
               onChange={(e) => setExistingClientSearch(e.target.value)}
+              onClear={() => setExistingClientSearch('')}
+              style={{ marginBottom: 0 }}
             />
 
             {existingClientSearch.trim().length >= 2 ? (
@@ -117,10 +162,10 @@ const PassengerSection = ({
           <Input label="Middle Name" value={newClient.middle_name || ''} onChange={e => setNewClient({...newClient, middle_name: e.target.value})} />
           <Input label="Last Name" required value={newClient.last_name || ''} onChange={e => setNewClient({...newClient, last_name: e.target.value})} />
           <Input label="Email" required value={newClient.email || ''} onChange={e => setNewClient({...newClient, email: e.target.value})} />
-          <Input label="Phone" required value={newClient.phone || ''} onChange={e => setNewClient({...newClient, phone: e.target.value})} />
+          <Input label="Phone" required type="tel" inputMode="tel" value={newClient.phone || ''} onChange={e => handlePhoneChange(e, 'phone')} />
           <Input label="Date of Birth" required type="date" value={newClient.date_of_birth || ''} onChange={e => setNewClient({...newClient, date_of_birth: e.target.value})} />
           <Input label="Alternate Email" value={newClient.alternate_email || ''} onChange={e => setNewClient({...newClient, alternate_email: e.target.value})} />
-          <Input label="Alternate Phone" value={newClient.alternate_phone || ''} onChange={e => setNewClient({...newClient, alternate_phone: e.target.value})} />
+          <Input label="Alternate Phone" type="tel" inputMode="tel" value={newClient.alternate_phone || ''} onChange={e => handlePhoneChange(e, 'alternate_phone')} />
           <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
             <Input label="Billing Address" value={newClient.address || ''} onChange={e => setNewClient({...newClient, address: e.target.value})} />
             <div>

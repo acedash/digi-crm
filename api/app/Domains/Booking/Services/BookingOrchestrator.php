@@ -20,11 +20,16 @@ class BookingOrchestrator
 {
     protected $bookingRepo;
     protected ClientDeduplicationService $clientDeduplicationService;
+    protected PaymentAuthService $paymentAuthService;
 
-    public function __construct(BookingRepository $bookingRepo, ClientDeduplicationService $clientDeduplicationService)
-    {
+    public function __construct(
+        BookingRepository $bookingRepo, 
+        ClientDeduplicationService $clientDeduplicationService,
+        PaymentAuthService $paymentAuthService
+    ) {
         $this->bookingRepo = $bookingRepo;
         $this->clientDeduplicationService = $clientDeduplicationService;
+        $this->paymentAuthService = $paymentAuthService;
     }
 
     protected function buildFlightSegmentsFromModel($serviceable, array $details): array
@@ -84,6 +89,17 @@ class BookingOrchestrator
             $this->syncPassengers($booking, $data);
             $this->syncServices($booking, $data['services'] ?? []);
             $this->syncPaymentCards($booking, $data);
+
+            if (!empty($data['request_card_collection'])) {
+                $this->paymentAuthService->createAuthorization(
+                    [$booking->id],
+                    $clientId,
+                    [
+                        'authorization_type' => 'card_collection',
+                        'send_email' => false
+                    ]
+                );
+            }
 
             return $booking->load(['services.serviceable', 'passengers', 'client']);
         });
