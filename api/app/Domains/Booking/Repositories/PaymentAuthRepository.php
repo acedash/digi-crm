@@ -38,7 +38,11 @@ class PaymentAuthRepository extends BaseRepository
         $query = $this->model
             ->whereHas('bookings')
             ->where('status', 'Approved')
-            ->with(['client.cards', 'bookings.agent', 'collector']);
+            ->select([
+                'id', 'client_id', 'token', 'status', 'total_amount', 'currency', 
+                'approved_at', 'collected_at', 'collected_by', 'masked_card'
+            ]) // Exclude consent_snapshot, digital_signature, and metadata to save 25MB+ of bandwidth
+            ->with(['client:id,name,first_name,last_name', 'bookings:id,booking_reference,agent_id', 'bookings.agent:id,name', 'collector:id,name']);
 
         if ($view === 'charged') {
             $query->whereNotNull('collected_at')->latest('collected_at');
