@@ -32,17 +32,6 @@ class BookingService
         $search = trim((string) ($params['search'] ?? ''));
 
         $query = \App\Domains\Booking\Models\Booking::query()
-            ->select([
-                'id',
-                'client_id',
-                'agent_id',
-                'booking_reference',
-                'status',
-                'total_amount',
-                'currency',
-                'details_json',
-                'created_at',
-            ])
             ->with([
                 'client:id,agent_id,first_name,last_name,name,phone,email',
                 'agent:id,name',
