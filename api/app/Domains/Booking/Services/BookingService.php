@@ -38,15 +38,16 @@ class BookingService
                 'agent_id',
                 'booking_reference',
                 'status',
+                'total_amount',
                 'currency',
-                // Strip details_json from list view to keep payload small
+                'details_json',
                 'created_at',
             ])
             ->with([
                 'client:id,agent_id,first_name,last_name,name,phone,email',
                 'agent:id,name',
                 'services:id,booking_id,serviceable_type,serviceable_id',
-                'services.serviceable:id,airline_code,departure_city,arrival_city,name,vendor_name,car_type,cruise_line,ship_name',
+                'services.serviceable',
                 'paymentAuthorizations:id,status,collected_at,approved_at',
             ])
             ->withCount('passengers')
