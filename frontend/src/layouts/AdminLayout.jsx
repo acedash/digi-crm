@@ -287,7 +287,7 @@ const AdminLayout = () => {
             {(() => {
               const activeItem = navItems.find(item => item.path === location.pathname);
               if (activeItem) return activeItem.label;
-              if (location.pathname.includes('/clients/')) return 'Client Profile';
+              if (location.pathname.includes('/clients/') || location.pathname.includes('/bookings/')) return 'Client Profile';
               return 'Profile';
             })()}
           </div>
