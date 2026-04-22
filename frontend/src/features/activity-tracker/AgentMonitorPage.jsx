@@ -26,6 +26,7 @@ const AgentMonitorPage = () => {
   const [globalPeriod, setGlobalPeriod] = useState('daily');
   const [selectedAgentId, setSelectedAgentId] = useState(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportFilters, setReportFilters] = useState({ period: 'daily', start: null, end: null });
 
   // Independent stats data
   const [bookStats, setBookStats] = useState(null);
@@ -62,6 +63,12 @@ const AgentMonitorPage = () => {
     } catch (error) {
       console.error(`Failed to fetch stats for period ${p}`, error);
     }
+  };
+
+  const handleViewReport = (id, period, start, end) => {
+    setSelectedAgentId(id);
+    setReportFilters({ period: period === 'live' ? 'daily' : period, start, end });
+    setIsReportOpen(true);
   };
 
   const statCards = stats ? [
@@ -115,7 +122,7 @@ const AgentMonitorPage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ marginBottom: '0' }}>
           <h1 className="premium-gradient-text" style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Activity size={32} style={{ color: '#60a5fa' }} />
+            <Activity size={32} style={{ color: '#06B68A' }} />
             Team Activity <span className="premium-gradient-text">Monitor</span>
             {loading && <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--text-muted)' }}/>}
           </h1>
@@ -204,17 +211,17 @@ const AgentMonitorPage = () => {
         )}
         
         <div>
-          <AgentActivityTable onViewReport={(id) => {
-            setSelectedAgentId(id);
-            setIsReportOpen(true);
-          }} />
+          <AgentActivityTable onViewReport={handleViewReport} />
         </div>
       </div>
 
       <AgentReportSlideOver 
         isOpen={isReportOpen} 
         onClose={() => setIsReportOpen(false)} 
-        agentId={selectedAgentId} 
+        agentId={selectedAgentId}
+        initialPeriod={reportFilters.period}
+        initialStart={reportFilters.start}
+        initialEnd={reportFilters.end}
       />
     </div>
   );

@@ -150,7 +150,7 @@ const BookingDetailsPage = () => {
             Back to Bookings
           </Button>
           <div style={{ marginTop: '12px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#60a5fa', letterSpacing: '0.08em' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#06B68A', letterSpacing: '0.08em' }}>
               Booking Details
             </div>
             <h1 style={{ fontSize: '30px', fontWeight: 800, color: 'var(--text-main)' }}>{booking.booking_reference}</h1>
@@ -179,7 +179,7 @@ const BookingDetailsPage = () => {
         ].map((item) => (
           <Card key={item.label} style={{ padding: '18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'rgba(96,165,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+              <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'rgba(96,165,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#06B68A' }}>
                 <item.icon size={18} />
               </div>
               <div>
@@ -195,7 +195,7 @@ const BookingDetailsPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <Card style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <User size={18} color="#60a5fa" /> Card Holder
+              <User size={18} color="#06B68A" /> Card Holder
             </h3>
             <div style={{ display: 'grid', gap: '10px', fontSize: '14px' }}>
               <div><strong>Name:</strong> {clientName}</div>
@@ -228,7 +228,7 @@ const BookingDetailsPage = () => {
 
           <Card style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={18} color="#60a5fa" /> Traveling Passengers
+              <Users size={18} color="#06B68A" /> Traveling Passengers
             </h3>
             <div style={{ display: 'grid', gap: '12px' }}>
               {booking.passengers?.length ? booking.passengers.map((passenger) => (
@@ -303,7 +303,7 @@ const BookingDetailsPage = () => {
 
           <Card style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ClipboardList size={18} color="#60a5fa" /> Booking Services
+              <ClipboardList size={18} color="#06B68A" /> Booking Services
             </h3>
             <div style={{ display: 'grid', gap: '14px' }}>
               {booking.services?.length ? booking.services.map((service) => {
@@ -325,8 +325,8 @@ const BookingDetailsPage = () => {
                   <div key={service.id} style={{ padding: '18px', borderRadius: '18px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <ServiceIcon size={16} color="#60a5fa" />
-                        <span style={{ fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', color: '#60a5fa' }}>
+                        <ServiceIcon size={16} color="#06B68A" />
+                        <span style={{ fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', color: '#06B68A' }}>
                           {service.serviceable_type?.split('\\').pop()}
                         </span>
                       </div>
@@ -487,7 +487,7 @@ const BookingDetailsPage = () => {
 
           <Card style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CreditCard size={18} color="#60a5fa" /> Payment Cards For This Booking
+              <CreditCard size={18} color="#06B68A" /> Payment Cards For This Booking
             </h3>
             {!canViewSensitiveCards ? (
               <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.18)', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
@@ -504,7 +504,7 @@ const BookingDetailsPage = () => {
                     <div key={key} style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 700 }}>{card.holder_name || 'Card Holder'}</div>
-                        <div style={{ fontSize: '14px', fontWeight: 800, color: '#60a5fa' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 800, color: '#06B68A' }}>
                           {new Intl.NumberFormat('en-US', { style: 'currency', currency: card.currency || booking.currency || 'USD' }).format(Number(card.amount) || 0)}
                         </div>
                       </div>
@@ -518,7 +518,7 @@ const BookingDetailsPage = () => {
                           <button
                             type="button"
                             onClick={() => setShowCards((current) => ({ ...current, [key]: !current[key] }))}
-                            style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', color: '#06B68A', cursor: 'pointer' }}
                           >
                             {isVisible ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>

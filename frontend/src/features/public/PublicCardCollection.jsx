@@ -172,7 +172,7 @@ const PublicCardCollection = () => {
       {/* Background Decor */}
       <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
         <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', backgroundColor: 'rgba(16, 185, 129, 0.05)', borderRadius: '50%', filter: 'blur(120px)' }}></div>
-        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '30%', height: '30%', backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: '50%', filter: 'blur(120px)' }}></div>
+        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '30%', height: '30%', backgroundColor: 'rgba(6, 182, 138, 0.05)', borderRadius: '50%', filter: 'blur(120px)' }}></div>
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '640px', margin: '0 auto', padding: '60px 24px' }}>

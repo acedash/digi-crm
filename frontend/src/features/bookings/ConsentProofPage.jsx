@@ -31,7 +31,7 @@ const DetailRow = ({ label, value }) => (
   </div>
 );
 
-const SectionCard = ({ icon, title, children, iconColor = '#2563eb' }) => {
+const SectionCard = ({ icon, title, children, iconColor = '#059669' }) => {
   const SectionIcon = icon;
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
@@ -393,7 +393,7 @@ const ConsentProofPage = () => {
                     background: 'transparent',
                     border: 'none',
                     borderRadius: '8px',
-                    color: '#3b82f6',
+                    color: '#06B68A',
                     fontSize: '13px',
                     fontWeight: 500,
                     textAlign: 'left',
@@ -455,16 +455,16 @@ const ConsentProofPage = () => {
             flexWrap: 'wrap',
             padding: '18px 20px',
             borderRadius: '18px',
-            background: isChangeCharge ? 'rgba(245, 158, 11, 0.10)' : 'rgba(37, 99, 235, 0.10)',
-            border: `1px solid ${isChangeCharge ? 'rgba(245, 158, 11, 0.24)' : 'rgba(37, 99, 235, 0.24)'}`,
+            background: isChangeCharge ? 'rgba(245, 158, 11, 0.10)' : 'rgba(5, 150, 105, 0.10)',
+            border: `1px solid ${isChangeCharge ? 'rgba(245, 158, 11, 0.24)' : 'rgba(5, 150, 105, 0.24)'}`,
           }}
         >
           <div>
             <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
               Authorization Type
             </div>
-            <div style={{ fontSize: '22px', fontWeight: 800, marginTop: '6px', color: 'var(--text-main)' }}>
-              {isChangeCharge ? 'Change Charge Approval' : 'Initial approval by client'}
+            <div style={{ fontSize: '22px', fontWeight: 800, marginTop: '6px', color: isChangeCharge ? '#f59e0b' : '#059669' }}>
+              {isChangeCharge ? 'Change Charge Approval' : 'Initial Approval By Client'}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
               {isChangeCharge
@@ -501,12 +501,12 @@ const ConsentProofPage = () => {
             <DetailRow label="User Agent" value={proof.user_agent} />
             <DetailRow label="Masked Card" value={proof.masked_card} />
             <DetailRow label="Declaration Ver." value={proof.declaration_version} />
-            <DetailRow label="Auth Type" value={isChangeCharge ? 'Change Charge Approval' : 'Initial approval by client'} />
+            <DetailRow label="Auth Type" value={isChangeCharge ? 'Change Charge Approval' : 'Initial Approval By Client'} />
             <DetailRow label="Token Ref" value={proof.token} />
           </SectionCard>
 
           <div style={{ display: 'grid', gap: '24px' }}>
-            <SectionCard icon={Clock3} title="Snapshot Summary" iconColor="#2563eb">
+            <SectionCard icon={Clock3} title="Snapshot Summary" iconColor="#059669">
               <DetailRow label="Captured At" value={snapshot.captured_at} />
               <DetailRow label="Supplier" value={snapshot.supplier_label} />
               <DetailRow label="Currency" value={snapshot.currency} />
@@ -655,7 +655,7 @@ const ConsentProofPage = () => {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          <SectionCard icon={Globe} title="Travellers" iconColor="#2563eb">
+          <SectionCard icon={Globe} title="Travellers" iconColor="#059669">
             <div style={{ display: 'grid', gap: '12px' }}>
               {travellers.length ? travellers.map((traveller, index) => (
                 <div key={`${traveller.name}-${index}`} style={{ padding: '14px 16px', borderRadius: '14px', background: 'var(--bg-app)', border: '1px solid var(--border-color)' }}>
@@ -670,7 +670,7 @@ const ConsentProofPage = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={Clock3} title={isChangeCharge ? 'Change Charge Summary' : 'Fare Breakdown'} iconColor="#2563eb">
+          <SectionCard icon={Clock3} title={isChangeCharge ? 'Change Charge Summary' : 'Fare Breakdown'} iconColor="#059669">
             {isChangeCharge ? (
               <>
                 <DetailRow label="Additional Charge" value={formatMoney(fareBreakdown.change_charge || snapshot.total_amount, snapshot.currency)} />
@@ -686,7 +686,7 @@ const ConsentProofPage = () => {
           </SectionCard>
         </div>
 
-        <SectionCard icon={Plane} title="Flight Ticket Images" iconColor="#2563eb">
+        <SectionCard icon={Plane} title="Flight Ticket Images" iconColor="#059669">
           <div style={{ display: 'grid', gap: '16px' }}>
             {ticketImages.length ? ticketImages.map((ticket, index) => (
               <div key={`ticket-${index}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>

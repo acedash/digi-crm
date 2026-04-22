@@ -22,7 +22,20 @@ import dashboardService from './dashboardService';
 import AdminMonitoringTable from './AdminMonitoringTable';
 import { AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
-const COLORS = ['#06B68A', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6'];
+const COLORS = [
+  '#06B68A', // Emerald
+  '#06B68A', // Blue
+  '#f59e0b', // Amber
+  '#ef4444', // Red
+  '#8b5cf6', // Violet
+  '#10b981', // Teal
+  '#f43f5e', // Rose
+  '#6366f1', // Indigo
+  '#0ea5e9', // Sky
+  '#ec4899', // Pink
+  '#f97316', // Orange
+  '#14b8a6'  // Cyan
+];
 
 
 const AdminDashboard = () => {
@@ -97,7 +110,7 @@ const AdminDashboard = () => {
 
   const statCards = [
     {
-      title: 'Total Staff Member',
+      title: 'Total Staff Members',
       subtitle: `${stats.staff.active} active right now`,
       value: stats.staff.total,
       growth: stats.staff.growth,
@@ -289,7 +302,7 @@ const AdminDashboard = () => {
 
         {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Pending vs Confirmed Trends</h3>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Pending vs Confirmed Booking</h3>
             <div style={{ height: '300px', width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -303,7 +316,7 @@ const AdminDashboard = () => {
                   />
                   <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
                   <Bar dataKey="Confirmed" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="Pending" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Pending" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -312,7 +325,7 @@ const AdminDashboard = () => {
 
         {stats.booking_status_distribution && stats.booking_status_distribution.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Booking Status</h3>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Booking Statuses</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Current period distribution</p>
             <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -320,9 +333,9 @@ const AdminDashboard = () => {
                   <Pie
                     data={stats.booking_status_distribution}
                     cx="50%"
-                    cy="45%"
-                    innerRadius={70}
-                    outerRadius={100}
+                    cy="40%"
+                    innerRadius={60}
+                    outerRadius={90}
                     paddingAngle={5}
                     dataKey="value"
                   >
@@ -336,10 +349,15 @@ const AdminDashboard = () => {
                   />
                   <Legend 
                     verticalAlign="bottom" 
-                    height={36} 
+                    align="center"
                     iconType="circle"
+                    iconSize={10}
+                    wrapperStyle={{ 
+                      paddingTop: '20px',
+                      fontSize: '12px'
+                    }}
                     formatter={(value, entry) => (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, marginLeft: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginLeft: '4px', whiteSpace: 'nowrap' }}>
                         {value} ({entry.payload.value})
                       </span>
                     )}
@@ -390,10 +408,10 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Type</div>
-                  <div style={{ fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>
+                  <div style={{ fontWeight: 700, color: (auth.consent_snapshot?.authorization_type || auth.metadata?.authorization_type) === 'change_charge' ? '#f59e0b' : '#059669', marginTop: '4px' }}>
                     {(auth.consent_snapshot?.authorization_type || auth.metadata?.authorization_type) === 'change_charge'
-                      ? 'Change Charge'
-                      : 'Initial approval by client'}
+                      ? 'Change Charge Approval'
+                      : 'Initial Approval By Client'}
                   </div>
                 </div>
                 <div>
@@ -451,7 +469,7 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
-                  <div style={{ fontWeight: 700, color: '#60a5fa', marginTop: '4px' }}>
+                  <div style={{ fontWeight: 700, color: '#06B68A', marginTop: '4px' }}>
                     {booking.status === 'Pending' ? 'Email Send Pending' : booking.status}
                   </div>
                 </div>

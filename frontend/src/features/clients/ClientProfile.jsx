@@ -136,7 +136,7 @@ const ClientProfile = () => {
       {/* Travel Stats Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
         {[
-          { label: 'Total Bookings', value: client?.bookings?.length || 0, icon: Briefcase, color: '#60a5fa' },
+          { label: 'Total Bookings', value: client?.bookings?.length || 0, icon: Briefcase, color: '#06B68A' },
           { label: 'Total Revenue', value: `$${totalSpent.toLocaleString()}`, icon: ShieldCheck, color: '#4ade80' },
           { label: 'Pending PNRs', value: (client?.bookings || []).filter(b => b.status === 'Pending').length, icon: Calendar, color: '#fbbf24' },
           { label: 'Primary Contact', value: client?.phone || 'N/A', icon: Phone, color: '#f472b6' }
@@ -174,7 +174,7 @@ const ClientProfile = () => {
                 <div style={{ display: 'flex', gap: '12px', marginTop: '8px', alignItems: 'center' }}>
                   <span style={{ 
                     fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '100px',
-                    background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.2)'
+                    background: 'rgba(6, 182, 138, 0.1)', color: '#06B68A', border: '1px solid rgba(96,165,250,0.2)'
                   }}>
                     {client.type || 'Standard'}
                   </span>
@@ -428,7 +428,7 @@ const ClientProfile = () => {
                       <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                         <div style={{ 
                           width: '48px', height: '48px', borderRadius: '14px', 
-                          background: 'rgba(59,130,246,0.1)', color: '#60a5fa', 
+                          background: 'rgba(59,130,246,0.1)', color: '#06B68A', 
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           border: '1px solid rgba(59,130,246,0.2)'
                         }}>
@@ -443,7 +443,7 @@ const ClientProfile = () => {
                             {log.call_type}
                           </h4>
                           <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                            Logged by <span style={{ color: '#60a5fa', fontWeight: 600 }}>{log.agent?.name || 'System'}</span>
+                            Logged by <span style={{ color: '#06B68A', fontWeight: 600 }}>{log.agent?.name || 'System'}</span>
                           </p>
                         </div>
                       </div>

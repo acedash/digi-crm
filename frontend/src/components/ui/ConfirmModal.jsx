@@ -18,8 +18,8 @@ const ConfirmModal = ({
 
   const toneColors = {
     primary: {
-      bg: 'rgba(59, 130, 246, 0.1)',
-      icon: '#3b82f6',
+      bg: 'rgba(6, 182, 138, 0.1)',
+      icon: '#06B68A',
       btn: 'primary'
     },
     danger: {

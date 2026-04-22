@@ -503,18 +503,46 @@ class DashboardController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $cacheKey = 'dashboard.agent-monitor.' . ($user->hasRole('admin') ? 'admin' : 'supervisor.' . $user->id);
+        $period = $request->get('period', 'live');
+        $customStart = $request->get('start_date');
+        $customEnd = $request->get('end_date');
 
-        $activityData = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($agents) {
+        $cacheKey = 'dashboard.agent-monitor.v2.' . ($user->hasRole('admin') ? 'admin' : 'supervisor.' . $user->id) . '.' . $period;
+        if ($period === 'custom') {
+            $cacheKey .= '.' . md5($customStart . $customEnd);
+        }
+
+        $activityData = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($agents, $period, $customStart, $customEnd) {
             $tz = config('app.timezone');
-            $startOfToday = now()->timezone($tz)->startOfDay()->toDateTimeString();
-            $endOfToday = now()->timezone($tz)->endOfDay()->toDateTimeString();
             $agentIds = $agents->pluck('id')->all();
+
+            $start = now()->timezone($tz)->startOfDay();
+            $end = now()->timezone($tz)->endOfDay();
+
+            if ($period !== 'live') {
+                switch ($period) {
+                    case 'daily':
+                        $start = now()->timezone($tz)->startOfDay();
+                        break;
+                    case 'weekly':
+                        $start = now()->timezone($tz)->subDays(7);
+                        break;
+                    case 'monthly':
+                        $start = now()->timezone($tz)->subDays(30);
+                        break;
+                    case 'custom':
+                        $start = $customStart ? now()->parse($customStart)->timezone($tz)->startOfDay() : now()->timezone($tz)->subDays(30);
+                        $end = $customEnd ? now()->parse($customEnd)->timezone($tz)->endOfDay() : now()->timezone($tz);
+                        break;
+                    default:
+                        $start = now()->timezone($tz)->startOfDay();
+                }
+            }
 
             $activitiesByUser = \App\Models\UserActivity::query()
                 ->select(['id', 'user_id', 'activity_type', 'created_at'])
                 ->whereIn('user_id', $agentIds)
-                ->whereBetween('created_at', [$startOfToday, $endOfToday])
+                ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
                 ->orderBy('created_at', 'asc')
                 ->get()
                 ->groupBy('user_id');
@@ -523,19 +551,19 @@ class DashboardController extends Controller
                 ->select('agent_id', DB::raw('COUNT(*) as total_calls'))
                 ->whereIn('agent_id', $agentIds)
                 ->where('log_scope', 'booking')
-                ->whereBetween('created_at', [$startOfToday, $endOfToday])
+                ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
                 ->groupBy('agent_id')
                 ->pluck('total_calls', 'agent_id');
 
             $bookingStats = Booking::query()
-                ->select('agent_id', DB::raw('COUNT(*) as bookings_created'), DB::raw('COALESCE(SUM(total_amount), 0) as daily_revenue'))
+                ->select('agent_id', DB::raw('COUNT(*) as bookings_created'), DB::raw('COALESCE(SUM(total_amount), 0) as period_revenue'))
                 ->whereIn('agent_id', $agentIds)
-                ->whereBetween('created_at', [$startOfToday, $endOfToday])
+                ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
                 ->groupBy('agent_id')
                 ->get()
                 ->keyBy('agent_id');
 
-            return $agents->map(function ($agent) use ($activitiesByUser, $callCounts, $bookingStats, $tz) {
+            return $agents->map(function ($agent) use ($activitiesByUser, $callCounts, $bookingStats, $tz, $period) {
                 $activities = $activitiesByUser->get($agent->id, collect());
                 $loginActivity = $activities->firstWhere('activity_type', 'login');
                 $loginTime = $loginActivity ? $loginActivity->created_at->timezone($tz)->format('h:i A') : '--';
@@ -585,7 +613,7 @@ class DashboardController extends Controller
                     'status' => $agent->status ?? 'Offline',
                     'calls_picked' => (int) ($callCounts[$agent->id] ?? 0),
                     'bookings_created' => (int) ($stats->bookings_created ?? 0),
-                    'daily_revenue' => (float) ($stats->daily_revenue ?? 0),
+                    'daily_revenue' => (float) ($stats->period_revenue ?? 0),
                     'break_time' => $breakFormatted,
                 ];
             })->values();
@@ -604,22 +632,77 @@ class DashboardController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $data = Cache::remember('dashboard.admin-monitor', now()->addMinutes(2), function () {
+        $period = $request->get('period', 'live');
+        $customStart = $request->get('start_date');
+        $customEnd = $request->get('end_date');
+
+        $cacheKey = 'dashboard.admin-monitor.v2.' . $period;
+        if ($period === 'custom') {
+            $cacheKey .= '.' . md5($customStart . $customEnd);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($period, $customStart, $customEnd) {
             $supervisors = User::role('supervisor')
                 ->with(['supervisedAgents' => function ($query) {
                     $query->select('users.id', 'users.status');
                 }])
                 ->get(['id', 'name']);
 
-            return $supervisors->map(function ($sup) {
+            $start = null;
+            $end = now();
+
+            if ($period !== 'live') {
+                switch ($period) {
+                    case 'daily':
+                        $start = now()->startOfDay();
+                        break;
+                    case 'weekly':
+                        $start = now()->subDays(7);
+                        break;
+                    case 'monthly':
+                        $start = now()->subDays(30);
+                        break;
+                    case 'custom':
+                        $start = $customStart ? now()->parse($customStart)->startOfDay() : now()->subDays(30);
+                        $end = $customEnd ? now()->parse($customEnd)->endOfDay() : now();
+                        break;
+                    default:
+                        $period = 'live';
+                }
+            }
+
+            return $supervisors->map(function ($sup) use ($period, $start, $end) {
                 $agents = $sup->supervisedAgents;
-                $totalAgents = $agents->count();
-                $active = $agents->filter(function ($agent) {
-                    return in_array(strtolower((string) $agent->status), ['active', 'on call'], true);
-                })->count();
-                $onBreak = $agents->filter(function ($agent) {
-                    return strtolower((string) $agent->status) === 'break';
-                })->count();
+                $agentIds = $agents->pluck('id')->toArray();
+                
+                if ($period === 'live') {
+                    $totalAgents = $agents->count();
+                    $active = $agents->filter(function ($agent) {
+                        return in_array(strtolower((string) $agent->status), ['active', 'on call'], true);
+                    })->count();
+                    $onBreak = $agents->filter(function ($agent) {
+                        return strtolower((string) $agent->status) === 'break';
+                    })->count();
+                } else {
+                    // Historical aggregation from UserActivity
+                    $activeAgentIds = \App\Models\UserActivity::whereIn('user_id', $agentIds)
+                        ->whereBetween('created_at', [$start, $end])
+                        ->whereIn('activity_type', ['login', 'on_call', 'idle'])
+                        ->distinct('user_id')
+                        ->pluck('user_id')
+                        ->toArray();
+
+                    $breakAgentIds = \App\Models\UserActivity::whereIn('user_id', $agentIds)
+                        ->whereBetween('created_at', [$start, $end])
+                        ->where('activity_type', 'break_start')
+                        ->distinct('user_id')
+                        ->pluck('user_id')
+                        ->toArray();
+
+                    $totalAgents = count(array_unique(array_merge($activeAgentIds, $breakAgentIds)));
+                    $active = count($activeAgentIds);
+                    $onBreak = count($breakAgentIds);
+                }
 
                 return [
                     'id' => $sup->id,
@@ -726,9 +809,38 @@ class DashboardController extends Controller
             }
         }
 
+        $period = $request->get('period', 'daily');
+        $customStart = $request->get('start_date');
+        $customEnd = $request->get('end_date');
+
         $isSqlite = config('database.default') === 'sqlite';
         $monthFormat = $isSqlite ? "strftime('%m', created_at)" : "DATE_FORMAT(created_at, '%m')";
         $yearFormat = $isSqlite ? "strftime('%Y', created_at)" : "DATE_FORMAT(created_at, '%Y')";
+        
+        $start = null;
+        $end = now();
+
+        switch ($period) {
+            case 'all':
+                $start = now()->parse('2020-01-01');
+                break;
+            case 'daily':
+                $start = now()->startOfDay();
+                break;
+            case 'weekly':
+                $start = now()->subDays(7);
+                break;
+            case 'monthly':
+                $start = now()->subDays(30);
+                break;
+            case 'custom':
+                $start = $customStart ? now()->parse($customStart)->startOfDay() : now()->subDays(30);
+                $end = $customEnd ? now()->parse($customEnd)->endOfDay() : now();
+                break;
+            default:
+                $start = now()->startOfDay();
+        }
+
         $revenueTrendStart = now()->subMonths(12)->startOfMonth()->toDateTimeString();
         $trendStart = now()->subMonths(6)->startOfMonth()->toDateTimeString();
 
@@ -751,6 +863,7 @@ class DashboardController extends Controller
 
         $statusDistribution = Booking::select('status', DB::raw('count(*) as total'))
             ->where('agent_id', $agentId)
+            ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
             ->groupBy('status')
             ->get()
             ->map(function ($item) {
@@ -762,15 +875,19 @@ class DashboardController extends Controller
             ->with(['client:id,name,first_name,last_name'])
             ->where('agent_id', $agentId)
             ->where('log_scope', 'booking')
+            ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
             ->latest('created_at')
             ->take(10)
             ->get();
 
+        $statsQuery = Booking::where('agent_id', $agentId)
+            ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()]);
+
         $stats = [
-            'total_bookings' => Booking::where('agent_id', $agentId)->count(),
-            'total_revenue' => (float) Booking::where('agent_id', $agentId)->sum('total_amount'),
+            'total_bookings' => (int) $statsQuery->count(),
+            'total_revenue' => (float) $statsQuery->sum('total_amount'),
             'daily_revenue' => (float) Booking::where('agent_id', $agentId)->whereDate('created_at', now()->toDateString())->sum('total_amount'),
-            'total_calls' => CallLog::where('agent_id', $agentId)->where('log_scope', 'booking')->count(),
+            'total_calls' => CallLog::where('agent_id', $agentId)->where('log_scope', 'booking')->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])->count(),
         ];
 
         return response()->json([
@@ -787,6 +904,9 @@ class DashboardController extends Controller
                 'status_distribution' => $statusDistribution,
                 'recent_calls' => $recentCalls,
                 'status_trends' => $this->getStatusTrends([$agentId], $trendStart, $monthFormat, $yearFormat),
+                'period' => $period,
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString()
             ]
         ]);
     }

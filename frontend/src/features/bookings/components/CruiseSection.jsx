@@ -51,16 +51,63 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
               <Input label="Departure Port" placeholder="e.g. Miami, Florida" value={cruise.departure_port || ''} onChange={e => setCruise({...cruise, departure_port: e.target.value})} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <Input label="Room Type" placeholder="e.g. Ocean View Balcony" value={cruise.room_type || ''} onChange={e => setCruise({...cruise, room_type: e.target.value})} />
-              <Input label="Deck Number" placeholder="e.g. Deck 12" value={cruise.deck_number || ''} onChange={e => setCruise({...cruise, deck_number: e.target.value})} />
-              <Input label="Room Number" placeholder="e.g. 1245" value={cruise.room_number || ''} onChange={e => setCruise({...cruise, room_number: e.target.value})} />
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <Input label="Number of Rooms" type="number" placeholder="1" value={cruise.room_count || ''} onChange={e => setCruise({...cruise, room_count: e.target.value})} />
+              <Input 
+                label="Number of Rooms" 
+                type="number" 
+                placeholder="1" 
+                value={cruise.room_count || ''} 
+                onChange={e => {
+                  const count = parseInt(e.target.value) || 0;
+                  let types = [...(cruise.room_types || [])];
+                  if (types.length === 0 && cruise.room_type) types = [cruise.room_type];
+                  
+                  if (types.length < count) {
+                    while (types.length < count) types.push(types[0] || '');
+                  } else if (types.length > count) {
+                    types = types.slice(0, count);
+                  }
+                  setCruise({...cruise, room_count: e.target.value, room_types: types});
+                }} 
+              />
               <Input label="Number of Adults" type="number" placeholder="1" value={cruise.adult_count || ''} onChange={e => setCruise({...cruise, adult_count: e.target.value})} />
               <Input label="Number of Children" type="number" placeholder="0" value={cruise.child_count || ''} onChange={e => setCruise({...cruise, child_count: e.target.value})} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: cruise.room_count > 1 ? '1fr' : '1.5fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              {(!cruise.room_count || cruise.room_count <= 1) ? (
+                <>
+                  <Input 
+                    label="Room Type" 
+                    placeholder="e.g. Ocean View Balcony" 
+                    value={cruise.room_types?.[0] || cruise.room_type || ''} 
+                    onChange={e => {
+                      const newTypes = [e.target.value];
+                      setCruise({...cruise, room_type: e.target.value, room_types: newTypes});
+                    }} 
+                  />
+                  <Input label="Deck Number" placeholder="e.g. Deck 12" value={cruise.deck_number || ''} onChange={e => setCruise({...cruise, deck_number: e.target.value})} />
+                  <Input label="Room Number" placeholder="e.g. 1245" value={cruise.room_number || ''} onChange={e => setCruise({...cruise, room_number: e.target.value})} />
+                </>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {(cruise.room_types || []).map((type, idx) => (
+                    <Input 
+                      key={idx}
+                      label={`Room ${idx + 1} Type`} 
+                      placeholder="e.g. Balcony, Suite" 
+                      value={type || ''} 
+                      onChange={e => {
+                        const newTypes = [...(cruise.room_types || [])];
+                        newTypes[idx] = e.target.value;
+                        setCruise({...cruise, room_types: newTypes});
+                      }} 
+                    />
+                  ))}
+                  <Input label="Deck Number" placeholder="e.g. Deck 12" value={cruise.deck_number || ''} onChange={e => setCruise({...cruise, deck_number: e.target.value})} />
+                  <Input label="Room Number" placeholder="e.g. Multiple" value={cruise.room_number || ''} onChange={e => setCruise({...cruise, room_number: e.target.value})} />
+                </div>
+              )}
             </div>
 
             {cruise.child_count > 0 && (
@@ -130,7 +177,7 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
                       width: '48px',
                       height: '48px',
                       borderRadius: '50%',
-                      background: 'rgba(59, 130, 246, 0.1)',
+                      background: 'rgba(6, 182, 138, 0.1)',
                       color: 'hsl(var(--primary))',
                       display: 'flex',
                       alignItems: 'center',

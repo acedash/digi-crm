@@ -37,9 +37,9 @@ const actionPalette = {
     border: '1px solid rgba(139, 92, 246, 0.18)',
   },
   info: {
-    color: '#2563eb',
-    background: 'rgba(37, 99, 235, 0.08)',
-    border: '1px solid rgba(37, 99, 235, 0.18)',
+    color: '#059669',
+    background: 'rgba(5, 150, 105, 0.08)',
+    border: '1px solid rgba(5, 150, 105, 0.18)',
   },
   success: {
     color: '#06B68A',
@@ -218,7 +218,7 @@ const BookingRow = ({
                 fontSize: '11px', 
                 fontWeight: 800, 
                 background: 'rgba(96, 165, 250, 0.12)', 
-                color: '#60a5fa', 
+                color: '#06B68A', 
                 padding: '3px 8px', 
                 borderRadius: '4px', 
                 letterSpacing: '0.05em', 
@@ -263,38 +263,35 @@ const BookingRow = ({
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{booking.client?.email || 'N/A'}</span>
               </div>
             </div>
-            {(booking.status_remark || booking.latest_handoff_remark) && (
-              <div style={{ 
-                marginTop: '10px',
-                fontSize: '11px',
-                color: booking.status_remark ? '#059669' : '#8b5cf6',
-                background: booking.status_remark ? 'rgba(5, 150, 105, 0.08)' : 'rgba(139, 92, 246, 0.08)',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                borderLeft: `3px solid ${booking.status_remark ? '#059669' : '#8b5cf6'}`,
-                maxWidth: '100%',
-                lineHeight: 1.5
-              }} title={booking.status_remark || booking.latest_handoff_remark}>
-                <strong style={{ opacity: 0.8 }}>{booking.status_remark ? 'FINAL NOTE:' : 'HANDOFF NOTE:'}</strong> {booking.status_remark || booking.latest_handoff_remark}
-              </div>
-            )}
           </div>
 
           {/* Group 2: Travel Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: 'var(--text-main)', fontWeight: 700, whiteSpace: 'nowrap' }}>
-              <Calendar size={16} style={{ color: '#60a5fa' }} />
+              <Calendar size={16} style={{ color: '#06B68A' }} />
               <span>{booking.travel_date ? new Date(booking.travel_date).toLocaleDateString() : 'N/A'}</span>
               <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '13px', whiteSpace: 'nowrap' }}>({getTravelerCount(booking)} Pax)</span>
             </div>
             
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {booking.services?.map((service, si) => {
                 const ServiceIcon = getServiceIcon(service.serviceable_type);
                 return (
-                  <div key={si} title={service.detail || service.type} style={{ padding: '5px 10px', borderRadius: '8px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ServiceIcon size={12} style={{ color: '#8b5cf6' }} />
-                    <span style={{ fontSize: '11px', fontWeight: 700, maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+                  <div 
+                    key={si} 
+                    title={service.detail || service.type} 
+                    style={{ 
+                      padding: '4px 10px', 
+                      borderRadius: '100px', 
+                      background: 'var(--bg-input)', 
+                      border: '1px solid var(--border-color)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '6px' 
+                    }}
+                  >
+                    <ServiceIcon size={11} style={{ color: '#8b5cf6' }} />
+                    <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                       {service.detail ? service.detail.split(' ')[0] : service.type}
                     </span>
                   </div>
@@ -431,13 +428,22 @@ const BookingRow = ({
               disabled={isSendingApproval}
             />
             <ActionChip
-              icon={RefreshCw}
-              label={isSendingFlightChange ? '...' : 'Modify'}
-              onClick={() => onSendFlightChange(booking)}
+              icon={Pencil}
+              label="Modify"
+              onClick={() => onEdit(booking)}
               tone="info"
-              title="Record service adjustment"
-              disabled={isSendingFlightChange}
+              title="Edit or modify this booking"
             />
+            {['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'].includes(booking.status) && (
+              <ActionChip
+                icon={RefreshCw}
+                label={isSendingFlightChange ? '...' : 'Flight Change'}
+                onClick={() => onSendFlightChange(booking)}
+                tone="primary"
+                title="Send flight change notification"
+                disabled={isSendingFlightChange}
+              />
+            )}
             <ActionChip
               icon={CreditCard}
               label={isSendingFutureCredit ? '...' : 'Future Credit'}
@@ -502,13 +508,7 @@ const BookingRow = ({
                 title="Transfer booking"
               />
             ) : null}
-            <ActionChip
-              icon={Pencil}
-              label="Edit"
-              onClick={() => onEdit(booking)}
-              tone="default"
-              title="Edit booking data"
-            />
+
             <ActionChip
               icon={Trash2}
               label="Delete"
@@ -539,6 +539,44 @@ const BookingRow = ({
               ))}
           </div>
         </div>
+
+        {(booking.status_remark || booking.latest_handoff_remark) && (
+          <div style={{ 
+            background: 'var(--bg-app)',
+            borderTop: '1px solid var(--border-color)',
+            padding: '12px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <div style={{
+              padding: '6px',
+              background: booking.status_remark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: booking.status_remark ? '#10b981' : '#8b5cf6'
+            }}>
+              <ClipboardList size={16} />
+            </div>
+            <div style={{ fontSize: '12px', lineHeight: 1.5 }}>
+              <span style={{ 
+                fontWeight: 900, 
+                color: booking.status_remark ? '#10b981' : '#8b5cf6',
+                marginRight: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                {booking.status_remark ? 'FINAL NOTE:' : 'HANDOFF NOTE:'}
+              </span>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
+                {booking.status_remark || booking.latest_handoff_remark}
+              </span>
+            </div>
+          </div>
+        )}
+
       </Card>
     </div>
   );

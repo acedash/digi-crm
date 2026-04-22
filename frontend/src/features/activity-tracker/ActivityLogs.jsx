@@ -341,7 +341,7 @@ const ActivityLogs = () => {
                 >
                   <td style={{ padding: '20px 24px', whiteSpace: 'nowrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(6, 182, 138, 0.1)', color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Calendar size={18} />
                       </div>
                       <div>
@@ -395,7 +395,7 @@ const ActivityLogs = () => {
             <div style={{ padding: '32px 40px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                  <div style={{ padding: '6px 12px', borderRadius: '100px', background: 'rgba(59, 130, 246, 0.1)', color: 'hsl(var(--primary))', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <div style={{ padding: '6px 12px', borderRadius: '100px', background: 'rgba(6, 182, 138, 0.1)', color: 'hsl(var(--primary))', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Work Session
                   </div>
                 </div>

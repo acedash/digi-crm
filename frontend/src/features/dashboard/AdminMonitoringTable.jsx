@@ -7,11 +7,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 const AdminMonitoringTable = ({ onSummaryChange }) => {
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [monPeriod, setMonPeriod] = useState('daily');
+  const [monStart, setMonStart] = useState('');
+  const [monEnd, setMonEnd] = useState('');
 
   const fetchActivity = async () => {
     try {
       setLoading(true);
-      const res = await dashboardService.getAdminMonitor();
+      const res = await dashboardService.getAdminMonitor(monPeriod, monStart, monEnd);
       if (res.data?.success) {
         const data = res.data.data;
         setSupervisors(data);
@@ -32,55 +35,130 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
 
   useEffect(() => {
     fetchActivity();
-    const interval = setInterval(fetchActivity, 300000); // Every 5 minutes
-    return () => clearInterval(interval);
-  }, []);
+    if (monPeriod === 'daily') {
+      const interval = setInterval(fetchActivity, 300000); // Every 5 minutes for current day
+      return () => clearInterval(interval);
+    }
+  }, [monPeriod, monStart, monEnd]);
+
+  const periods = [
+    { id: 'daily', label: 'Daily' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'custom', label: 'Custom' }
+  ];
 
   return (
     <Card style={{ padding: '0', overflow: 'hidden', marginTop: '32px', border: '1px solid var(--border-color)' }}>
-      <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
-        <div>
+      <div style={{ 
+        padding: '24px', 
+        borderBottom: '1px solid var(--border-color)', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        background: 'var(--bg-app)',
+        flexWrap: 'wrap',
+        gap: '20px'
+      }}>
+        <div style={{ minWidth: '200px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-            Admin monitoring
+            <ShieldCheck size={20} style={{ color: '#8b5cf6' }} />
+            Admin Monitoring
           </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Overview of supervisors.</p>
-          
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            {monPeriod === 'live' ? 'Real-time overview of current activity.' : `Summary of activity for the selected ${monPeriod} period.`}
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            onClick={() => {
-              const csvContent = "data:text/csv;charset=utf-8," 
-                + "Supervisor,Total Agents,Active,On Break\n"
-                + supervisors.map(s => `${s.supervisor_name},${s.total_agents},${s.active_agents},${s.on_break}`).join("\n");
-              const link = document.createElement("a");
-              link.setAttribute("href", encodeURI(csvContent));
-              link.setAttribute("download", `supervisor_monitoring_${new Date().getTime()}.csv`);
-              document.body.appendChild(link);
-              link.click();
-              link.remove();
-            }}
-            style={{ 
-              background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer',
-              padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
-              transition: 'all 0.2s'
-            }}
-            className="hover:brightness-110"
-          >
-            Export CSV
-          </button>
-        <button 
-          onClick={fetchActivity}
-          style={{ 
-            background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', cursor: 'pointer',
-            padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
-            transition: 'all 0.2s'
-          }}
-          className="hover:brightness-110"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> {loading ? 'Syncing...' : 'Refresh'}
-        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Custom Date Inputs */}
+          {monPeriod === 'custom' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input 
+                type="date" 
+                value={monStart} 
+                onChange={(e) => setMonStart(e.target.value)}
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
+              />
+              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>to</span>
+              <input 
+                type="date" 
+                value={monEnd} 
+                onChange={(e) => setMonEnd(e.target.value)}
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
+              />
+            </div>
+          )}
+
+          {/* Period Selector */}
+          <div style={{ 
+            display: 'flex', 
+            background: 'var(--bg-card)', 
+            padding: '4px', 
+            borderRadius: '10px', 
+            border: '1px solid var(--border-color)',
+            gap: '2px'
+          }}>
+            {periods.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setMonPeriod(p.id)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background: monPeriod === p.id ? 'hsl(var(--primary))' : 'transparent',
+                  color: monPeriod === p.id ? 'white' : 'var(--text-muted)',
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ color: 'var(--border-color)' }}>|</div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              onClick={() => {
+                const csvContent = "data:text/csv;charset=utf-8," 
+                  + "Supervisor,Total Agents,Active,On Break\n"
+                  + supervisors.map(s => `${s.supervisor_name},${s.total_agents},${s.active_agents},${s.on_break}`).join("\n");
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", `monitoring_${monPeriod}_${new Date().getTime()}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+              }}
+              style={{ 
+                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer',
+                padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
+                transition: 'all 0.2s'
+              }}
+              className="hover-brighten"
+            >
+              Export
+            </button>
+            <button 
+              onClick={fetchActivity}
+              style={{ 
+                background: '#8b5cf6', border: 'none', color: 'white', cursor: 'pointer',
+                padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
+              }}
+              className="hover-brighten"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
 
     <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>

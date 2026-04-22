@@ -140,6 +140,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     checkout: '', 
     booking_confirmation: '',
     room_count: 1,
+    room_types: [''],
     adult_count: 1,
     child_count: 0,
     children_ages: '',
@@ -185,6 +186,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     deck_number: '',
     room_number: '',
     room_count: 1,
+    room_types: [''],
     adult_count: 1,
     child_count: 0,
     children_dob: '',
@@ -439,18 +441,28 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
               });
             } else if (type === 'hotel') {
               serviceFlags.hotel = true;
+              const roomCount = details.room_count ?? s.details_json?.room_count ?? 1;
+              const storedRoomType = details.room_type ?? '';
+              let roomTypes = s.details_json?.room_types || [];
+              if (roomTypes.length === 0 && storedRoomType) {
+                roomTypes = storedRoomType.split(' / ');
+              }
+              while (roomTypes.length < (parseInt(roomCount) || 1)) roomTypes.push(roomTypes[0] || '');
+              if (roomTypes.length > (parseInt(roomCount) || 1)) roomTypes = roomTypes.slice(0, parseInt(roomCount));
+
               setHotel({
                 active: true,
                 name: details.name ?? '',
                 city: details.city ?? '',
                 address: details.address ?? '',
-                room_type: details.room_type ?? '',
+                room_type: storedRoomType,
+                room_types: roomTypes,
                 images: s.details_json?.images ?? [],
                 image_previews: (s.details_json?.images ?? []).map((image) => buildStoredImagePreview(image)).filter(Boolean),
                 checkin: s.details_json?.checkin ?? details.check_in_at ?? '',
                 checkout: s.details_json?.checkout ?? details.check_out_at ?? '',
                 booking_confirmation: details.booking_confirmation ?? s.details_json?.booking_confirmation ?? '',
-                room_count: details.room_count ?? s.details_json?.room_count ?? 1,
+                room_count: roomCount,
                 adult_count: details.adult_count ?? s.details_json?.adult_count ?? 1,
                 child_count: details.child_count ?? s.details_json?.child_count ?? 0,
                 children_ages: details.children_ages ?? s.details_json?.children_ages ?? '',
@@ -491,6 +503,15 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
               });
             } else if (type === 'cruise') {
               serviceFlags.cruise = true;
+              const roomCount = details.room_count ?? s.details_json?.room_count ?? 1;
+              const storedRoomType = details.room_type ?? '';
+              let roomTypes = s.details_json?.room_types || [];
+              if (roomTypes.length === 0 && storedRoomType) {
+                roomTypes = storedRoomType.split(' / ');
+              }
+              while (roomTypes.length < (parseInt(roomCount) || 1)) roomTypes.push(roomTypes[0] || '');
+              if (roomTypes.length > (parseInt(roomCount) || 1)) roomTypes = roomTypes.slice(0, parseInt(roomCount));
+
               setCruise({
                 active: true,
                 line: details.operator ?? details.line ?? '',
@@ -500,10 +521,11 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 departure_date: s.details_json?.departure_date ?? details.departure_at ?? '',
                 arrival_date: s.details_json?.arrival_date ?? details.arrival_at ?? '',
                 departure_port: details.departure_port ?? s.details_json?.departure_port ?? '',
-                room_type: details.room_type ?? s.details_json?.room_type ?? '',
+                room_type: storedRoomType,
+                room_types: roomTypes,
                 deck_number: details.deck_number ?? s.details_json?.deck_number ?? '',
                 room_number: details.room_number ?? s.details_json?.room_number ?? '',
-                room_count: details.room_count ?? s.details_json?.room_count ?? 1,
+                room_count: roomCount,
                 adult_count: details.adult_count ?? s.details_json?.adult_count ?? 1,
                 child_count: details.child_count ?? s.details_json?.child_count ?? 0,
                 children_dob: details.children_dob ?? s.details_json?.children_dob ?? '',
@@ -893,19 +915,30 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     }
     if (hotel.active) {
       const hasHotelData = (hotel.name?.trim()) || (parseFloat(hotel.sell) > 0);
-      // For draft, still require a name if we choose to send this hotel
       if (statusToSubmit !== 'Draft' || hotel.name?.trim()) {
+        const roomTypeString = hotel.room_types?.filter(Boolean).join(' / ') || hotel.room_type;
         servicesPayload.push({
           type: 'hotel',
-          hotel_details: { name: hotel.name, city: hotel.city, address: hotel.address, room_type: hotel.room_type },
+          hotel_details: { 
+            name: hotel.name, 
+            city: hotel.city, 
+            address: hotel.address, 
+            room_type: roomTypeString,
+            room_count: hotel.room_count
+          },
           details: {
+            room_types: hotel.room_types,
             images: hotel.images || [],
             checkin: hotel.checkin,
             checkout: hotel.checkout,
             remarks: hotel.remarks,
             change_type: hotel.change_type,
             change_summary: hotel.change_summary,
-            additional_charge: hotel.additional_charge
+            additional_charge: hotel.additional_charge,
+            adult_count: hotel.adult_count,
+            child_count: hotel.child_count,
+            children_ages: hotel.children_ages,
+            booking_confirmation: hotel.booking_confirmation
           },
           cost_price: hotel.cost,
           markup: hotel.markup,
@@ -939,14 +972,29 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     if (cruise.active) {
       const hasCruiseData = (cruise.line?.trim()) || (parseFloat(cruise.sell) > 0);
       if (statusToSubmit !== 'Draft' || cruise.line?.trim()) {
+        const roomTypeString = cruise.room_types?.filter(Boolean).join(' / ') || cruise.room_type;
         servicesPayload.push({
           type: 'cruise',
-          cruise_details: { operator: cruise.line, cruise_name: cruise.ship },
+          cruise_details: { 
+            operator: cruise.line, 
+            cruise_name: cruise.ship,
+            room_type: roomTypeString,
+            room_count: cruise.room_count
+          },
           details: {
+            room_types: cruise.room_types,
+            deck_number: cruise.deck_number,
+            room_number: cruise.room_number,
+            departure_port: cruise.departure_port,
+            adult_count: cruise.adult_count,
+            child_count: cruise.child_count,
+            children_dob: cruise.children_dob,
             images: cruise.images || [],
             departure_date: cruise.departure_date,
             arrival_date: cruise.arrival_date,
             deposit_amount: cruise.deposit_amount,
+            due_amount: cruise.due_amount,
+            due_date: cruise.due_date,
             remarks: cruise.remarks,
             change_type: cruise.change_type,
             change_summary: cruise.change_summary,

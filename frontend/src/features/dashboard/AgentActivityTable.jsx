@@ -8,11 +8,14 @@ const AgentActivityTable = ({ onViewReport }) => {
   const MotionTr = motion.tr;
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [monPeriod, setMonPeriod] = useState('daily');
+  const [monStart, setMonStart] = useState('');
+  const [monEnd, setMonEnd] = useState('');
 
   const fetchActivity = async () => {
     try {
       setLoading(true);
-      const res = await dashboardService.getAgentMonitor();
+      const res = await dashboardService.getAgentMonitor(monPeriod, monStart, monEnd);
       if (res.data?.success) {
         setAgents(res.data.data);
       }
@@ -25,14 +28,23 @@ const AgentActivityTable = ({ onViewReport }) => {
 
   useEffect(() => {
     fetchActivity();
-    const interval = setInterval(fetchActivity, 60000); // refresh every minute
-    return () => clearInterval(interval);
-  }, []);
+    if (monPeriod === 'daily') {
+      const interval = setInterval(fetchActivity, 60000); // refresh every minute for current day
+      return () => clearInterval(interval);
+    }
+  }, [monPeriod, monStart, monEnd]);
+
+  const periods = [
+    { id: 'daily', label: 'Daily' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'custom', label: 'Custom' }
+  ];
 
   const getStatusColor = (status) => {
     switch(status?.toLowerCase()) {
       case 'active': return { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', dot: '#22c55e' };
-      case 'on call': return { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', dot: '#3b82f6' };
+      case 'on call': return { bg: 'rgba(6, 182, 138, 0.1)', color: '#06B68A', dot: '#06B68A' };
       case 'break': return { bg: 'rgba(234, 179, 8, 0.1)', color: '#eab308', dot: '#eab308' };
       case 'week off': return { bg: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', dot: '#8b5cf6' };
       case 'offline':
@@ -43,45 +55,111 @@ const AgentActivityTable = ({ onViewReport }) => {
 
   return (
     <Card style={{ padding: '0', overflow: 'hidden', marginTop: '32px', border: '1px solid var(--border-color)' }}>
-      <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
-        <div>
+      <div style={{ 
+        padding: '24px', 
+        borderBottom: '1px solid var(--border-color)', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        background: 'var(--bg-app)',
+        flexWrap: 'wrap',
+        gap: '20px'
+      }}>
+        <div style={{ minWidth: '220px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
             Live Team Activity
           </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Track agent activity and status in real time.</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            {monPeriod === 'live' ? 'Track agent status in real time.' : `Performance summary for the selected ${monPeriod} period.`}
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            onClick={() => {
-              const csvContent = "data:text/csv;charset=utf-8," 
-                + "Agent,Login Time,Status,Calls Picked,Bookings Created,Daily Revenue,Break Time\n"
-                + agents.map(a => `${a.agent_name},${a.login_time},${a.status?.toLowerCase() === 'offline' ? 'Not Logged In' : a.status},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time}`).join("\n");
-              const link = document.createElement("a");
-              link.setAttribute("href", encodeURI(csvContent));
-              link.setAttribute("download", `team_activity_${new Date().getTime()}.csv`);
-              document.body.appendChild(link);
-              link.click();
-            }}
-            style={{ 
-              background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer',
-              padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
-              transition: 'all 0.2s'
-            }}
-            className="hover:brightness-110"
-          >
-            Export CSV
-          </button>
-          <button 
-            onClick={fetchActivity}
-            style={{ 
-              background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', cursor: 'pointer',
-              padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
-              transition: 'all 0.2s'
-            }}
-            className="hover:brightness-110"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> {loading ? 'Syncing...' : 'Refresh'}
-          </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Custom Date Inputs */}
+          {monPeriod === 'custom' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input 
+                type="date" 
+                value={monStart} 
+                onChange={(e) => setMonStart(e.target.value)}
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
+              />
+              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>to</span>
+              <input 
+                type="date" 
+                value={monEnd} 
+                onChange={(e) => setMonEnd(e.target.value)}
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
+              />
+            </div>
+          )}
+
+          {/* Period Selector */}
+          <div style={{ 
+            display: 'flex', 
+            background: 'var(--bg-card)', 
+            padding: '4px', 
+            borderRadius: '10px', 
+            border: '1px solid var(--border-color)',
+            gap: '2px'
+          }}>
+            {periods.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setMonPeriod(p.id)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background: monPeriod === p.id ? 'hsl(var(--primary))' : 'transparent',
+                  color: monPeriod === p.id ? 'white' : 'var(--text-muted)',
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ color: 'var(--border-color)' }}>|</div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              onClick={() => {
+                const csvContent = "data:text/csv;charset=utf-8," 
+                  + "Agent,Login Time,Status,Calls Picked,Bookings Created,Revenue,Break Time\n"
+                  + agents.map(a => `${a.agent_name},${a.login_time},${a.status},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time}`).join("\n");
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", `team_activity_${monPeriod}_${new Date().getTime()}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+              }}
+              style={{ 
+                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer',
+                padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
+                transition: 'all 0.2s'
+              }}
+              className="hover:brightness-110"
+            >
+              Export
+            </button>
+            <button 
+              onClick={fetchActivity}
+              style={{ 
+                background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', cursor: 'pointer',
+                padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
+                transition: 'all 0.2s'
+              }}
+              className="hover:brightness-110"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -94,7 +172,9 @@ const AgentActivityTable = ({ onViewReport }) => {
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calls Picked</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bookings Created</th>
-              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Daily Revenue</th>
+              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {monPeriod === 'live' || monPeriod === 'daily' ? 'Daily' : monPeriod === 'custom' ? 'Period' : monPeriod} Revenue
+              </th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Break Time</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Actions</th>
             </tr>
@@ -120,7 +200,7 @@ const AgentActivityTable = ({ onViewReport }) => {
                       className="hover-brighten"
                     >
                       <td style={{ padding: '16px 24px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', fontSize: '12px', fontWeight: 800, color: '#60a5fa' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', fontSize: '12px', fontWeight: 800, color: '#06B68A' }}>
                           {agent.agent_name.charAt(0)}
                         </div>
                         {agent.agent_name}
@@ -176,11 +256,11 @@ const AgentActivityTable = ({ onViewReport }) => {
                       </td>
                       <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                         <button
-                          onClick={() => onViewReport && onViewReport(agent.id)}
+                          onClick={() => onViewReport && onViewReport(agent.id, monPeriod, monStart, monEnd)}
                           style={{ 
                             background: 'rgba(96, 165, 250, 0.1)', 
                             border: '1px solid rgba(96, 165, 250, 0.2)', 
-                            color: '#60a5fa', 
+                            color: '#06B68A', 
                             padding: '6px 12px', 
                             borderRadius: '8px',
                             cursor: 'pointer',

@@ -118,6 +118,8 @@ const AgentDashboard = () => {
   }, [lastActivityTime, currentStatus, baseBreakdown]);
 
   const userName = user?.name || "Member"; 
+  const currentHour = new Date().getHours();
+  const greeting = currentHour < 12 ? "Good Morning" : currentHour < 18 ? "Good Afternoon" : "Good Evening";
 
   if (loading || !stats) {
     return (
@@ -152,7 +154,7 @@ const AgentDashboard = () => {
                   background: (currentStatus === 'Break' || currentStatus === 'on_break') ? 'rgba(239, 68, 68, 0.14)' : 
                               (currentStatus === 'On Call' || currentStatus === 'on_call') ? 'rgba(234, 179, 8, 0.14)' : 
                               (currentStatus === 'Idle' || currentStatus === 'idle') ? 'rgba(156, 163, 175, 0.14)' : 
-                              'rgba(59, 130, 246, 0.14)', 
+                              'rgba(6, 182, 138, 0.14)', 
                   color: (currentStatus === 'Break' || currentStatus === 'on_break') ? '#ef4444' : 
                          (currentStatus === 'On Call' || currentStatus === 'on_call') ? '#eab308' : 
                          (currentStatus === 'Idle' || currentStatus === 'idle') ? '#9ca3af' : 
@@ -188,10 +190,10 @@ const AgentDashboard = () => {
                 </div>
               </div>
               <h1 style={{ fontSize: '42px', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '12px', color: 'var(--text-main)' }}>
-                Good Morning, <span className="premium-gradient-text">{userName}</span>
+                {greeting}, <span className="premium-gradient-text">{userName}</span>
               </h1>
               <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '500px', lineHeight: '1.6' }}>
-                You have logged <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.my_bookings_count} bookings</span> totaling <span style={{ color: '#4ade80', fontWeight: 700 }}>${stats.my_revenue.toLocaleString()}</span>, with <span style={{ color: '#60a5fa', fontWeight: 700 }}>${Number(stats.daily_revenue || 0).toLocaleString()}</span> booked today.
+                You have logged <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.my_bookings_count} bookings</span> totaling <span style={{ color: '#4ade80', fontWeight: 700 }}>${stats.my_revenue.toLocaleString()}</span>, with <span style={{ color: '#06B68A', fontWeight: 700 }}>${Number(stats.daily_revenue || 0).toLocaleString()}</span> booked today.
               </p>
             </div>
           </div>
@@ -206,7 +208,7 @@ const AgentDashboard = () => {
         <div style={{ 
           position: 'absolute', right: '-40px', top: '-40px', 
           width: '300px', height: '300px', 
-          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(6, 182, 138, 0.15) 0%, transparent 70%)',
           borderRadius: '50%', filter: 'blur(40px)'
         }} />
       </MotionDiv>
@@ -226,7 +228,7 @@ const AgentDashboard = () => {
               }}>
                 <div style={{ 
                   width: '8px', height: '8px', borderRadius: '50%',
-                  background: activity.activity_type.includes('break') ? '#eab308' : (activity.activity_type === 'login' ? '#4ade80' : '#60a5fa')
+                  background: activity.activity_type.includes('break') ? '#eab308' : (activity.activity_type === 'login' ? '#4ade80' : '#06B68A')
                 }} />
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700 }}>{activity.description}</div>
@@ -243,19 +245,19 @@ const AgentDashboard = () => {
       {/* Activity Breakdown Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
         <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid rgba(96, 165, 250, 0.2)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(96, 165, 250, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(96, 165, 250, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#06B68A' }}>
             <CircleDollarSign size={24} />
           </div>
           <div>
             <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Daily Revenue</p>
-            <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#60a5fa' }}>
+            <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#06B68A' }}>
               {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.daily_revenue) || 0)}
             </h4>
           </div>
         </div>
 
         <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', background: 'linear-gradient(135deg, hsla(var(--primary), 0.05) 0%, transparent 100%)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(6, 182, 138, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))' }}>
             <Clock size={24} />
           </div>
           <div>

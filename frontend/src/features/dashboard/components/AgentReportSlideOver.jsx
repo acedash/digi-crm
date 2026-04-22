@@ -28,22 +28,33 @@ import {
 import Card from '../../../components/ui/Card';
 import dashboardService from '../dashboardService';
 
-const COLORS = ['#06B68A', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#94a3b8'];
+const COLORS = ['#06B68A', '#06B68A', '#f59e0b', '#8b5cf6', '#ef4444', '#94a3b8'];
 
-const AgentReportSlideOver = ({ isOpen, onClose, agentId }) => {
+const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily', initialStart = null, initialEnd = null }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [reportPeriod, setReportPeriod] = useState(initialPeriod);
+  const [reportStart, setReportStart] = useState(initialStart);
+  const [reportEnd, setReportEnd] = useState(initialEnd);
+
+  useEffect(() => {
+    if (isOpen) {
+      setReportPeriod(initialPeriod);
+      setReportStart(initialStart);
+      setReportEnd(initialEnd);
+    }
+  }, [isOpen, initialPeriod, initialStart, initialEnd]);
 
   useEffect(() => {
     if (isOpen && agentId) {
       fetchReport();
     }
-  }, [isOpen, agentId]);
+  }, [isOpen, agentId, reportPeriod, reportStart, reportEnd]);
 
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const res = await dashboardService.getAgentReport(agentId);
+      const res = await dashboardService.getAgentReport(agentId, reportPeriod, reportStart, reportEnd);
       if (res.data?.success) {
         setData(res.data.data);
       }
@@ -53,6 +64,14 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId }) => {
       setLoading(false);
     }
   };
+
+  const periods = [
+    { id: 'daily', label: 'Day' },
+    { id: 'weekly', label: 'Week' },
+    { id: 'monthly', label: 'Month' },
+    { id: 'all', label: 'All Time' },
+    { id: 'custom', label: 'Custom' }
+  ];
 
   if (!isOpen) return null;
 
@@ -84,30 +103,81 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId }) => {
             boxShadow: '-10px 0 30px rgba(0,0,0,0.5)'
           }}
         >
-          {/* Header */}
-          <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ 
-                  background: 'rgba(96, 165, 250, 0.1)', 
-                  color: '#60a5fa', 
-                  padding: '2px 8px', 
-                  borderRadius: '6px', 
-                  fontSize: '10px', 
-                  fontWeight: 800, 
-                  textTransform: 'uppercase' 
-                }}>Agent Analytics</span>
+           {/* Header */}
+          <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ 
+                    background: 'rgba(96, 165, 250, 0.1)', 
+                    color: '#06B68A', 
+                    padding: '2px 8px', 
+                    borderRadius: '6px', 
+                    fontSize: '10px', 
+                    fontWeight: 800, 
+                    textTransform: 'uppercase' 
+                  }}>Agent Analytics</span>
+                </div>
+                <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-1px' }}>
+                  {loading ? 'Crunching numbers...' : data?.agent?.name}
+                </h2>
               </div>
-              <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-1px' }}>
-                {loading ? 'Crunching numbers...' : data?.agent?.name}
-              </h2>
+              <button 
+                onClick={onClose}
+                style={{ padding: '8px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
             </div>
-            <button 
-              onClick={onClose}
-              style={{ padding: '8px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}
-            >
-              <X size={20} />
-            </button>
+
+            {/* Filter Row inside Slideover */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+              <div style={{ 
+                display: 'flex', 
+                background: 'var(--bg-app)', 
+                padding: '3px', 
+                borderRadius: '8px', 
+                border: '1px solid var(--border-color)',
+                gap: '2px'
+              }}>
+                {periods.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setReportPeriod(p.id)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      background: reportPeriod === p.id ? 'hsl(var(--primary))' : 'transparent',
+                      color: reportPeriod === p.id ? 'white' : 'var(--text-muted)',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              {reportPeriod === 'custom' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input 
+                    type="date" 
+                    value={reportStart || ''} 
+                    onChange={(e) => setReportStart(e.target.value)}
+                    style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', outline: 'none' }}
+                  />
+                  <input 
+                    type="date" 
+                    value={reportEnd || ''} 
+                    onChange={(e) => setReportEnd(e.target.value)}
+                    style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', outline: 'none' }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -133,7 +203,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId }) => {
                 </div>
                 <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                   <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Bookings</div>
-                  <div style={{ fontSize: '20px', fontWeight: 800, color: '#3b82f6' }}>{data.stats.total_bookings}</div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: '#06B68A' }}>{data.stats.total_bookings}</div>
                 </div>
                 <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                   <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Daily Rev</div>
@@ -216,7 +286,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId }) => {
                     </div>
                   </div>
                   <div style={{ marginTop: 'auto', padding: '12px', background: 'rgba(96, 165, 250, 0.05)', borderRadius: '12px', border: '1px solid rgba(96, 165, 250, 0.1)', display: 'flex', gap: '10px' }}>
-                    <Info size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                    <Info size={16} style={{ color: '#06B68A', flexShrink: 0 }} />
                     <p style={{ fontSize: '11px', color: 'rgba(96, 165, 250, 0.8)', lineHeight: '1.4' }}>Metrics are based on real-time activity and all-time booking history for this agent.</p>
                   </div>
                 </div>
@@ -255,7 +325,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId }) => {
                             </div>
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                            {call.customer_outcome || 'No outcome recorded'} • <span style={{ color: '#60a5fa' }}>{call.airline_inquiry}</span>
+                            {call.customer_outcome || 'No outcome recorded'} • <span style={{ color: '#06B68A' }}>{call.airline_inquiry}</span>
                           </div>
                           {call.notes && (
                             <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--bg-input)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-main)', fontStyle: 'italic' }}>

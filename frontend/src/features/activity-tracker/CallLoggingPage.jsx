@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, Briefcase, Download, MoreHorizontal, FileText, Table, Phone, Mail } from 'lucide-react';
+import { PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, Briefcase, Download, MoreHorizontal, FileText, Table, Phone, Mail, FileJson } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -44,14 +44,20 @@ const CallLoggingPage = () => {
   const fetchLogs = useCallback(async () => {
     try {
       const response = await callLogService.getCallLogs(1, scopeFilter);
-      setLogs(response.data.data.data || []);
+      const raw = response.data?.data;
+      // Handle both paginated { data: [...] } and plain array responses
+      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+      setLogs(list);
     } catch (e) { console.error(e); }
   }, [scopeFilter]);
 
   const fetchClients = useCallback(async () => {
     try {
       const response = await clientService.getClients();
-      setClients(response.data.data.data || []);
+      const raw = response.data?.data;
+      // Handle both paginated { data: [...] } and plain array responses
+      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+      setClients(list);
     } catch (e) { console.error(e); }
   }, []);
 
@@ -179,6 +185,24 @@ const CallLoggingPage = () => {
       setShowExportOptions(false);
     }
   };
+  const handleExportJson = () => {
+    try {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(logs, null, 2));
+      const dt = document.createElement('a');
+      const scopeLabel = scopeFilter === 'all' ? 'all' : scopeFilter;
+      dt.setAttribute("href", dataStr);
+      dt.setAttribute("download", `call-logs-${scopeLabel}-${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(dt);
+      dt.click();
+      dt.remove();
+      setToast({ message: 'JSON exported successfully!', type: 'success' });
+    } catch (e) {
+      console.error(e);
+      setToast({ message: 'Failed to export JSON', type: 'error' });
+    } finally {
+      setShowExportOptions(false);
+    }
+  };
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '32px' }}>
@@ -188,40 +212,40 @@ const CallLoggingPage = () => {
           
           <div style={{ position: 'relative' }}>
             <Button
-              variant="secondary"
+              variant="glass"
               icon={Download}
               onClick={() => setShowExportOptions(!showExportOptions)}
               isLoading={exporting}
             >
-              Export
+              Export Format
             </Button>
             
             {showExportOptions && (
               <div style={{
-                position: 'absolute', top: '100%', right: 0, marginTop: '8px',
-                background: 'var(--bg-card)', border: '1px solid var(--border-color)',
-                borderRadius: '12px', padding: '8px', zIndex: 100, width: '180px',
-                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                background: '#1e2235', border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', 
+                boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', minWidth: '180px', zIndex: 1000
               }}>
                 {[
-                  { label: 'CSV Format', icon: FileText, action: handleExportCsv },
-                  { label: 'Excel (XLSX)', icon: Table, action: handleExportExcel },
-                  { label: 'PDF Report', icon: MoreHorizontal, action: handleExportPdf },
+                  { label: 'As PDF Report', icon: FileText, action: handleExportPdf },
+                  { label: 'As Excel Data', icon: Table, action: handleExportExcel },
+                  { label: 'As CSV Format', icon: FileText, action: handleExportCsv },
+                  { label: 'As Raw JSON', icon: FileJson, action: handleExportJson },
                 ].map(opt => (
                   <button 
                     key={opt.label}
                     onClick={opt.action}
                     style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
-                      padding: '8px 12px', border: 'none', background: 'transparent',
-                      color: 'var(--text-main)', fontSize: '12px', fontWeight: 600,
-                      textAlign: 'left', cursor: 'pointer', borderRadius: '8px',
-                      hover: { background: 'var(--bg-input)' }
+                      width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '10px 12px', border: 'none', background: 'transparent',
+                      color: '#f8fafc', fontSize: '13px', fontWeight: 500,
+                      textAlign: 'left', cursor: 'pointer', borderRadius: '8px'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    <opt.icon size={14} />
+                    <opt.icon size={16} />
                     {opt.label}
                   </button>
                 ))}
@@ -271,8 +295,8 @@ const CallLoggingPage = () => {
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
                   <div style={{ 
                     width: '36px', height: '36px', borderRadius: '12px', flexShrink: 0,
-                    background: log.call_type?.includes('Inbound') ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                    color: log.call_type?.includes('Inbound') ? '#22c55e' : '#3b82f6',
+                    background: log.call_type?.includes('Inbound') ? 'rgba(34, 197, 94, 0.1)' : 'rgba(6, 182, 138, 0.1)',
+                    color: log.call_type?.includes('Inbound') ? '#22c55e' : '#06B68A',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '4px'
                   }}>
                     {log.call_type?.includes('Inbound') ? <PhoneIncoming size={18} /> : <PhoneOutgoing size={18} />}
@@ -293,11 +317,11 @@ const CallLoggingPage = () => {
                       {(Array.isArray(log.call_type) ? log.call_type : [log.call_type]).map(t => (
                         <span key={t} style={{ 
                           fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', 
-                          background: t === 'Flight' ? 'rgba(59, 130, 246, 0.1)' : 
+                          background: t === 'Flight' ? 'rgba(6, 182, 138, 0.1)' : 
                                       t === 'Hotel' ? 'rgba(139, 92, 246, 0.1)' : 
                                       t === 'Cruise' ? 'rgba(236, 72, 153, 0.1)' :
                                       t === 'Car Rental' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(148, 163, 184, 0.1)',
-                          color: t === 'Flight' ? '#3b82f6' : 
+                          color: t === 'Flight' ? '#06B68A' : 
                                  t === 'Hotel' ? '#8b5cf6' : 
                                  t === 'Cruise' ? '#ec4899' :
                                  t === 'Car Rental' ? '#f59e0b' : 'var(--text-muted)',
@@ -452,7 +476,7 @@ const CallLoggingPage = () => {
                 style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
               >
                 <option value="">Select Client (Optional)</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                {Array.isArray(clients) && clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
               </select>
             </div>
             ) : (

@@ -54,15 +54,6 @@ const PassengerSection = ({
             position: 'relative',
             overflow: 'hidden'
           }}>
-            <div style={{ 
-              position: 'absolute', 
-              top: '-15px', 
-              right: '-15px', 
-              opacity: 0.08, 
-              color: '#06B68A' 
-            }}>
-              <Search size={120} />
-            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
               <div style={{ 

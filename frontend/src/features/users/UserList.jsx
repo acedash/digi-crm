@@ -28,12 +28,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
-const AgentIcon = ({ size }) => (
-  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-    <ClipboardList size={size} />
-    <PhoneCall size={size - 4} style={{ opacity: 0.8 }} />
-  </div>
-);
+const AgentIcon = ({ size }) => <ClipboardList size={size} />;
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
@@ -218,10 +213,10 @@ const UserList = () => {
                 <button onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                   <FileText size={16} /> As PDF Report
                 </button>
-                <button onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#06B68A', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                <button onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                   <FileSpreadsheet size={16} /> As Excel Data
                 </button>
-                <button onClick={handleExportJSON} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f59e0b', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                <button onClick={handleExportJSON} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                   <FileJson size={16} /> As Raw JSON
                 </button>
               </div>
@@ -248,7 +243,7 @@ const UserList = () => {
           </p>
         </Card>
         <Card title="Agents" subtitle="Handle bookings & calls" icon={AgentIcon}>
-          <p style={{ fontSize: '28px', fontWeight: 800, color: '#60a5fa' }}>
+          <p style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
             {users.filter(u => {
               const role = u.roles?.[0];
               const roleName = typeof role === 'object' ? role.name : role;
@@ -332,7 +327,7 @@ const UserList = () => {
                             fontSize: '10px',
                             fontWeight: 700,
                             background: 'rgba(96, 165, 250, 0.1)',
-                            color: '#60a5fa',
+                            color: '#06B68A',
                             border: '1px solid rgba(96, 165, 250, 0.1)'
                           }}
                         >

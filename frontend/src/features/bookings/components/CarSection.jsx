@@ -73,9 +73,9 @@ const CarSection = ({ vehicle, setVehicle, isEditMode = false, showChangeTrackin
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              <Input label="Adults" type="number" placeholder="0" value={vehicle.adult_count || ''} onChange={e => setVehicle({...vehicle, adult_count: e.target.value})} />
-              <Input label="Children" type="number" placeholder="0" value={vehicle.child_count || ''} onChange={e => setVehicle({...vehicle, child_count: e.target.value})} />
-              <Input label="Infants" type="number" placeholder="0" value={vehicle.infant_count || ''} onChange={e => setVehicle({...vehicle, infant_count: e.target.value})} />
+              <Input label="Number of Adults" type="number" placeholder="0" value={vehicle.adult_count || ''} onChange={e => setVehicle({...vehicle, adult_count: e.target.value})} />
+              <Input label="Number of Children" type="number" placeholder="0" value={vehicle.child_count || ''} onChange={e => setVehicle({...vehicle, child_count: e.target.value})} />
+              <Input label="Number of Infants" type="number" placeholder="0" value={vehicle.infant_count || ''} onChange={e => setVehicle({...vehicle, infant_count: e.target.value})} />
             </div>
 
             <div style={{ margin: '24px 0', height: '1px', background: 'var(--border-color)', opacity: 0.5 }}></div>
@@ -141,7 +141,7 @@ const CarSection = ({ vehicle, setVehicle, isEditMode = false, showChangeTrackin
                       width: '48px',
                       height: '48px',
                       borderRadius: '50%',
-                      background: 'rgba(59, 130, 246, 0.1)',
+                      background: 'rgba(6, 182, 138, 0.1)',
                       color: 'hsl(var(--primary))',
                       display: 'flex',
                       alignItems: 'center',

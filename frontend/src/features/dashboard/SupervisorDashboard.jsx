@@ -127,7 +127,7 @@ const SupervisorDashboard = () => {
   const statusData = stats?.status_breakdown || [];
   const inquiryTags = stats?.inquiry_tags || [];
   
-  const COLORS = ['#60a5fa', '#34d399', '#f59e0b', '#8b5cf6', '#f87171'];
+  const COLORS = ['#06B68A', '#34d399', '#f59e0b', '#8b5cf6', '#f87171'];
 
   const periods = [
     { id: 'all', label: 'All Time' },
@@ -385,7 +385,7 @@ const SupervisorDashboard = () => {
                   />
                   <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '10px' }} />
                   <Bar dataKey="Confirmed" fill="#34d399" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="Pending" fill="#60a5fa" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Pending" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -451,7 +451,7 @@ const SupervisorDashboard = () => {
                        <div style={{ display: 'flex', gap: '12px' }}>
                           <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CALLS</div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#60a5fa' }}>{agent.calls_count}</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#06B68A' }}>{agent.calls_count}</div>
                           </div>
                           <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>BOOKINGS</div>
@@ -524,7 +524,7 @@ const SupervisorDashboard = () => {
                       fontSize: '10px', 
                       fontWeight: 800,
                       background: book.status === 'Confirmed' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(96, 165, 250, 0.1)',
-                      color: book.status === 'Confirmed' ? '#22c55e' : '#60a5fa'
+                      color: book.status === 'Confirmed' ? '#22c55e' : '#06B68A'
                     }}>
                       {book.status === 'Pending' ? 'Email Send Pending' : book.status}
                     </span>

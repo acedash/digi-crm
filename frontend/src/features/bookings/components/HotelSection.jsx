@@ -52,15 +52,58 @@ const HotelSection = ({ hotel, setHotel, isEditMode = false, showChangeTracking 
             <div style={{ marginBottom: '16px' }}>
               <Input label="Hotel Address" placeholder="Full hotel address" value={hotel.address || ''} onChange={e => setHotel({...hotel, address: e.target.value})} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <Input label="Room Type" placeholder="e.g. Deluxe Room, Suite" value={hotel.room_type || ''} onChange={e => setHotel({...hotel, room_type: e.target.value})} />
-              <Input label="Booking Confirmation" placeholder="e.g. ABC123XYZ" value={hotel.booking_confirmation || ''} onChange={e => setHotel({...hotel, booking_confirmation: e.target.value})} />
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <Input label="Number of Rooms" type="number" placeholder="1" value={hotel.room_count || ''} onChange={e => setHotel({...hotel, room_count: e.target.value})} />
+              <Input 
+                label="Number of Rooms" 
+                type="number" 
+                placeholder="1" 
+                value={hotel.room_count || ''} 
+                onChange={e => {
+                  const count = parseInt(e.target.value) || 0;
+                  let types = [...(hotel.room_types || [])];
+                  if (types.length === 0 && hotel.room_type) types = [hotel.room_type];
+                  
+                  if (types.length < count) {
+                    while (types.length < count) types.push(types[0] || '');
+                  } else if (types.length > count) {
+                    types = types.slice(0, count);
+                  }
+                  setHotel({...hotel, room_count: e.target.value, room_types: types});
+                }} 
+              />
               <Input label="Number of Adults" type="number" placeholder="1" value={hotel.adult_count || ''} onChange={e => setHotel({...hotel, adult_count: e.target.value})} />
               <Input label="Number of Children" type="number" placeholder="0" value={hotel.child_count || ''} onChange={e => setHotel({...hotel, child_count: e.target.value})} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: hotel.room_count > 1 ? '1fr' : '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              {(!hotel.room_count || hotel.room_count <= 1) ? (
+                <Input 
+                  label="Room Type" 
+                  placeholder="e.g. Deluxe Room, Suite" 
+                  value={hotel.room_types?.[0] || hotel.room_type || ''} 
+                  onChange={e => {
+                    const newTypes = [e.target.value];
+                    setHotel({...hotel, room_type: e.target.value, room_types: newTypes});
+                  }} 
+                />
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {(hotel.room_types || []).map((type, idx) => (
+                    <Input 
+                      key={idx}
+                      label={`Room ${idx + 1} Type`} 
+                      placeholder="e.g. Deluxe Room" 
+                      value={type || ''} 
+                      onChange={e => {
+                        const newTypes = [...(hotel.room_types || [])];
+                        newTypes[idx] = e.target.value;
+                        setHotel({...hotel, room_types: newTypes});
+                      }} 
+                    />
+                  ))}
+                </div>
+              )}
+              <Input label="Booking Confirmation" placeholder="e.g. ABC123XYZ" value={hotel.booking_confirmation || ''} onChange={e => setHotel({...hotel, booking_confirmation: e.target.value})} />
             </div>
 
             {hotel.child_count > 0 && (
@@ -124,7 +167,7 @@ const HotelSection = ({ hotel, setHotel, isEditMode = false, showChangeTracking 
                       width: '48px',
                       height: '48px',
                       borderRadius: '50%',
-                      background: 'rgba(59, 130, 246, 0.1)',
+                      background: 'rgba(6, 182, 138, 0.1)',
                       color: 'hsl(var(--primary))',
                       display: 'flex',
                       alignItems: 'center',

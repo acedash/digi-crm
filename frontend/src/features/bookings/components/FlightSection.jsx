@@ -86,8 +86,8 @@ const FlightSection = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {flight.trip_type === 'round_trip' 
-                      ? (index === 0 ? 'Departure Flight' : (index === 1 ? 'Return Flight' : `Flight Segment ${index + 1}`))
-                      : (flight.trip_type === 'one_way' && index === 0 ? 'Flight Details' : `Flight Segment ${index + 1}`)
+                      ? (index === 0 ? 'Departure Flight' : (index === 1 ? 'Return Flight' : `Flight Details ${index + 1}`))
+                      : (flight.trip_type === 'one_way' && index === 0 ? 'Flight Details' : `Flight Details ${index + 1}`)
                     }
                   </div>
                   {((flight.trip_type === 'one_way' && flight.segments.length > 1) || (flight.trip_type !== 'one_way' && flight.segments.length > 2)) && (
@@ -202,7 +202,7 @@ const FlightSection = ({
                         width: '44px',
                         height: '44px',
                         borderRadius: '50%',
-                        background: 'rgba(59, 130, 246, 0.1)',
+                        background: 'rgba(6, 182, 138, 0.1)',
                         color: 'hsl(var(--primary))',
                         display: 'flex',
                         alignItems: 'center',

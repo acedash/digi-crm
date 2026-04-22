@@ -356,7 +356,10 @@ const BookingList = ({ onCreate, onEdit }) => {
   }, [basePath, navigate, sendingTemplateAction, templateActionMeta, pagination.current_page, fetchBookings]);
 
   const handleEditBooking = useCallback((booking) => {
-    if (['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'].includes(booking.status)) {
+    const postApprovalStatuses = ['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'];
+    const completedStatuses = ['Completed', 'Work Completed'];
+
+    if (postApprovalStatuses.includes(booking.status)) {
       navigate(`${basePath}/bookings/${booking.id}/edit?workflow=service-change`, {
         state: {
           flash: {
@@ -365,6 +368,12 @@ const BookingList = ({ onCreate, onEdit }) => {
           },
         },
       });
+      return;
+    }
+
+    if (completedStatuses.includes(booking.status)) {
+      // Completed bookings go to the normal edit form directly
+      onEdit(booking.id);
       return;
     }
 
@@ -382,8 +391,8 @@ const BookingList = ({ onCreate, onEdit }) => {
     'Cancelled': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
     'Change Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
-    'Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' },
-    'Work Completed': { icon: CheckCircle2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shadow: 'rgba(59, 130, 246, 0.2)' },
+    'Completed': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
+    'Work Completed': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
     'Draft': { icon: FileText, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)', shadow: 'rgba(148, 163, 184, 0.2)' },
     'Awaiting Cards': { icon: CreditCard, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', shadow: 'rgba(245, 158, 11, 0.2)' }
   };
@@ -525,7 +534,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       }}>
         <div style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle2 size={18} color="#3b82f6" /> Mark as {statusModal.targetStatus}
+            <CheckCircle2 size={18} color="#06B68A" /> Mark as {statusModal.targetStatus}
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
             Please provide a {statusModal.targetStatus === 'Completed' ? 'final completion' : 'work'} remark for this booking.
@@ -678,7 +687,7 @@ const BookingList = ({ onCreate, onEdit }) => {
         marginBottom: '40px' 
       }}>
         {[
-          { label: 'Total Bookings', value: stats.Total, icon: ClipboardList, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
+          { label: 'Total Bookings', value: stats.Total, icon: ClipboardList, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)' },
           {
             label: 'Initial Approval By Client',
             value: stats.Approved,
@@ -697,8 +706,8 @@ const BookingList = ({ onCreate, onEdit }) => {
             label: 'Work Completed',
             value: stats.Completed,
             icon: CheckCircle2,
-            color: '#3b82f6',
-            bg: 'rgba(59, 130, 246, 0.1)'
+            color: '#06B68A',
+            bg: 'rgba(6, 182, 138, 0.1)'
           },
           {
             label: 'Drafts',
@@ -789,7 +798,7 @@ const BookingList = ({ onCreate, onEdit }) => {
             
             <div style={{ position: 'relative' }} ref={exportDropdownRef}>
               <Button 
-                variant="primary" 
+                variant="glass" 
                 icon={Download} 
                 onClick={() => setShowExportOptions(!showExportOptions)}
               >
@@ -814,10 +823,10 @@ const BookingList = ({ onCreate, onEdit }) => {
                   <button onClick={() => { exportHandlers.pdf(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                     <FileText size={16} /> Export as PDF Report
                   </button>
-                  <button onClick={() => { exportHandlers.excel(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#10b981', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  <button onClick={() => { exportHandlers.excel(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                     <FileSpreadsheet size={16} /> Export as Excel Data
                   </button>
-                  <button onClick={() => { exportHandlers.json(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#3b82f6', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  <button onClick={() => { exportHandlers.json(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                     <FileJson size={16} /> Export Raw JSON
                   </button>
                 </div>

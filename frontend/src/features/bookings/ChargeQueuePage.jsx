@@ -246,8 +246,9 @@ const ChargeQueuePage = () => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+          {/* Main View Filters */}
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto' }}>
             {[
               { value: 'all', label: 'All Records' },
               { value: 'pending', label: 'Pending Charge' },
@@ -259,15 +260,15 @@ const ChargeQueuePage = () => {
                 onClick={() => setViewFilter(option.value)}
                 style={{
                   padding: '6px 16px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: viewFilter === option.value ? 'var(--bg-card)' : 'transparent',
-                  color: viewFilter === option.value ? 'var(--text-main)' : 'var(--text-muted)',
-                  fontSize: '13px',
-                  fontWeight: 600,
+                  borderRadius: '100px',
+                  background: viewFilter === option.value ? 'hsl(var(--primary))' : 'var(--bg-card)',
+                  color: viewFilter === option.value ? 'white' : 'var(--text-muted)',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '12px',
+                  fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  boxShadow: viewFilter === option.value ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {option.label}
@@ -275,7 +276,7 @@ const ChargeQueuePage = () => {
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)', width: 'fit-content' }}>
             {[
               { value: 'all', label: 'All Time' },
               { value: 'daily', label: 'Daily' },
@@ -337,12 +338,12 @@ const ChargeQueuePage = () => {
         <Card title="Records" subtitle="Total in current queue" icon={BadgeDollarSign}>
           <div style={{ fontSize: '30px', fontWeight: 800, color: '#16a34a' }}>{meta.total}</div>
         </Card>
-        <Card title="Initial Approval" subtitle="Current page count" icon={ShieldCheck}>
-          <div style={{ fontSize: '30px', fontWeight: 800, color: '#2563eb' }}>
+        <Card title="Initial Approval By Client" subtitle="Current page count" icon={ShieldCheck}>
+          <div style={{ fontSize: '30px', fontWeight: 800, color: '#059669' }}>
             {stats.initial}
           </div>
         </Card>
-        <Card title="Modified Charges" subtitle="Current page count" icon={CreditCard}>
+        <Card title="Change Charge Approval" subtitle="Current page count" icon={CreditCard}>
           <div style={{ fontSize: '30px', fontWeight: 800, color: '#f59e0b' }}>
             {stats.modified}
           </div>
@@ -362,7 +363,30 @@ const ChargeQueuePage = () => {
                   : 'Nothing is waiting to be charged right now.'}
             </div>
           ) : (
-            queue.map((record) => {
+            <>
+              {/* Table Header */}
+              <div 
+                style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1.4fr 1.4fr 1.3fr 0.9fr 2fr', 
+                  gap: '24px', 
+                  padding: '12px 0', 
+                  borderBottom: '2px solid var(--border-color)',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em'
+                }}
+              >
+                <div>Booking / Client</div>
+                <div>Type</div>
+                <div>{viewFilter === 'charged' ? 'Charge date and time' : 'Approved At'}</div>
+                <div>Amount</div>
+                <div style={{ textAlign: 'right' }}>Actions</div>
+              </div>
+
+              {queue.map((record) => {
               const authType = record.consent_snapshot?.authorization_type || record.metadata?.authorization_type || 'initial';
               const booking = record.bookings?.[0];
               const clientName =
@@ -376,32 +400,24 @@ const ChargeQueuePage = () => {
                   key={record.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1.2fr 0.9fr 0.9fr 1fr 1.1fr',
-                    gap: '16px',
-                    padding: '18px 0',
+                    gridTemplateColumns: '1.4fr 1.4fr 1.3fr 0.9fr 2fr',
+                    gap: '24px',
+                    padding: '24px 0',
                     borderBottom: '1px solid var(--border-color)',
                     alignItems: 'center',
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>
-                      {booking?.booking_reference || `Authorization #${record.id}`}
-                    </div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '14px' }}>
+                    {booking?.booking_reference || `Authorization #${record.id}`}
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 500 }}>
                       {clientName}
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Type</div>
-                    <div style={{ fontWeight: 700, color: authType === 'change_charge' ? '#f59e0b' : '#2563eb', marginTop: '4px' }}>
-                      {authType === 'change_charge' ? 'Change Charge' : 'Initial approval by client'}
-                    </div>
+                  <div style={{ fontWeight: 700, color: authType === 'change_charge' ? '#f59e0b' : '#059669', fontSize: '13px' }}>
+                    {authType === 'change_charge' ? 'Change Charge Approval' : 'Initial Approval By Client'}
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      {record.collected_at ? 'Charged' : 'Approved'}
-                    </div>
-                    <div style={{ fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13px' }}>
                       {record.collected_at
                         ? new Date(record.collected_at).toLocaleString()
                         : record.approved_at
@@ -414,14 +430,11 @@ const ChargeQueuePage = () => {
                       </div>
                     )}
                   </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Amount</div>
-                    <div style={{ fontWeight: 800, color: '#16a34a', marginTop: '4px' }}>
-                      {formatMoney(record.total_amount, record.currency)}
-                    </div>
+                  <div style={{ fontWeight: 800, color: '#16a34a', fontSize: '15px' }}>
+                    {formatMoney(record.total_amount, record.currency)}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-                    <div style={{ alignSelf: 'center', fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', flexWrap: 'nowrap', alignItems: 'center' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                       {chargeCards.length} card{chargeCards.length === 1 ? '' : 's'}
                     </div>
                     {booking?.id && (
@@ -462,7 +475,8 @@ const ChargeQueuePage = () => {
                   </div>
                 </div>
               );
-            })
+            })}
+            </>
           )}
         </div>
 

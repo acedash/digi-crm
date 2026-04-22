@@ -40,9 +40,10 @@ class PaymentAuthRepository extends BaseRepository
             ->where('status', 'Approved')
             ->select([
                 'id', 'client_id', 'token', 'status', 'total_amount', 'currency', 
-                'approved_at', 'collected_at', 'collected_by', 'masked_card'
-            ]) // Exclude consent_snapshot, digital_signature, and metadata to save 25MB+ of bandwidth
-            ->with(['client:id,name,first_name,last_name', 'bookings:id,booking_reference,agent_id', 'bookings.agent:id,name', 'collector:id,name']);
+                'approved_at', 'collected_at', 'collected_by', 'masked_card',
+                'metadata', 'consent_snapshot'
+            ]) // digital_signature still excluded for bandwidth, but metadata/snapshot are required for frontend card logic
+            ->with(['client:id,name,first_name,last_name', 'bookings:id,booking_reference,agent_id,details_json', 'bookings.agent:id,name', 'collector:id,name']);
 
         if ($view === 'charged') {
             $query->whereNotNull('collected_at')->latest('collected_at');

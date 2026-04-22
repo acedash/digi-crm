@@ -62,6 +62,8 @@ const AdminLayout = () => {
   useEffect(() => {
     const blockContextMenu = (event) => {
       event.preventDefault();
+      setShieldActive(true);
+      window.setTimeout(() => setShieldActive(false), 2000);
     };
 
     const isBlockedShortcut = (event) => {
@@ -71,6 +73,13 @@ const AdminLayout = () => {
       if (event.key === 'F12') return true;
       if (metaOrCtrl && event.shiftKey && ['i', 'j', 'c'].includes(key)) return true;
       if (metaOrCtrl && key === 'u') return true;
+      
+      // Screenshot detection (Heuristic)
+      if (key === 'printscreen' || key === 'snapshot') return true;
+      // Mac specific screenshot shortcuts (Cmd + Shift + 3/4/5)
+      if (metaOrCtrl && event.shiftKey && ['3', '4', '5'].includes(key)) return true;
+      // Windows Snipping tool (Win + Shift + S) - event.metaKey is Win key on Windows
+      if (event.metaKey && event.shiftKey && key === 's') return true;
 
       return false;
     };
@@ -101,6 +110,19 @@ const AdminLayout = () => {
       setShieldActive(document.hidden);
     };
 
+    const handleWindowBlur = () => {
+      // For agents, we blank the screen immediately on loss of focus to prevent snipping
+      if (!isAdmin) {
+        setShieldActive(true);
+      }
+    };
+
+    const handleWindowFocus = () => {
+      if (!isAdmin) {
+        setShieldActive(false);
+      }
+    };
+
     const handleBeforePrint = () => {
       // Do not shield if we are on User List page to allow intentional data export
       if (location.pathname === '/admin/users') return;
@@ -115,6 +137,8 @@ const AdminLayout = () => {
     window.addEventListener('keydown', blockShortcuts);
     window.addEventListener('beforeprint', handleBeforePrint);
     window.addEventListener('afterprint', handleAfterPrint);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
@@ -122,6 +146,8 @@ const AdminLayout = () => {
       window.removeEventListener('keydown', blockShortcuts);
       window.removeEventListener('beforeprint', handleBeforePrint);
       window.removeEventListener('afterprint', handleAfterPrint);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [location.pathname]);
@@ -301,8 +327,9 @@ const AdminLayout = () => {
               maxWidth: '1200px',
               margin: '0 auto',
               position: 'relative',
-              filter: shieldActive ? 'blur(10px)' : 'none',
-              transition: 'filter 0.18s ease'
+              filter: shieldActive ? 'blur(25px) grayscale(100%)' : 'none',
+              transition: 'filter 0.2s ease',
+              pointerEvents: shieldActive ? 'none' : 'auto'
             }}
           >
             <div
@@ -319,7 +346,7 @@ const AdminLayout = () => {
               position: 'absolute',
               inset: 0,
               background: 'rgba(8, 12, 24, 0.45)',
-              backdropFilter: 'blur(8px)',
+              backdropFilter: 'blur(20px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -329,21 +356,22 @@ const AdminLayout = () => {
           >
             <div
               style={{
-                padding: '18px 22px',
-                borderRadius: '16px',
-                background: 'rgba(9, 14, 29, 0.78)',
+                padding: '24px 32px',
+                borderRadius: '24px',
+                background: 'rgba(15, 23, 42, 0.8)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: 'white',
                 textAlign: 'center',
-                maxWidth: '320px',
-                boxShadow: '0 24px 60px rgba(0, 0, 0, 0.35)'
+                maxWidth: '400px',
+                boxShadow: '0 40px 80px rgba(0, 0, 0, 0.5)',
+                transform: 'scale(1.05)'
               }}
             >
-              <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px' }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px', color: 'white' }}>
                 Protected CRM View
               </div>
-              <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.5 }}>
-                Sensitive dashboard content is temporarily obscured while the page is hidden, printing, or restricted shortcuts are used.
+              <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.6 }}>
+                Sensitive dashboard content is temporarily obscured while the page is hidden, printing, or restricted actions are used.
               </div>
             </div>
           </div>

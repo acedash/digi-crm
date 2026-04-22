@@ -242,7 +242,7 @@ const ClientList = ({ isEmbedded = false }) => {
             </p>
           </div>
           <div style={{ position: 'relative', zIndex: 9999 }} ref={exportDropdownRef}>
-            <Button variant="primary" icon={Download} onClick={() => setShowExportOptions(!showExportOptions)}>
+            <Button variant="glass" icon={Download} onClick={() => setShowExportOptions(!showExportOptions)}>
               Export Format
             </Button>
             {showExportOptions && (
@@ -250,10 +250,10 @@ const ClientList = ({ isEmbedded = false }) => {
                 <button onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                   <FileText size={16} /> As PDF Report
                 </button>
-                <button onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#06B68A', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                <button onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                   <FileSpreadsheet size={16} /> As Excel Data
                 </button>
-                <button onClick={handleExportJSON} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f59e0b', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                <button onClick={handleExportJSON} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                   <FileJson size={16} /> As Raw JSON
                 </button>
               </div>
@@ -265,7 +265,7 @@ const ClientList = ({ isEmbedded = false }) => {
       {/* Stats Quick View */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
         {[
-          { label: 'Total Clients', value: stats?.total || 0, icon: Users, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
+          { label: 'Total Clients', value: stats?.total || 0, icon: Users, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)' },
           { label: 'Registered Today', value: stats?.today || 0, icon: UserIcon, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)' },
           { label: 'Registered Yesterday', value: stats?.yesterday || 0, icon: UserIcon, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
         ].map((stat, i) => (
@@ -420,7 +420,7 @@ const ClientList = ({ isEmbedded = false }) => {
                     <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Date</th>
                     <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Amount</th>
                     <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Travelers</th>
-                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Created By</th>
+                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Created By</th>
                     <th style={{ padding: '20px 24px', textAlign: 'right' }}></th>
                   </tr>
                 </thead>
@@ -486,7 +486,7 @@ const ClientList = ({ isEmbedded = false }) => {
                           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{client.passengers_count || 0}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '20px 24px' }}>
+                      <td style={{ padding: '20px 24px', whiteSpace: 'nowrap', minWidth: '140px' }}>
                         <div style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 600 }}>
                           {client.creator?.name || '---'}
                         </div>

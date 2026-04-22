@@ -58,7 +58,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ padding: '8px', background: 'rgba(96, 165, 250, 0.1)', borderRadius: '10px', color: '#60a5fa' }}>
+            <div style={{ padding: '8px', background: 'rgba(96, 165, 250, 0.1)', borderRadius: '10px', color: '#06B68A' }}>
               <PhoneCall size={18} />
             </div>
             <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Log Call</h2>
@@ -92,9 +92,9 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
                     style={{
                       padding: '10px', borderRadius: '12px', fontSize: '12px', fontWeight: 500,
                       border: '1px solid',
-                      borderColor: isSelected ? '#60a5fa' : 'var(--border-color)',
+                      borderColor: isSelected ? '#06B68A' : 'var(--border-color)',
                       background: isSelected ? 'rgba(96, 165, 250, 0.1)' : 'var(--bg-input)',
-                      color: isSelected ? '#60a5fa' : 'var(--text-main)',
+                      color: isSelected ? '#06B68A' : 'var(--text-main)',
                       transition: 'all 0.2s'
                     }}
                   >
@@ -107,7 +107,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
 
           {formData.call_type.length > 0 && formData.call_type.map(type => (
             <motion.div key={type} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#60a5fa', marginBottom: '6px', textTransform: 'uppercase' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#06B68A', marginBottom: '6px', textTransform: 'uppercase' }}>
                 {type} Inquiry
               </label>
               <input 
