@@ -114,29 +114,29 @@ button {
   color-scheme: light;
 }
 
-.dark input[type="date"]::-webkit-calendar-picker-indicator,
-.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-.dark .crm-input::-webkit-calendar-picker-indicator {
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.crm-input::-webkit-calendar-picker-indicator {
   opacity: 0 !important;
   appearance: none !important;
   -webkit-appearance: none !important;
   cursor: pointer;
-  width: 25px;
+  width: 35px;
   position: absolute;
   right: 10px;
   height: 100%;
 }
 
-.dark input[type="date"],
-.dark input[type="datetime-local"],
-.dark .crm-input[type="date"] {
+input[type="date"],
+input[type="datetime-local"],
+.crm-input[type="date"] {
   color-scheme: dark !important;
 }
 
-.light .crm-input[type="date"]::-webkit-calendar-picker-indicator,
-.light .crm-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  opacity: 0.5;
-  cursor: pointer;
+.light input[type="date"],
+.light input[type="datetime-local"],
+.light .crm-input[type="date"] {
+  color-scheme: light !important;
 }
 
 /* Custom Scrollbar */
