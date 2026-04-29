@@ -71,7 +71,18 @@ class PaymentAuthRepository extends BaseRepository
             }
         }
 
-        return $query->paginate(25);
+        return $query->paginate(25)->through(function ($record) {
+            // Strip heavy details_json content to save bandwidth, keeping only what's needed for the list logic
+            foreach ($record->bookings as $booking) {
+                if (isset($booking->details_json)) {
+                    $details = $booking->details_json;
+                    $booking->details_json = [
+                        'payment_cards' => $details['payment_cards'] ?? []
+                    ];
+                }
+            }
+            return $record;
+        });
     }
 
     public function findByIdForCollection(int $id)
