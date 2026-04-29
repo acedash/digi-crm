@@ -339,7 +339,7 @@ const ActivityLogs = () => {
                   <td style={{ padding: '20px 24px', whiteSpace: 'nowrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(6, 182, 138, 0.1)', color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Calendar size={18} />
+                        <CalendarIcon size={18} />
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
