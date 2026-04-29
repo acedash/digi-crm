@@ -28,7 +28,7 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
           letterSpacing: '1.5px'
         }}>
           {label}
-          {required && <span style={{ color: '#10b981', marginLeft: '4px' }}>*</span>}
+          {required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
         </label>
       )}
       <div style={{ position: 'relative' }}>
