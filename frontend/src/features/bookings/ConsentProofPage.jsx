@@ -61,17 +61,33 @@ const ConsentProofPage = () => {
     if (!path) return '';
     let pathStr = path.toString();
 
-    // Fix for legacy snapshots that might have been generated with an incorrect base URL (missing port 8001)
+    // Fix for legacy snapshots stored with incorrect localhost base URL
     if (pathStr.includes('localhost/api/email-assets/')) {
       pathStr = pathStr.replace(/https?:\/\/localhost\//, `${BACKEND_BASE_URL}/`);
     }
 
-    if (pathStr.startsWith('data:image') || pathStr.startsWith('http://') || pathStr.startsWith('https://')) {
-      return pathStr;
+    // Return data URIs as-is
+    if (pathStr.startsWith('data:image')) return pathStr;
+
+    const uploadBase = import.meta.env.DEV
+      ? `${BACKEND_BASE_URL}/uploads`
+      : `${BACKEND_BASE_URL}/core/uploads`;
+
+    // For absolute URLs: extract the path after /uploads/ and rebuild with correct base.
+    // This handles paths stored as /api/uploads/, /core/uploads/, or plain /uploads/.
+    if (pathStr.startsWith('http://') || pathStr.startsWith('https://')) {
+      const uploadMatch = pathStr.match(/\/(?:core\/|api\/)?uploads\/(.+)$/);
+      if (uploadMatch) {
+        return `${uploadBase}/${uploadMatch[1]}`;
+      }
+      return pathStr; // Unknown absolute URL, return unchanged
     }
-    const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^(storage\/app\/public|uploads)\//, '');
-    const urlBase = import.meta.env.DEV ? `${BACKEND_BASE_URL}/uploads` : `${BACKEND_BASE_URL}/core/uploads`;
-    return `${urlBase}/${cleanPath}`;
+
+    // Relative path: strip known leading prefixes then rebuild
+    const cleanPath = pathStr
+      .replace(/^\/+/g, '')
+      .replace(/^(?:api\/|core\/)?(?:storage\/app\/public\/|uploads\/)?/, '');
+    return `${uploadBase}/${cleanPath}`;
   };
 
   const proofContentRef = useRef(null);

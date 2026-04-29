@@ -86,14 +86,27 @@ const BookingDetailsPage = () => {
   const resolveImagePath = (path) => {
     if (!path) return '';
     const pathStr = path.toString();
-    if (pathStr.startsWith('data:image') || pathStr.startsWith('http://') || pathStr.startsWith('https://')) {
+
+    if (pathStr.startsWith('data:image')) return pathStr;
+
+    const uploadBase = import.meta.env.DEV
+      ? `${BACKEND_BASE_URL}/uploads`
+      : `${BACKEND_BASE_URL}/core/uploads`;
+
+    // For absolute URLs: extract path after /uploads/ and rebuild with correct base.
+    // Handles /api/uploads/, /core/uploads/, or plain /uploads/ prefixes.
+    if (pathStr.startsWith('http://') || pathStr.startsWith('https://')) {
+      const uploadMatch = pathStr.match(/\/(?:core\/|api\/)?uploads\/(.+)$/);
+      if (uploadMatch) {
+        return `${uploadBase}/${uploadMatch[1]}`;
+      }
       return pathStr;
     }
-    
-    // Cleanup any leading slashes and ensure it points to the direct storage path
-    const cleanPath = pathStr.replace(/^\/+/g, '').replace(/^(storage\/app\/public|uploads)\//, '');
-    const urlBase = import.meta.env.DEV ? `${BACKEND_BASE_URL}/uploads` : `${BACKEND_BASE_URL}/core/uploads`;
-    return `${urlBase}/${cleanPath}`;
+
+    const cleanPath = pathStr
+      .replace(/^\/+/g, '')
+      .replace(/^(?:api\/|core\/)?(?:storage\/app\/public\/|uploads\/)?/, '');
+    return `${uploadBase}/${cleanPath}`;
   };
 
   const getServiceIcon = (serviceableType = '') => {
