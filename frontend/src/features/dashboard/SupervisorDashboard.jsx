@@ -333,22 +333,36 @@ const SupervisorDashboard = () => {
         </Card>
       </div>
 
-      {/* Live Insights Pulse Bar - Very Compact */}
+      {/* Live Insights Pulse Bar - Refined & Robust */}
       <div className="glass-panel" style={{ 
-        padding: '12px 24px', 
-        borderRadius: '16px', 
+        padding: '14px 24px', 
+        borderRadius: '18px', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
         marginBottom: '24px',
         border: '1px solid var(--border-color)',
-        background: 'rgba(255, 255, 255, 0.02)'
+        background: 'rgba(255, 255, 255, 0.03)',
+        flexWrap: 'wrap',
+        gap: '16px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Inquiry Mix:</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {inquiryTags.slice(0, 4).map((t, idx) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ 
+            width: '32px', 
+            height: '32px', 
+            borderRadius: '10px', 
+            background: 'rgba(59, 130, 246, 0.1)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            color: '#3b82f6'
+          }}>
+            <Activity size={16} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top Inquiry Segments</div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              {inquiryTags.length > 0 ? inquiryTags.slice(0, 4).map((t, idx) => (
                 <span key={idx} style={{ 
                   fontSize: '11px', 
                   fontWeight: 700, 
@@ -356,24 +370,31 @@ const SupervisorDashboard = () => {
                   padding: '2px 8px',
                   background: 'var(--bg-input)',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color)'
+                  border: '1px solid var(--border-color)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
                 }}>
                   {t.tag}: <span style={{ color: 'hsl(var(--primary))' }}>{t.count}</span>
                 </span>
-              ))}
+              )) : <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No data for period</span>}
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>New Inquiries:</span>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.total_inquiries || 0}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>New Inquiries</div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.total_inquiries || 0}</div>
+            </div>
           </div>
-          <div style={{ width: '1px', height: '16px', background: 'var(--border-color)' }}></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Bookings:</span>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: '#06B68A' }}>+{stats?.period_bookings || 0}</span>
+          <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }}></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Team Bookings</div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#06B68A' }}>+{stats?.period_bookings || 0}</div>
+            </div>
           </div>
         </div>
       </div>

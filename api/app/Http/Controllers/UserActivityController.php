@@ -18,7 +18,7 @@ class UserActivityController extends Controller
         }
 
         if ($user->hasRole('supervisor')) {
-            $teamIds = $user->agents()->pluck('id')->toArray();
+            $teamIds = $user->supervisedAgents()->pluck('users.id')->toArray();
             $teamIds[] = $user->id;
             return $teamIds;
         }

@@ -73,7 +73,7 @@ class BookingService
         if (auth()->user()->hasRole('admin')) {
             // No specific agent filter for admin
         } elseif (auth()->user()->hasRole('supervisor')) {
-            $teamIds = auth()->user()->agents()->pluck('id')->toArray();
+            $teamIds = auth()->user()->supervisedAgents()->pluck('users.id')->toArray();
             $teamIds[] = auth()->id();
             $query->whereIn('agent_id', $teamIds);
         } else {
@@ -135,7 +135,7 @@ class BookingService
         }
 
         if ($user->hasRole('supervisor')) {
-            $teamIds = $user->agents()->pluck('id')->toArray();
+            $teamIds = $user->supervisedAgents()->pluck('users.id')->toArray();
             $teamIds[] = $user->id;
 
             if (! in_array((int) $booking->agent_id, $teamIds, true)) {
