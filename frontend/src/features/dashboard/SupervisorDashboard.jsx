@@ -124,9 +124,31 @@ const SupervisorDashboard = () => {
     }
   };
 
+  const Trend = ({ value }) => {
+    if (value === 0 || value === undefined) return null;
+    const isPositive = value > 0;
+    return (
+      <span style={{ 
+        fontSize: '11px', 
+        fontWeight: 700, 
+        color: isPositive ? '#06B68A' : '#ef4444',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '2px',
+        marginLeft: '6px',
+        background: isPositive ? 'rgba(6, 182, 138, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+        padding: '1px 6px',
+        borderRadius: '6px'
+      }}>
+        {isPositive ? '↑' : '↓'} {Math.abs(value)}%
+      </span>
+    );
+  };
+
   const revenueData = stats?.revenue_trends || [];
   const statusData = stats?.status_breakdown || [];
   const inquiryTags = stats?.inquiry_tags || [];
+  const topAgents = [...(stats?.agent_performance || [])].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 3);
   
   const COLORS = ['#06B68A', '#34d399', '#f59e0b', '#8b5cf6', '#f87171'];
 
@@ -264,56 +286,100 @@ const SupervisorDashboard = () => {
 
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-        <Card title="Clients with Bookings" icon={Users}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '32px', fontWeight: 800, color: '#06B68A' }}>{stats?.total_clients || 0}</span>
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Total number of clients handled by your team</div>
-        </Card>
-
         <Card title="Team Bookings" icon={TrendingUp}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '32px', fontWeight: 800, color: '#06B68A' }}>{stats?.period_bookings || 0}</span>
+            <div style={{ display: 'flex', alignItems: 'baseline' }}>
+              <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.period_bookings || 0}</span>
+              <Trend value={stats?.bookings_growth} />
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#06B68A', background: 'rgba(6,182,138,0.1)', padding: '2px 8px', borderRadius: '6px' }}>
+              {period.toUpperCase()}
+            </span>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Bookings created by your team (Selected Period)</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Total team bookings in the selected period</div>
         </Card>
 
         <Card title="Revenue Generated" icon={CircleDollarSign}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.daily_revenue || 0)}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline' }}>
+              <span style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
+                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.daily_revenue || 0)}
+              </span>
+              <Trend value={stats?.revenue_growth} />
+            </div>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>Revenue generated {period === 'daily' ? 'today' : 'in selected period'}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>Total revenue for {period === 'daily' ? 'today' : 'selected period'}</div>
         </Card>
 
-        <Card title="Inquiry Tags" icon={Phone}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', minHeight: '40px' }}>
-            {inquiryTags.length > 0 ? inquiryTags.map((t, idx) => {
-              const displayLabel = t.tag || 'General';
-              
-              return (
-                <div key={idx} style={{ 
-                  padding: '6px 12px', 
-                  background: 'var(--bg-input)', 
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: '10px',
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  color: 'var(--text-main)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                }}>
-                  <span style={{ textTransform: 'uppercase', opacity: 0.7, fontSize: '10px', letterSpacing: '0.05em' }}>{displayLabel}:</span>
-                  <span style={{ color: 'hsl(var(--primary))' }}>{t.count}</span>
-                </div>
-              );
-            }) : <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No inquiries found</span>}
+        <Card title="Team Conversion" icon={Award}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '32px', fontWeight: 800, color: 'hsl(var(--primary))' }}>
+              {stats?.period_bookings && stats?.total_inquiries 
+                ? ((stats.period_bookings / stats.total_inquiries) * 100).toFixed(1) 
+                : '0'}%
+            </span>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>GOAL: 15%</div>
+            </div>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '14px', fontWeight: 500 }}>Latest inquiries by category (Selected Period)</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Booking to Inquiry conversion ratio</div>
         </Card>
+
+        <Card title="Top Performers" icon={Users}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+            {topAgents.length > 0 ? topAgents.map((agent, idx) => (
+              <div key={agent.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>
+                  {idx + 1}. {agent.name.split(' ')[0]}
+                </span>
+                <span style={{ fontWeight: 800, color: '#06B68A' }}>${(agent.revenue || 0).toLocaleString()}</span>
+              </div>
+            )) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No performance data</span>}
+          </div>
+        </Card>
+      </div>
+
+      {/* Inquiry Tags & Monitoring Bar */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+        <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <div style={{ paddingRight: '24px', borderRight: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Team Status</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)' }}></div>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>{agents.filter(a => a.status === 'Active').length} Active</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', flex: 1 }}>
+            {inquiryTags.slice(0, 5).map((t, idx) => (
+              <div key={idx} style={{ 
+                padding: '6px 12px', 
+                background: 'var(--bg-input)', 
+                border: '1px solid var(--border-color)', 
+                borderRadius: '10px',
+                fontSize: '12px',
+                fontWeight: 700,
+                color: 'var(--text-main)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span style={{ opacity: 0.6 }}>{t.tag || 'Other'}:</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>{t.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>New Bookings</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)' }}>+{stats?.period_bookings || 0}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Inquiries</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.total_inquiries || 0}</div>
+          </div>
+        </div>
       </div>
 
 
