@@ -14,7 +14,9 @@ import {
   Clock,
   Activity,
   Shield,
-  Contact
+  Contact,
+  Menu,
+  X
 } from 'lucide-react';
 import { useAuthStore } from '../features/auth/useAuthStore';
 import authService from '../features/auth/authService';
@@ -32,6 +34,7 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [shieldActive, setShieldActive] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const lastShortcutLogRef = useRef(0);
 
   const handleLogout = async () => {
@@ -43,6 +46,10 @@ const AdminLayout = () => {
     logout();
     navigate('/login');
   };
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const getBasePath = () => {
     if (location.pathname.startsWith('/admin')) return '/admin';
@@ -167,14 +174,38 @@ const AdminLayout = () => {
     { label: 'Settings', path: `${basePath}/settings`, icon: Mail, roles: ['admin', 'supervisor', 'agent'] },
   ];
   return (
-    <div className="admin-layout-container" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div className="admin-layout-container" style={{ display: 'flex', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+      
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 45
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar */}
       <MotionAside 
-        className="no-print"
-        initial={{ x: -240 }}
-        animate={{ x: 0 }}
+        className="no-print sidebar-nav"
+        initial={false}
+        animate={{ 
+          x: (window.innerWidth <= 768 && !mobileMenuOpen) ? -240 : 0,
+          width: 240
+        }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         style={{
-          width: '240px',
+          position: window.innerWidth <= 768 ? 'absolute' : 'relative',
           height: '100%',
           background: 'var(--bg-card)',
           backdropFilter: 'blur(10px)',
@@ -182,10 +213,10 @@ const AdminLayout = () => {
           display: 'flex',
           flexDirection: 'column',
           padding: '32px 20px',
-          zIndex: 50
+          zIndex: 50,
         }}
       >
-        <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
           <div style={{ 
             width: '64px', 
             height: '64px', 
@@ -206,9 +237,29 @@ const AdminLayout = () => {
               }} 
             />
           </div>
+          <button 
+            className="show-on-mobile"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ 
+              position: 'absolute', 
+              right: '-10px', 
+              top: '-10px', 
+              background: 'var(--bg-app)', 
+              border: 'none', 
+              borderRadius: '50%', 
+              width: '32px', 
+              height: '32px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'var(--text-main)'
+            }}
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <nav style={{ flex: 1 }}>
+        <nav style={{ flex: 1, overflowY: 'auto' }}>
           <ul style={{ listStyle: 'none' }}>
             {navItems.filter(item => !item.roles || user?.roles.some(r => item.roles.includes(r.name || r))).map(item => {
               const isActive = location.pathname === item.path;
@@ -265,12 +316,16 @@ const AdminLayout = () => {
             transition: 'var(--transition-smooth)'
           }}
           onMouseEnter={(e) => {
-            e.target.style.background = '#ef4444';
-            e.target.style.color = 'white';
+            if (window.innerWidth > 768) {
+              e.currentTarget.style.background = '#ef4444';
+              e.currentTarget.style.color = 'white';
+            }
           }}
           onMouseLeave={(e) => {
-            e.target.style.background = 'rgba(239, 68, 68, 0.1)';
-            e.target.style.color = '#f87171';
+            if (window.innerWidth > 768) {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+              e.currentTarget.style.color = '#f87171';
+            }
           }}
         >
           <LogOut size={18} />
@@ -279,7 +334,7 @@ const AdminLayout = () => {
       </MotionAside>
 
       {/* Main Content */}
-      <div className="admin-content-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', background: 'transparent' }}>
+      <div className="admin-content-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', background: 'transparent', width: '100%', overflow: 'hidden' }}>
         <header className="no-print" style={{
           height: '72px',
           background: 'var(--bg-card)',
@@ -288,28 +343,40 @@ const AdminLayout = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 40px',
-          zIndex: 40
+          padding: window.innerWidth <= 768 ? '0 20px' : '0 40px',
+          zIndex: 40,
+          width: '100%'
         }}>
-          <div style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700 }}>
-            {(() => {
-              const activeItem = navItems.find(item => item.path === location.pathname);
-              if (activeItem) return activeItem.label;
-              if (location.pathname.includes('/clients/') || location.pathname.includes('/bookings/')) return 'Client Profile';
-              return 'Profile';
-            })()}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button 
+              className="show-on-mobile"
+              onClick={() => setMobileMenuOpen(true)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '4px' }}
+            >
+              <Menu size={24} />
+            </button>
+            <div style={{ color: 'var(--text-main)', fontSize: window.innerWidth <= 768 ? '16px' : '18px', fontWeight: 700 }}>
+              {(() => {
+                const activeItem = navItems.find(item => item.path === location.pathname);
+                if (activeItem) return activeItem.label;
+                if (location.pathname.includes('/clients/') || location.pathname.includes('/bookings/')) return 'Client Profile';
+                return 'Profile';
+              })()}
+            </div>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: window.innerWidth <= 768 ? '12px' : '20px' }}>
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={toggleTheme}
               icon={theme === 'dark' ? Sun : Moon}
-              style={{ borderRadius: '100px' }}
+              style={{ borderRadius: '100px', width: '36px', height: '36px', padding: 0 }}
             />
-            <StatusToggle />
-            <div style={{ textAlign: 'right' }}>
+            <div className="hide-on-mobile">
+              <StatusToggle />
+            </div>
+            <div style={{ textAlign: 'right' }} className="hide-on-mobile">
               <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{user?.name}</p>
               <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{activeRole}</p>
             </div>
@@ -329,7 +396,7 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        <main style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
+        <main style={{ flex: 1, overflowY: 'auto', padding: window.innerWidth <= 768 ? '24px 20px' : '40px' }}>
           <div
             style={{
               maxWidth: '1200px',
@@ -340,9 +407,7 @@ const AdminLayout = () => {
               pointerEvents: shieldActive ? 'none' : 'auto'
             }}
           >
-            <div
-              key={location.pathname}
-            >
+            <div key={location.pathname}>
               <Outlet />
             </div>
           </div>
@@ -387,6 +452,14 @@ const AdminLayout = () => {
         <SecureNotepad />
         <Walkthrough />
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 768px) {
+          .sidebar-nav {
+            box-shadow: 20px 0 50px rgba(0,0,0,0.3);
+          }
+        }
+      `}} />
     </div>
   );
 };

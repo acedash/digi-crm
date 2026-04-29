@@ -228,7 +228,7 @@ const AdminDashboard = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
         <div id="dashboard-title">
-          <h1 style={{ fontSize: '32px', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1 style={{ fontSize: window.innerWidth <= 768 ? '24px' : '32px', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             Admin <span className="premium-gradient-text">Dashboard</span>
             {loading && <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--text-muted)' }}/>}
           </h1>
@@ -237,7 +237,7 @@ const AdminDashboard = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: window.innerWidth <= 768 ? 'flex-start' : 'flex-end', width: window.innerWidth <= 768 ? '100%' : 'auto' }}>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -247,18 +247,29 @@ const AdminDashboard = () => {
           >
             Show Guide
           </Button>
-          <div id="period-selector" style={{ display: 'flex', gap: '8px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div id="period-selector" style={{ 
+            display: 'flex', 
+            gap: '4px', 
+            background: 'var(--bg-input)', 
+            padding: '4px', 
+            borderRadius: '12px', 
+            border: '1px solid var(--border-color)',
+            overflowX: 'auto',
+            maxWidth: '100%',
+            scrollbarWidth: 'none'
+          }}>
             {periods.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setPeriod(p.id)}
                 style={{
-                  padding: '6px 16px',
+                  padding: '6px 12px',
                   borderRadius: '8px',
                   border: 'none',
+                  whiteSpace: 'nowrap',
                   background: period === p.id ? 'var(--bg-card)' : 'transparent',
                   color: period === p.id ? 'var(--text-main)' : 'var(--text-muted)',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.2s',
@@ -271,8 +282,8 @@ const AdminDashboard = () => {
           </div>
 
           {period === 'custom' && (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-              <div style={{ width: '160px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)', width: '100%', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '140px' }}>
                 <Input 
                   type="date" 
                   icon={CalendarIcon}
@@ -283,7 +294,7 @@ const AdminDashboard = () => {
                 />
               </div>
               <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
-              <div style={{ width: '160px' }}>
+              <div style={{ flex: 1, minWidth: '140px' }}>
                 <Input 
                   type="date" 
                   icon={CalendarIcon}
@@ -298,7 +309,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div id="stat-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+      <div id="stat-cards" className="responsive-grid">
         {statCards.map((item) => (
           <div 
             key={item.title} 
@@ -319,7 +330,7 @@ const AdminDashboard = () => {
       </div>
 
 
-      <div id="revenue-charts" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', alignItems: 'stretch' }}>
+      <div id="revenue-charts" className="responsive-grid">
         {stats.revenue_trends && stats.revenue_trends.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Global Revenue Trends (1 Year)</h3>

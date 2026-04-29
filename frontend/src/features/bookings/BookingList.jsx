@@ -647,18 +647,25 @@ const BookingList = ({ onCreate, onEdit }) => {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: window.innerWidth <= 768 ? '16px' : '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header Area */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: window.innerWidth <= 768 ? 'flex-start' : 'center', 
+        marginBottom: '32px',
+        flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+        gap: '20px'
+      }}>
         <div>
-          <h1 className="premium-gradient-text" style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
+          <h1 className="premium-gradient-text" style={{ fontSize: window.innerWidth <= 768 ? '28px' : '32px', fontWeight: 800, marginBottom: '8px' }}>
             Bookings
           </h1>
           <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '14px' }}>
             Manage client reservations and itineraries.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', width: window.innerWidth <= 768 ? '100%' : 'auto' }}>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -686,19 +693,16 @@ const BookingList = ({ onCreate, onEdit }) => {
               ]);
             }}
             icon={HelpCircle}
-            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))', marginRight: '8px' }}
+            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))', flex: 1 }}
           >
-            Show Guide
+            Guide
           </Button>
-          <Button variant="primary" icon={Plus} onClick={onCreate}>New Booking</Button>
+          <Button variant="primary" icon={Plus} onClick={onCreate} style={{ flex: 2 }}>New Booking</Button>
         </div>
       </div>
 
       {/* Stats Quick View */}
-      <div id="booking-stats" style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
-        gap: '20px', 
+      <div id="booking-stats" className="responsive-grid" style={{ 
         marginBottom: '40px' 
       }}>
         {[
@@ -769,7 +773,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       <div id="booking-tools" style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '40px' }}>
         {/* Row 1: Primary Search, Dates, Refresh, Export */}
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '300px', maxWidth: '400px' }}>
+          <div style={{ flex: 1, minWidth: window.innerWidth <= 768 ? '100%' : '300px', maxWidth: window.innerWidth <= 768 ? '100%' : '400px' }}>
             <Input 
               placeholder="Search by ID, reference, client name, or PNR..." 
               icon={Search}
@@ -780,8 +784,8 @@ const BookingList = ({ onCreate, onEdit }) => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-            <div style={{ width: '170px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)', width: window.innerWidth <= 768 ? '100%' : 'auto', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '140px' }}>
               <Input 
                 type="date"
                 icon={Calendar}
@@ -792,7 +796,7 @@ const BookingList = ({ onCreate, onEdit }) => {
               />
             </div>
             <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
-            <div style={{ width: '170px' }}>
+            <div style={{ flex: 1, minWidth: '140px' }}>
               <Input 
                 type="date"
                 icon={Calendar}
@@ -803,8 +807,7 @@ const BookingList = ({ onCreate, onEdit }) => {
               />
             </div>
           </div>
-
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: window.innerWidth <= 768 ? '0' : 'auto', width: window.innerWidth <= 768 ? '100%' : 'auto', justifyContent: window.innerWidth <= 768 ? 'space-between' : 'flex-end' }}>
             <Button 
               variant="glass" 
               icon={RefreshCw} 

@@ -202,12 +202,13 @@ const BookingRow = ({
         }}
       >
         <div
+          className="responsive-booking-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: '1.2fr 1.3fr 0.7fr 0.7fr 2.1fr',
+            gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1.2fr 1.3fr 0.7fr 0.7fr 2.1fr',
             alignItems: 'center',
-            padding: '20px 24px',
-            gap: '24px',
+            padding: window.innerWidth <= 768 ? '20px' : '20px 24px',
+            gap: window.innerWidth <= 768 ? '16px' : '24px',
           }}
         >
           {/* Group 1: Booking / Client */}
@@ -411,8 +412,10 @@ const BookingRow = ({
           {/* Group 5: Actions */}
           <div
             style={{
-              paddingLeft: '16px',
-              borderLeft: '1px solid var(--border-color)',
+              paddingLeft: window.innerWidth <= 768 ? '0' : '16px',
+              borderLeft: window.innerWidth <= 768 ? 'none' : '1px solid var(--border-color)',
+              borderTop: window.innerWidth <= 768 ? '1px solid var(--border-color)' : 'none',
+              paddingTop: window.innerWidth <= 768 ? '16px' : '0',
               display: 'flex',
               flexWrap: 'wrap',
               gap: '8px 8px',
