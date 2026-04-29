@@ -309,11 +309,15 @@ class DashboardController extends Controller
                 'total_revenue' => $agentStats->sum('total_revenue')
             ];
 
-            $agents = User::query()
-                ->whereHas('supervisors', function ($query) use ($user) {
-                    $query->where('users.id', $user->id);
-                })
-                ->get(['id', 'name', 'email', 'status']);
+            $agents = $user->supervisedAgents()
+                ->select(['users.id', 'users.name', 'users.email', 'users.status'])
+                ->get();
+            
+            // Add supervisor to the list so they can track their own performance too
+            $agents->push($user);
+            
+            // Ensure unique list just in case
+            $agents = $agents->unique('id')->values();
 
             // 2. Aggregate Inquiry Tags from JSON keys
             $rawInquiries = CallLog::query()

@@ -17,6 +17,8 @@ import {
   Mail,
   UserPlus,
   ShieldAlert,
+  User,
+  ClipboardList,
   LayoutDashboard
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -148,6 +150,31 @@ const SupervisorDashboard = () => {
   const revenueData = stats?.revenue_trends || [];
   const statusData = stats?.status_breakdown || [];
   const inquiryTags = stats?.inquiry_tags || [];
+  const activeRole = typeof user?.roles?.[0] === 'object' ? user.roles[0].name : user?.roles?.[0];
+
+  const getStatusBadgeStyle = (status) => {
+    switch (status) {
+      case 'Confirmed':
+      case 'Approved':
+      case 'Completed':
+      case 'Work Completed':
+      case 'Change Approved':
+        return { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' };
+      case 'Pending':
+      case 'Draft':
+      case 'Awaiting Approval':
+        return { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' };
+      case 'Rejected':
+      case 'Cancelled':
+      case 'Change Rejected':
+        return { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' };
+      case 'Work Pending':
+      case 'Awaiting Change Approval':
+        return { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' };
+      default:
+        return { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b' };
+    }
+  };
   const topAgents = [...(stats?.agent_performance || [])].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 3);
   
   const COLORS = ['#06B68A', '#34d399', '#f59e0b', '#8b5cf6', '#f87171'];
@@ -346,41 +373,6 @@ const SupervisorDashboard = () => {
         flexWrap: 'wrap',
         gap: '16px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ 
-            width: '32px', 
-            height: '32px', 
-            borderRadius: '10px', 
-            background: 'rgba(59, 130, 246, 0.1)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            color: '#3b82f6'
-          }}>
-            <Activity size={16} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top Inquiry Segments</div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              {inquiryTags.length > 0 ? inquiryTags.slice(0, 4).map((t, idx) => (
-                <span key={idx} style={{ 
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  color: 'var(--text-main)',
-                  padding: '2px 8px',
-                  background: 'var(--bg-input)',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {t.tag}: <span style={{ color: 'hsl(var(--primary))' }}>{t.count}</span>
-                </span>
-              )) : <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No data for period</span>}
-            </div>
-          </div>
-        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -497,62 +489,70 @@ const SupervisorDashboard = () => {
               <tbody>
                 {loading ? (
                   <tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Loading records...</td></tr>
-                ) : stats?.agent_performance.map(agent => (
-                  <tr key={agent.id} style={{ background: 'var(--bg-input)', transition: 'transform 0.2s' }}>
-                    <td style={{ padding: '16px', borderRadius: '16px 0 0 16px', border: '1px solid var(--border-color)', borderRight: 'none' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{agent.name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                        <div style={{ 
-                          width: '6px', 
-                          height: '6px', 
-                          borderRadius: '50%', 
-                          background: ['active', 'on call'].includes(agent.status?.toLowerCase()) ? '#22c55e' : (agent.status?.toLowerCase() === 'break' ? '#f59e0b' : '#ef4444') 
-                        }} />
-                        {agent.status || 'Offline'}
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Clock size={12} style={{ color: 'var(--text-muted)' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{agent.login_time || '--'}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {agent.inquiry_details?.length > 0 ? agent.inquiry_details.map(detail => (
-                          <span key={detail.tag} style={{ 
-                            padding: '2px 8px', 
-                            background: 'rgba(255,255,255,0.05)', 
-                            border: '1px solid var(--border-color)', 
-                            borderRadius: '6px', 
-                            fontSize: '10px', 
-                            fontWeight: 700,
-                            color: 'var(--text-main)'
-                          }}>
-                            {detail.count} {detail.tag}
-                          </span>
-                        )) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{agent.inquiries_count} Total</span>}
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-                      <div style={{ fontWeight: 800, color: '#22c55e', fontSize: '14px' }}>
-                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(agent.revenue || 0)}
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px', borderRadius: '0 16px 16px 0', border: '1px solid var(--border-color)', borderLeft: 'none' }}>
-                       <div style={{ display: 'flex', gap: '12px' }}>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CALLS</div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#06B68A' }}>{agent.calls_count}</div>
-                          </div>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>BOOKINGS</div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#a855f7' }}>{agent.bookings_count}</div>
-                          </div>
-                       </div>
-                    </td>
-                  </tr>
-                ))}
+                ) : (stats?.agent_performance && stats.agent_performance.length > 0) ? stats.agent_performance.map(agent => {
+                  const conversion = agent.inquiries_count > 0 ? Math.round((agent.bookings_count / agent.inquiries_count) * 100) : 0;
+                  return (
+                    <tr key={agent.id} style={{ background: 'var(--bg-input)', transition: 'transform 0.2s' }}>
+                      <td style={{ padding: '16px', borderRadius: '16px 0 0 16px', border: '1px solid var(--border-color)', borderRight: 'none' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {agent.name}
+                          {agent.id === user.id && <span style={{ fontSize: '10px', padding: '2px 6px', background: 'rgba(96, 165, 250, 0.1)', color: '#60a5fa', borderRadius: '4px' }}>YOU</span>}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                          <div style={{ 
+                            width: '6px', 
+                            height: '6px', 
+                            borderRadius: '50%', 
+                            background: ['active', 'on call'].includes(agent.status?.toLowerCase()) ? '#22c55e' : (agent.status?.toLowerCase() === 'break' ? '#f59e0b' : '#ef4444') 
+                          }} />
+                          {agent.status || 'Offline'}
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Clock size={12} style={{ color: 'var(--text-muted)' }} />
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{agent.login_time || '--'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {agent.inquiry_details?.length > 0 ? agent.inquiry_details.map(detail => (
+                            <span key={detail.tag} style={{ 
+                              padding: '2px 8px', 
+                              background: 'rgba(255,255,255,0.05)', 
+                              border: '1px solid var(--border-color)', 
+                              borderRadius: '6px', 
+                              fontSize: '10px', 
+                              fontWeight: 700,
+                              color: 'var(--text-main)'
+                            }}>
+                              {detail.count} {detail.tag}
+                            </span>
+                          )) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{agent.inquiries_count} Total</span>}
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                        <div style={{ fontWeight: 800, color: '#22c55e', fontSize: '14px' }}>
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(agent.revenue || 0)}
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', borderRadius: '0 16px 16px 0', border: '1px solid var(--border-color)', borderLeft: 'none' }}>
+                         <div style={{ display: 'flex', gap: '16px' }}>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>BOOKINGS</div>
+                              <div style={{ fontSize: '14px', fontWeight: 800, color: '#06B68A' }}>{agent.bookings_count}</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CONV.</div>
+                              <div style={{ fontSize: '14px', fontWeight: 800, color: conversion > 10 ? '#10b981' : '#f59e0b' }}>{conversion}%</div>
+                            </div>
+                         </div>
+                      </td>
+                    </tr>
+                  );
+                }) : (
+                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>No performance data available for this team in the selected period.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -591,53 +591,62 @@ const SupervisorDashboard = () => {
             </div>
           </Card>
 
-          <Card title="Recent Team Bookings" subtitle="Latest bookings created by your team" icon={Plane}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-              {stats?.recent_bookings.map(book => (
+          <Card title="Recent Team Bookings" subtitle="Latest team activity" icon={Plane}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+              {stats?.recent_bookings && stats.recent_bookings.length > 0 ? stats.recent_bookings.map(book => (
                 <div key={book.id} style={{ 
                   padding: '16px', 
-                  borderRadius: '16px', 
+                  borderRadius: '18px', 
                   border: '1px solid var(--border-color)', 
                   background: 'var(--bg-input)',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 800, color: 'hsl(var(--primary))' }}>{book.booking_reference}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      {book.client?.name} • ${book.total_amount}
+                  alignItems: 'center',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }} onClick={() => navigate(`/${activeRole}/bookings/${book.id}`)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ 
+                      width: '40px', 
+                      height: '40px', 
+                      borderRadius: '12px', 
+                      background: 'rgba(96, 165, 250, 0.1)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      color: '#60a5fa'
+                    }}>
+                      <ClipboardList size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '14px' }}>{book.booking_reference}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <User size={10} /> {book.agent?.name || 'Unassigned'} • {book.client?.name || 'No Client'}
+                      </div>
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      borderRadius: '6px', 
-                      fontSize: '10px', 
-                      fontWeight: 800,
-                      background: book.status === 'Confirmed' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(96, 165, 250, 0.1)',
-                      color: book.status === 'Confirmed' ? '#22c55e' : '#06B68A'
-                    }}>
-                      {book.status === 'Pending' ? 'Email Send Pending' : book.status}
-                    </span>
-                    <button 
-                      onClick={() => openReassignModal(book)}
-                      style={{ 
-                        display: 'block', 
-                        fontSize: '10px', 
-                        color: 'var(--text-muted)', 
-                        marginTop: '8px',
-                        textDecoration: 'underline',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Reassign
-                    </button>
+                    <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '13px' }}>
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: book.currency || 'USD' }).format(book.total_amount || 0)}
+                    </div>
+                    <div style={{ marginTop: '6px' }}>
+                      <span style={{ 
+                        padding: '3px 10px', 
+                        borderRadius: '100px', 
+                        fontSize: '9px', 
+                        fontWeight: 900,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        background: getStatusBadgeStyle(book.status).bg,
+                        color: getStatusBadgeStyle(book.status).color,
+                        border: `1px solid ${getStatusBadgeStyle(book.status).color}20`
+                      }}>
+                        {book.status === 'Pending' ? 'Email Pending' : (book.status === 'Work Pending' ? 'Processing' : book.status)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              ))}
+              )) : <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No recent bookings found</div>}
             </div>
           </Card>
         </div>
