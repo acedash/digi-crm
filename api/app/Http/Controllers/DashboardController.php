@@ -577,18 +577,29 @@ class DashboardController extends Controller
 
             return $agents->map(function ($agent) use ($activitiesByUser, $callCounts, $bookingStats, $tz, $period) {
                 $activities = $activitiesByUser->get($agent->id, collect());
+                
+                // Check if user was logged in at the START of the period
+                // We find the last activity before the start of the period
+                $lastActivityBefore = \App\Models\UserActivity::where('user_id', $agent->id)
+                    ->where('created_at', '<', $start)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                
+                $isLoggedInAtStart = $lastActivityBefore && in_array($lastActivityBefore->activity_type, ['login', 'on_call', 'idle', 'break_start']);
+                $sessionStart = $isLoggedInAtStart ? $start : null;
+                
                 $loginActivity = $activities->firstWhere('activity_type', 'login');
-                $loginTime = $loginActivity ? $loginActivity->created_at->timezone($tz)->format('h:i A') : '--';
+                $loginTime = $loginActivity ? $loginActivity->created_at->timezone($tz)->format('h:i A') : ($isLoggedInAtStart ? 'Prev. Session' : '--');
 
                 $breakSeconds = 0;
                 $totalLoginSeconds = 0;
-                $currentSegmentStart = null;
-                $currentSegmentType = null;
-                $sessionStart = null;
+                $currentSegmentStart = $isLoggedInAtStart ? $start : null;
+                $currentSegmentType = $isLoggedInAtStart ? ($lastActivityBefore->activity_type === 'break_start' ? 'break' : 'active') : null;
 
                 foreach ($activities as $activity) {
                     $type = $activity->activity_type;
 
+                    // Session tracking
                     if ($type === 'login') {
                         $sessionStart = $activity->created_at;
                     } elseif ($type === 'logout' && $sessionStart) {
@@ -596,10 +607,11 @@ class DashboardController extends Controller
                         $sessionStart = null;
                     }
 
+                    // Break/Active segment tracking
                     $state = 'active';
                     if ($type === 'break_start') $state = 'break';
                     elseif ($type === 'on_call') $state = 'on_call';
-                    elseif ($type === 'idle') $state = 'idle';
+                    elseif ($type === 'idle') $state = 'active';
                     elseif ($type === 'logout') $state = 'offline';
 
                     if ($currentSegmentStart && $currentSegmentType === 'break') {
@@ -615,12 +627,15 @@ class DashboardController extends Controller
                     }
                 }
 
+                // Handle ongoing sessions at the END of the period
+                $effectiveEnd = $end->isFuture() ? now() : $end;
+
                 if ($sessionStart) {
-                    $totalLoginSeconds += abs(now()->diffInSeconds($sessionStart));
+                    $totalLoginSeconds += abs($effectiveEnd->diffInSeconds($sessionStart));
                 }
 
                 if ($currentSegmentStart && $currentSegmentType === 'break') {
-                    $breakSeconds += abs(now()->diffInSeconds($currentSegmentStart));
+                    $breakSeconds += abs($effectiveEnd->diffInSeconds($currentSegmentStart));
                 }
 
                 $stats = $bookingStats->get($agent->id);
