@@ -111,19 +111,22 @@ const LoginPage = () => {
           </div>
 
           {/* Marketing Text */}
-          <div style={{ marginTop: 'auto', marginBottom: '120px' }}>
+          <div style={{ marginTop: '60px', marginBottom: 'auto' }}>
             <h1 style={{ 
-              fontSize: '72px', 
-              fontWeight: 800, 
+              fontSize: '84px', 
+              fontWeight: 900, 
               color: 'white', 
-              lineHeight: 1.1, 
-              letterSpacing: '-2px',
-              maxWidth: '600px',
-              textShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              lineHeight: 1.05, 
+              letterSpacing: '-3px',
+              maxWidth: '700px',
+              textShadow: '0 8px 24px rgba(0,0,0,0.3)'
             }}>
               Simplify.<br />
               Connect.<br />
-              <span style={{ color: '#06B68A' }}>Elevate Travel.</span>
+              <span style={{ 
+                color: '#10b981',
+                textShadow: '0 0 30px rgba(16, 185, 129, 0.4)'
+              }}>Elevate Travel.</span>
             </h1>
           </div>
         </div>
