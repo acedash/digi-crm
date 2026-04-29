@@ -229,20 +229,17 @@ const AdminLayout = () => {
       >
         <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
           <div style={{ 
-            width: '64px', 
-            height: '64px', 
-            background: '#020617', 
-            borderRadius: '18px', 
+            width: '80px', 
+            height: '80px', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
-            boxShadow: '0 8px 16px rgba(0,0,0,0.15)'
           }}>
             <img 
               src="/digi-logo.jpeg" 
               alt="Digi CRM" 
               style={{ 
-                height: '38px', 
+                height: '64px', 
                 width: 'auto',
                 display: 'block'
               }} 

@@ -101,9 +101,8 @@ const LoginPage = () => {
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
-              border: '1px solid rgba(255,255,255,0.2)'
             }}>
-              <img src="/digi-logo.jpeg" alt="DC" style={{ height: '32px', width: 'auto' }} />
+              <img src="/digi-logo.jpeg" alt="DC" style={{ height: '44px', width: 'auto' }} />
             </div>
             <div>
               <h2 style={{ color: 'white', fontSize: '24px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>DIGICIRCLE</h2>
@@ -153,17 +152,14 @@ const LoginPage = () => {
             {/* Form Header */}
             <div style={{ textAlign: 'center', marginBottom: '48px' }}>
               <div style={{ 
-                width: '80px', 
-                height: '80px', 
-                background: '#020617', 
-                borderRadius: '24px', 
+                width: '120px', 
+                height: '120px', 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                margin: '0 auto 24px',
-                boxShadow: '0 12px 24px rgba(0,0,0,0.2)'
+                margin: '0 auto 32px',
               }}>
-                <img src="/digi-logo.jpeg" alt="DC" style={{ height: '48px', width: 'auto' }} />
+                <img src="/digi-logo.jpeg" alt="DC" style={{ height: '100px', width: 'auto' }} />
               </div>
               <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', marginBottom: '12px' }}>Welcome back</h2>
               <p style={{ color: '#64748b', fontSize: '15px', fontWeight: 500 }}>Use the credentials shared by your admin</p>
