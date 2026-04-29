@@ -239,7 +239,7 @@ const AdminLayout = () => {
             boxShadow: '0 8px 16px rgba(0,0,0,0.15)'
           }}>
             <img 
-              src="/digi-logo-sidebar.png" 
+              src="/digi-logo.jpeg" 
               alt="Digi CRM" 
               style={{ 
                 height: '38px', 
