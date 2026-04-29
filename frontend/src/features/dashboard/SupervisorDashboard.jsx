@@ -360,36 +360,6 @@ const SupervisorDashboard = () => {
         </Card>
       </div>
 
-      {/* Live Insights Pulse Bar - Refined & Robust */}
-      <div className="glass-panel" style={{ 
-        padding: '14px 24px', 
-        borderRadius: '18px', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        marginBottom: '24px',
-        border: '1px solid var(--border-color)',
-        background: 'rgba(255, 255, 255, 0.03)',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>New Inquiries</div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.total_inquiries || 0}</div>
-            </div>
-          </div>
-          <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }}></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Team Bookings</div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#06B68A' }}>+{stats?.period_bookings || 0}</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
 
       {/* Visual Activity Charts */}
