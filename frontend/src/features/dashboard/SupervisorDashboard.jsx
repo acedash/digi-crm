@@ -471,8 +471,8 @@ const SupervisorDashboard = () => {
                     cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                   />
                   <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '10px' }} />
-                  <Bar dataKey="Confirmed" fill="#34d399" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="Pending" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Confirmed" fill="#10B981" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Pending" fill="#F59E0B" radius={[4, 4, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
