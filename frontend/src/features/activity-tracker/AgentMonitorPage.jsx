@@ -7,14 +7,17 @@ import {
   ClipboardList, 
   PhoneCall, 
   CircleDollarSign,
-  TrendingUp,
+  Calendar as CalendarIcon,
   RefreshCw 
 } from 'lucide-react';
 import { useAuthStore } from '../auth/useAuthStore';
 import Card from '../../components/ui/Card';
+import Input from '../../components/ui/Input';
 import dashboardService from '../dashboard/dashboardService';
 
 import AgentReportSlideOver from '../dashboard/components/AgentReportSlideOver';
+import AttendanceReport from './AttendanceReport';
+import Button from '../../components/ui/Button';
 
 const AgentMonitorPage = () => {
   const { user } = useAuthStore();
@@ -24,9 +27,12 @@ const AgentMonitorPage = () => {
   const [monitoringSummary, setMonitoringSummary] = useState({ supervisors: 0, active: 0, break: 0 });
 
   const [globalPeriod, setGlobalPeriod] = useState('daily');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportFilters, setReportFilters] = useState({ period: 'daily', start: null, end: null });
+  const [showAttendance, setShowAttendance] = useState(false);
 
   // Independent stats data
   const [bookStats, setBookStats] = useState(null);
@@ -34,13 +40,19 @@ const AgentMonitorPage = () => {
   const [revStats, setRevStats] = useState(null);
 
   useEffect(() => {
-    fetchMainStats();
-  }, []);
+    if (globalPeriod === 'custom') {
+      if (customStart && customEnd) {
+        fetchMainStats();
+      }
+    } else {
+      fetchMainStats();
+    }
+  }, [globalPeriod, customStart, customEnd]);
 
   const fetchMainStats = async () => {
     setLoading(true);
     try {
-      const response = await dashboardService.getStats('daily');
+      const response = await dashboardService.getStats(globalPeriod, customStart, customEnd);
       const data = response.data.data;
       setStats(data);
       setBookStats(data.bookings);
@@ -53,17 +65,6 @@ const AgentMonitorPage = () => {
     }
   };
 
-  const fetchLocalizedStats = async (p) => {
-    try {
-      const response = await dashboardService.getStats(p);
-      const data = response.data.data;
-      setBookStats(data.bookings);
-      setCallStats(data.calls);
-      setRevStats(data.revenue);
-    } catch (error) {
-      console.error(`Failed to fetch stats for period ${p}`, error);
-    }
-  };
 
   const handleViewReport = (id, period, start, end) => {
     setSelectedAgentId(id);
@@ -98,6 +99,15 @@ const AgentMonitorPage = () => {
     },
   ] : [];
 
+  const periods = [
+    { id: 'all', label: 'All Time' },
+    { id: 'daily', label: 'Daily' },
+    { id: 'yesterday', label: 'Yesterday' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'custom', label: 'Custom Date' },
+  ];
+
   const Trend = ({ value }) => {
     if (value === 0 || value === undefined) return null;
     const isPositive = value > 0;
@@ -111,8 +121,7 @@ const AgentMonitorPage = () => {
         color: isPositive ? '#10b981' : '#f87171',
         marginLeft: '4px'
       }}>
-        <TrendingUp size={12} style={{ transform: isPositive ? 'none' : 'rotate(180deg)' }} />
-        {isPositive ? '+' : ''}{value}%
+        {isPositive ? '↑' : '↓'}{Math.abs(value)}%
       </div>
     );
   };
@@ -120,12 +129,14 @@ const AgentMonitorPage = () => {
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ marginBottom: '0' }}>
-          <h1 className="premium-gradient-text" style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
             <Activity size={32} style={{ color: '#06B68A' }} />
-            Team Activity <span className="premium-gradient-text">Monitor</span>
+            <h1 style={{ fontSize: '32px', fontWeight: 800, margin: 0 }}>
+              <span className="premium-gradient-text">Team Activity Monitor</span>
+            </h1>
             {loading && <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--text-muted)' }}/>}
-          </h1>
+          </div>
           <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '15px', fontWeight: 500 }}>
             Monitor activity and performance in real time.
           </p>
@@ -144,44 +155,71 @@ const AgentMonitorPage = () => {
             </div>
           </div>
         </div>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+           <Button 
+              variant={showAttendance ? "primary" : "secondary"}
+              icon={CalendarIcon}
+              onClick={() => setShowAttendance(!showAttendance)}
+            >
+              {showAttendance ? "Back to Monitor" : "Attendance Report"}
+            </Button>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          background: 'var(--bg-card)', 
-          padding: '4px', 
-          borderRadius: '12px', 
-          border: '1px solid var(--border-color)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          gap: '4px'
-        }}>
-          <div style={{ padding: '0 8px 0 10px', fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Period:
-          </div>
-          {['daily', 'weekly', 'monthly'].map((p) => (
+      {showAttendance ? (
+        <AttendanceReport onClose={() => setShowAttendance(false)} />
+      ) : (
+        <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', marginTop: '-60px' }}>
+        <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          {periods.map((p) => (
             <button
-              key={p}
-              onClick={() => { setGlobalPeriod(p); fetchLocalizedStats(p); }}
+              key={p.id}
+              onClick={() => setGlobalPeriod(p.id)}
               style={{
-                padding: '6px 14px',
+                padding: '6px 16px',
                 borderRadius: '8px',
-                fontSize: '11px',
-                fontWeight: 700,
-                textTransform: 'capitalize',
                 border: 'none',
+                background: globalPeriod === p.id ? 'var(--bg-card)' : 'transparent',
+                color: globalPeriod === p.id ? 'var(--text-main)' : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                background: globalPeriod === p ? 'hsl(var(--primary))' : 'transparent',
-                color: globalPeriod === p ? 'white' : 'var(--text-main)',
-                boxShadow: globalPeriod === p ? '0 4px 10px hsla(var(--primary) / 0.3)' : 'none'
+                transition: 'all 0.2s',
+                boxShadow: globalPeriod === p.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
               }}
             >
-              {p}
+              {p.label}
             </button>
           ))}
         </div>
+
+        {globalPeriod === 'custom' && (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ width: '160px' }}>
+              <Input 
+                type="date" 
+                icon={CalendarIcon}
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+              />
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
+            <div style={{ width: '160px' }}>
+              <Input 
+                type="date" 
+                icon={CalendarIcon}
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
@@ -206,14 +244,26 @@ const AgentMonitorPage = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
         {isAdmin && (
           <div>
-            <AdminMonitoringTable onSummaryChange={setMonitoringSummary} />
+            <AdminMonitoringTable 
+              onSummaryChange={setMonitoringSummary} 
+              period={globalPeriod}
+              startDate={customStart}
+              endDate={customEnd}
+            />
           </div>
         )}
         
         <div>
-          <AgentActivityTable onViewReport={handleViewReport} />
+          <AgentActivityTable 
+            onViewReport={handleViewReport} 
+            period={globalPeriod}
+            startDate={customStart}
+            endDate={customEnd}
+          />
         </div>
       </div>
+      </>
+      )}
 
       <AgentReportSlideOver 
         isOpen={isReportOpen} 

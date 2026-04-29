@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   X, 
   TrendingUp, 
@@ -9,8 +9,14 @@ import {
   ChevronRight,
   TrendingDown,
   Info,
-  RefreshCw
+  RefreshCw,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  FileJson,
+  Calendar as CalendarIcon
 } from 'lucide-react';
+import ExportDropdown from '../../../components/ui/ExportDropdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LineChart, 
@@ -26,7 +32,10 @@ import {
   Legend
 } from 'recharts';
 import Card from '../../../components/ui/Card';
+import Input from '../../../components/ui/Input';
 import dashboardService from '../dashboardService';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const COLORS = ['#06B68A', '#06B68A', '#f59e0b', '#8b5cf6', '#ef4444', '#94a3b8'];
 
@@ -36,6 +45,9 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
   const [reportPeriod, setReportPeriod] = useState(initialPeriod);
   const [reportStart, setReportStart] = useState(initialStart);
   const [reportEnd, setReportEnd] = useState(initialEnd);
+  
+  const [isExporting, setIsExporting] = useState(false);
+  const reportContentRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -62,6 +74,167 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
       console.error('Failed to fetch agent report:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!data) return;
+
+    const headers = ["Metric", "Value"];
+    const statsRows = [
+      ["Agent Name", data.agent?.name],
+      ["Period", reportPeriod],
+      ["Total Revenue", data.stats.total_revenue],
+      ["Total Bookings", data.stats.total_bookings],
+      ["Daily Revenue", data.stats.daily_revenue],
+      ["Total Calls", data.stats.total_calls],
+      ["", ""], // Spacer
+      ["Recent Call Logs", ""],
+      ["Client", "Outcome", "Date", "Inquiry"]
+    ];
+
+    const callRows = data.recent_calls.map(call => [
+      call.client?.name || 'Unknown',
+      call.customer_outcome || 'N/A',
+      new Date(call.created_at).toLocaleString(),
+      call.airline_inquiry || 'N/A'
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + statsRows.map(e => e.join(",")).join("\n") 
+      + "\n" 
+      + callRows.map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `report_${data.agent?.name}_${reportPeriod}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handleExportJSON = () => {
+    if (!data) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+    const dt = document.createElement('a');
+    dt.setAttribute("href", dataStr);
+    dt.setAttribute("download", `report_${data.agent?.name}_${reportPeriod}.json`);
+    document.body.appendChild(dt);
+    dt.click();
+    document.body.removeChild(dt);
+  };
+
+  const handleExportPDF = async () => {
+    const content = reportContentRef.current;
+    if (!content) return;
+
+    const originalCssText = content.style.cssText;
+
+    try {
+      setIsExporting(true);
+
+      // 1. Synchronize Layouts & Break out of modal scroll
+      content.style.cssText += '; position: absolute !important; top: 0 !important; left: 0 !important; width: 1200px !important; height: auto !important; overflow: visible !important; background: #ffffff !important; padding: 40px !important; z-index: 9999 !important;';
+
+      // Give browser time to reflow layout and Recharts ResizeObserver to fire
+      await new Promise(r => setTimeout(r, 200));
+
+      const contentRect = content.getBoundingClientRect();
+      const sections = Array.from(content.querySelectorAll('.glass-panel, .print-card, h3, .page-break-avoid'));
+
+      // 2. Capture Canvas
+      const fullCanvas = await html2canvas(content, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            :root {
+              --bg-card: #ffffff !important;
+              --bg-app: #ffffff !important;
+              --text-main: #000000 !important;
+              --text-muted: #262626 !important;
+              --border-color: #cccccc !important;
+            }
+            * { color: #000000 !important; opacity: 1 !important; transition: none !important; }
+            button, .hide-on-print { display: none !important; }
+            .show-only-on-print { display: block !important; }
+            .recharts-text { fill: #000000 !important; }
+            .recharts-cartesian-grid-horizontal line, .recharts-cartesian-grid-vertical line { stroke: #cccccc !important; }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
+      });
+
+      const imgWidth = fullCanvas.width;
+      const imgHeight = fullCanvas.height;
+      
+      const scaleFactor = imgHeight / content.offsetHeight;
+      
+      const breakPoints = sections.map(s => {
+        const rect = s.getBoundingClientRect();
+        return (rect.top - contentRect.top) * scaleFactor - 8;
+      }).filter(bp => bp > 0);
+      
+      breakPoints.push(imgHeight);
+      breakPoints.sort((a, b) => a - b);
+
+      content.style.cssText = originalCssText;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pdfWidth - (margin * 2);
+
+      const pxPerMm = imgWidth / contentWidth;
+      const pageHeightPx = (pdfHeight - (margin * 2)) * pxPerMm;
+
+      let currentY = 0;
+      let pageNum = 1;
+
+      while (currentY < imgHeight - 10) {
+        if (pageNum > 1) pdf.addPage();
+        
+        let targetCutY = currentY + pageHeightPx;
+        let actualCutY = targetCutY;
+        
+        const possibleBreaks = breakPoints.filter(bp => bp > currentY + 150 && bp <= targetCutY);
+        if (possibleBreaks.length > 0) {
+          actualCutY = possibleBreaks[possibleBreaks.length - 1];
+        }
+        
+        if (imgHeight - currentY <= pageHeightPx) {
+          actualCutY = imgHeight;
+        }
+
+        const sliceHeight = actualCutY - currentY;
+        if (sliceHeight <= 0) break;
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = imgWidth;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(fullCanvas, 0, currentY, imgWidth, sliceHeight, 0, 0, imgWidth, sliceHeight);
+        
+        const pageImgData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        const displayHeight = (sliceHeight * contentWidth) / imgWidth;
+        
+        pdf.addImage(pageImgData, 'JPEG', margin, margin, contentWidth, displayHeight);
+        
+        currentY = actualCutY;
+        pageNum++;
+      }
+
+      pdf.save(`Agent_Report_${data?.agent?.name?.replace(/ /g, '_')}_${reportPeriod}.pdf`);
+
+    } catch (err) {
+      console.error('PDF Export failed:', err);
+      content.style.cssText = originalCssText;
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -122,16 +295,29 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                   {loading ? 'Crunching numbers...' : data?.agent?.name}
                 </h2>
               </div>
-              <button 
-                onClick={onClose}
-                style={{ padding: '8px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {!loading && data && (
+                  <ExportDropdown 
+                    isExporting={isExporting}
+                    options={[
+                      { label: 'Export as PDF Report', icon: FileText, onClick: handleExportPDF },
+                      { label: 'Export as Excel Data', icon: FileSpreadsheet, onClick: handleExportCSV },
+                      { label: 'Export Raw JSON', icon: FileJson, onClick: handleExportJSON },
+                    ]}
+                  />
+                )}
+                <button 
+                  onClick={onClose}
+                  className="hide-on-print"
+                  style={{ padding: '8px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             {/* Filter Row inside Slideover */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+            <div className="hide-on-print" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
               <div style={{ 
                 display: 'flex', 
                 background: 'var(--bg-app)', 
@@ -162,19 +348,28 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
               </div>
 
               {reportPeriod === 'custom' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input 
-                    type="date" 
-                    value={reportStart || ''} 
-                    onChange={(e) => setReportStart(e.target.value)}
-                    style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', outline: 'none' }}
-                  />
-                  <input 
-                    type="date" 
-                    value={reportEnd || ''} 
-                    onChange={(e) => setReportEnd(e.target.value)}
-                    style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', outline: 'none' }}
-                  />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ width: '140px' }}>
+                    <Input 
+                      type="date" 
+                      icon={CalendarIcon}
+                      value={reportStart || ''} 
+                      onChange={(e) => setReportStart(e.target.value)}
+                      style={{ marginBottom: 0 }}
+                      inputStyle={{ padding: '6px 10px', paddingLeft: '36px', fontSize: '11px', background: 'var(--bg-input)', borderRadius: '8px', minHeight: 'auto', height: '32px' }}
+                    />
+                  </div>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 2px', fontSize: '12px' }}>to</span>
+                  <div style={{ width: '140px' }}>
+                    <Input 
+                      type="date" 
+                      icon={CalendarIcon}
+                      value={reportEnd || ''} 
+                      onChange={(e) => setReportEnd(e.target.value)}
+                      style={{ marginBottom: 0 }}
+                      inputStyle={{ padding: '6px 10px', paddingLeft: '36px', fontSize: '11px', background: 'var(--bg-input)', borderRadius: '8px', minHeight: 'auto', height: '32px' }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -191,21 +386,35 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
               <p style={{ fontWeight: 600 }}>Building performance profile...</p>
             </div>
           ) : (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div ref={reportContentRef} className="report-content-scroll" style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* PRINT ONLY HEADER */}
+              <div className="show-only-on-print" style={{ display: 'none', marginBottom: '30px', borderBottom: '2px solid #06B68A', paddingBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div>
+                    <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#0f172a', margin: 0 }}>Agent Performance Report</h1>
+                    <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>Generated on {new Date().toLocaleDateString()} for {reportPeriod.toUpperCase()} period</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#06B68A' }}>{data?.agent?.name || agent?.name || 'Agent'}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>Digi CRM Intelligence</div>
+                  </div>
+                </div>
+              </div>
               
               {/* Quick Metrics */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                <div className="print-card" style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                   <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Total Revenue</div>
                   <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>
                     {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(data.stats.total_revenue)}
                   </div>
                 </div>
-                <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                <div className="print-card" style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                   <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Bookings</div>
                   <div style={{ fontSize: '20px', fontWeight: 800, color: '#06B68A' }}>{data.stats.total_bookings}</div>
                 </div>
-                <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                <div className="print-card" style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                   <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Daily Rev</div>
                   <div style={{ fontSize: '20px', fontWeight: 800, color: '#f59e0b' }}>
                     {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(data.stats.daily_revenue)}
@@ -214,7 +423,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
               </div>
 
               {/* Revenue Trend */}
-              <div className="glass-panel" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+              <div className="glass-panel hide-on-print" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <CircleDollarSign size={18} style={{ color: '#10b981' }} /> Yearly Revenue Trend
                 </h3>
@@ -237,7 +446,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
 
               {/* Status Distribution */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div className="glass-panel" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+                <div className="glass-panel hide-on-print" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '16px' }}>Status Split</h3>
                   <div style={{ height: '180px' }}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -267,7 +476,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                   </div>
                 </div>
 
-                <div className="glass-panel" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="glass-panel hide-on-print" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px', gridColumn: 'span 2' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Summary</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -285,10 +494,27 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                       <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>{data.stats.total_calls}</span>
                     </div>
                   </div>
-                  <div style={{ marginTop: 'auto', padding: '12px', background: 'rgba(96, 165, 250, 0.05)', borderRadius: '12px', border: '1px solid rgba(96, 165, 250, 0.1)', display: 'flex', gap: '10px' }}>
+                  <div className="hide-on-print" style={{ marginTop: 'auto', padding: '12px', background: 'rgba(96, 165, 250, 0.05)', borderRadius: '12px', border: '1px solid rgba(96, 165, 250, 0.1)', display: 'flex', gap: '10px' }}>
                     <Info size={16} style={{ color: '#06B68A', flexShrink: 0 }} />
                     <p style={{ fontSize: '11px', color: 'rgba(96, 165, 250, 0.8)', lineHeight: '1.4' }}>Metrics are based on real-time activity and all-time booking history for this agent.</p>
                   </div>
+                </div>
+              </div>
+
+              {/* PRINT ONLY SUMMARY (Replacement for hidden items) */}
+              <div className="show-only-on-print" style={{ display: 'none', background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '15px', color: '#0f172a' }}>Efficiency Summary</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+                   <div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Success Rate</div>
+                      <div style={{ fontSize: '24px', fontWeight: 900, color: '#06B68A' }}>
+                         {data.stats.total_bookings > 0 ? ((data.status_distribution.find(s => s.name === 'Confirmed')?.value || 0) / data.stats.total_bookings * 100).toFixed(1) : 0}%
+                      </div>
+                   </div>
+                   <div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Total Interaction Logs</div>
+                      <div style={{ fontSize: '24px', fontWeight: 900, color: '#0f172a' }}>{data.stats.total_calls}</div>
+                   </div>
                 </div>
               </div>
 
@@ -304,7 +530,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                     </div>
                   ) : (
                     data.recent_calls.map((call, idx) => (
-                      <div key={idx} style={{ 
+                      <div key={idx} className="page-break-avoid" style={{ 
                         background: 'var(--bg-card)', 
                         padding: '16px', 
                         borderRadius: '16px', 
@@ -312,7 +538,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                         display: 'flex',
                         gap: '16px'
                       }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', flexShrink: 0 }}>
+                        <div className="hide-on-print" style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', flexShrink: 0 }}>
                           <PhoneCall size={18} />
                         </div>
                         <div style={{ flex: 1 }}>

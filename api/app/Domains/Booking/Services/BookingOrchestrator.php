@@ -73,6 +73,7 @@ class BookingOrchestrator
             $booking = $this->bookingRepo->create([
                 'client_id' => $clientId,
                 'agent_id' => $data['agent_id'] ?? auth()->id(),
+                'created_by' => auth()->id(),
                 'booking_reference' => $this->bookingRepo->generateReference(),
                 'status' => $data['status'] ?? 'Pending',
                 'currency' => $data['currency'] ?? 'USD',

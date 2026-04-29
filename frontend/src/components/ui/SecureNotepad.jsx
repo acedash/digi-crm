@@ -1,11 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { StickyNote, Trash2, ShieldCheck, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { StickyNote, Trash2, ShieldCheck, X, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from './Button';
+import notepadService from '../../services/notepadService';
 
 const SecureNotepad = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const saveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchNote();
+    }
+  }, [isOpen]);
+
+  const fetchNote = async () => {
+    try {
+      setLoading(true);
+      const res = await notepadService.getNote();
+      if (res.data?.success) {
+        setNote(res.data.data.note || '');
+      }
+    } catch (error) {
+      console.error('Failed to fetch note', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNoteChange = (e) => {
+    const newValue = e.target.value;
+    setNote(newValue);
+
+    // Debounced save
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    
+    setSaving(true);
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await notepadService.updateNote(newValue);
+      } catch (error) {
+        console.error('Failed to save note', error);
+      } finally {
+        setSaving(false);
+      }
+    }, 1000);
+  };
+
+  const handleClear = async () => {
+    if (!window.confirm('Are you sure you want to clear all notes?')) return;
+    try {
+      setLoading(true);
+      await notepadService.clearNote();
+      setNote('');
+    } catch (error) {
+      console.error('Failed to clear note', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Prevent copy and right-click
   const handlePrevent = (e) => {
@@ -13,7 +69,7 @@ const SecureNotepad = () => {
   };
 
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
+    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }} className="no-print">
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -22,14 +78,14 @@ const SecureNotepad = () => {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             style={{
               width: '320px',
-              height: '400px',
+              height: '420px',
               background: 'var(--bg-card)',
-              backdropFilter: 'blur(12px)',
+              backdropFilter: 'blur(16px)',
               border: '1px solid var(--border-color)',
               borderRadius: '24px',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
               marginBottom: '16px',
               overflow: 'hidden'
             }}
@@ -44,46 +100,57 @@ const SecureNotepad = () => {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ShieldCheck size={18} style={{ color: 'hsl(var(--primary))' }} />
-                <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-main)' }}>Secure Notepad</span>
+                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', letterSpacing: '0.5px' }}>SECURE NOTEPAD</span>
               </div>
-              <button 
-                onClick={() => setIsOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <X size={18} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {saving && <RefreshCw size={12} className="animate-spin" style={{ color: 'var(--text-muted)' }} />}
+                <button 
+                  onClick={() => setIsOpen(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              onCopy={handlePrevent}
-              onCut={handlePrevent}
-              onContextMenu={handlePrevent}
-              placeholder="Temporary notes during call... (Auto-deleted after session)"
-              style={{
-                flex: 1,
-                padding: '20px',
-                background: 'transparent',
-                border: 'none',
-                resize: 'none',
-                color: 'var(--text-main)',
-                fontSize: '14px',
-                lineHeight: '1.6',
-                outline: 'none',
-                userSelect: 'none'
-              }}
-            />
+            <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+              {loading && (
+                <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+                  <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
+                </div>
+              )}
+              <textarea
+                value={note}
+                onChange={handleNoteChange}
+                onCopy={handlePrevent}
+                onCut={handlePrevent}
+                onContextMenu={handlePrevent}
+                placeholder="Temporary notes during call... (Auto-deleted after session)"
+                style={{
+                  flex: 1,
+                  padding: '20px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: 'none',
+                  resize: 'none',
+                  color: 'var(--text-main)',
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                  outline: 'none',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
 
-            <div style={{ padding: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '8px' }}>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '8px', background: 'var(--bg-input)' }}>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 fullWidth 
                 icon={Trash2}
-                onClick={() => setNote('')}
+                onClick={handleClear}
+                style={{ color: '#f87171', fontSize: '12px' }}
               >
-                Clear
+                Clear All
               </Button>
             </div>
           </motion.div>
@@ -99,14 +166,14 @@ const SecureNotepad = () => {
           height: '56px',
           borderRadius: '50%',
           background: isOpen ? 'var(--text-main)' : 'hsl(var(--primary))',
-          color: 'white',
+          color: isOpen ? 'var(--bg-app)' : 'white',
           border: 'none',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-          transition: 'background 0.3s ease'
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+          transition: 'all 0.3s ease'
         }}
       >
         <StickyNote size={24} />

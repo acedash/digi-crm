@@ -23,6 +23,8 @@ import Button from '../components/ui/Button';
 import SecureNotepad from '../components/ui/SecureNotepad';
 import StatusToggle from '../features/users/StatusToggle';
 import sensitiveAuditService from '../services/sensitiveAuditService';
+import Walkthrough from '../components/ui/Walkthrough';
+import { useWalkthroughStore } from '../store/walkthroughStore';
 
 const AdminLayout = () => {
   const { user, logout } = useAuthStore();
@@ -183,22 +185,16 @@ const AdminLayout = () => {
           zIndex: 50
         }}
       >
-        <div style={{ marginBottom: '48px', paddingLeft: '12px' }}>
-          <h2 style={{ 
-            fontSize: '22px', 
-            fontWeight: 800, 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '12px',
-          }}>
-            <div style={{ 
-              width: '32px', 
-              height: '32px', 
-              background: 'linear-gradient(135deg, #06B68A, #059669)', 
-              borderRadius: '9999px' 
-            }} />
-            <span className="premium-gradient-text">Digi CRM</span>
-          </h2>
+        <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'center' }}>
+          <img 
+            src="/digi-logo-sidebar.png" 
+            alt="Digi CRM" 
+            style={{ 
+              height: '48px', 
+              width: 'auto',
+              display: 'block'
+            }} 
+          />
         </div>
 
         <nav style={{ flex: 1 }}>
@@ -210,6 +206,7 @@ const AdminLayout = () => {
                 <li key={item.path} style={{ marginBottom: '8px' }}>
                   <Link 
                     to={item.path} 
+                    id={item.label === 'Clients' ? 'sidebar-clients' : item.label === 'Bookings' ? 'sidebar-bookings' : undefined}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -377,6 +374,7 @@ const AdminLayout = () => {
           </div>
         )}
         <SecureNotepad />
+        <Walkthrough />
       </div>
     </div>
   );

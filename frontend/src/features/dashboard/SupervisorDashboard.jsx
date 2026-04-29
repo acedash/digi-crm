@@ -9,7 +9,7 @@ import {
   CircleDollarSign,
   ArrowRightLeft,
   X,
-  Calendar,
+  Calendar as CalendarIcon,
   Filter,
   CheckCircle2,
   Clock,
@@ -183,31 +183,34 @@ const SupervisorDashboard = () => {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         {period === 'custom' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', padding: '6px 12px', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
-              <input 
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ width: '150px' }}>
+              <Input 
                 type="date" 
+                icon={CalendarIcon}
                 value={customRange.start} 
                 onChange={e => setCustomRange({...customRange, start: e.target.value})}
-                style={{ padding: '4px', border: 'none', background: 'transparent', color: 'var(--text-main)', fontSize: '13px', outline: 'none' }}
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px', height: 'auto' }}
               />
             </div>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 800 }}>-</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px', fontSize: '13px' }}>to</span>
+            <div style={{ width: '150px' }}>
+              <Input 
                 type="date" 
+                icon={CalendarIcon}
                 value={customRange.end} 
                 onChange={e => setCustomRange({...customRange, end: e.target.value})}
-                style={{ padding: '4px', border: 'none', background: 'transparent', color: 'var(--text-main)', fontSize: '13px', outline: 'none' }}
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px', height: 'auto' }}
               />
             </div>
             <button 
               onClick={handleApplyCustomFilter}
               style={{
-                marginLeft: '8px',
-                padding: '6px 12px',
-                borderRadius: '8px',
+                marginLeft: '4px',
+                padding: '8px 16px',
+                borderRadius: '10px',
                 background: 'hsl(var(--primary))',
                 color: 'white',
                 border: 'none',

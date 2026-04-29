@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, ShieldCheck, Users, Activity, Coffee } from 'lucide-react';
+import { RefreshCw, ShieldCheck, Users, Activity, Coffee, Clock } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import dashboardService from './dashboardService';
 import { motion, AnimatePresence } from 'framer-motion';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import ExportDropdown from '../../components/ui/ExportDropdown';
+import { FileText, FileSpreadsheet } from 'lucide-react';
 
-const AdminMonitoringTable = ({ onSummaryChange }) => {
+const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) => {
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [monPeriod, setMonPeriod] = useState('daily');
-  const [monStart, setMonStart] = useState('');
-  const [monEnd, setMonEnd] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const tableRef = React.useRef(null);
 
   const fetchActivity = async () => {
     try {
       setLoading(true);
-      const res = await dashboardService.getAdminMonitor(monPeriod, monStart, monEnd);
+      const res = await dashboardService.getAdminMonitor(period, startDate, endDate);
       if (res.data?.success) {
         const data = res.data.data;
         setSupervisors(data);
@@ -35,11 +38,11 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
 
   useEffect(() => {
     fetchActivity();
-    if (monPeriod === 'daily') {
+    if (period === 'live' || period === 'daily') {
       const interval = setInterval(fetchActivity, 300000); // Every 5 minutes for current day
       return () => clearInterval(interval);
     }
-  }, [monPeriod, monStart, monEnd]);
+  }, [period, startDate, endDate]);
 
   const periods = [
     { id: 'daily', label: 'Daily' },
@@ -48,15 +51,133 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
     { id: 'custom', label: 'Custom' }
   ];
 
+  const handleExportPDF = async () => {
+    const content = tableRef.current;
+    if (!content || supervisors.length === 0) return;
+
+    const originalCssText = content.style.cssText;
+
+    try {
+      setIsExporting(true);
+      content.style.cssText += '; width: 1000px !important; max-width: none !important; background: #ffffff !important; padding: 20px !important;';
+
+      await new Promise(r => setTimeout(r, 200));
+
+      const sections = Array.from(content.querySelectorAll('tr'));
+      const contentRect = content.getBoundingClientRect();
+
+      const fullCanvas = await html2canvas(content, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            :root {
+              --bg-card: #ffffff !important;
+              --bg-app: #ffffff !important;
+              --text-main: #000000 !important;
+              --text-muted: #262626 !important;
+              --border-color: #cccccc !important;
+            }
+            * { color: #000000 !important; opacity: 1 !important; transition: none !important; }
+            .hide-on-print { display: none !important; }
+            ::-webkit-scrollbar { display: none !important; }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
+      });
+
+      const imgWidth = fullCanvas.width;
+      const imgHeight = fullCanvas.height;
+      const scaleFactor = imgHeight / content.offsetHeight;
+      
+      const breakPoints = sections.map(s => {
+        const rect = s.getBoundingClientRect();
+        return (rect.top - contentRect.top) * scaleFactor - 8;
+      }).filter(bp => bp > 0);
+      
+      breakPoints.push(imgHeight);
+      breakPoints.sort((a, b) => a - b);
+
+      content.style.cssText = originalCssText;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pdfWidth - (margin * 2);
+
+      const pxPerMm = imgWidth / contentWidth;
+      const pageHeightPx = (pdfHeight - (margin * 2)) * pxPerMm;
+
+      let currentY = 0;
+      let pageNum = 1;
+
+      while (currentY < imgHeight - 10) {
+        if (pageNum > 1) pdf.addPage();
+        
+        let targetCutY = currentY + pageHeightPx;
+        let actualCutY = targetCutY;
+        
+        const possibleBreaks = breakPoints.filter(bp => bp > currentY + 150 && bp <= targetCutY);
+        if (possibleBreaks.length > 0) {
+          actualCutY = possibleBreaks[possibleBreaks.length - 1];
+        }
+        
+        if (imgHeight - currentY <= pageHeightPx) {
+          actualCutY = imgHeight;
+        }
+
+        const sliceHeight = actualCutY - currentY;
+        if (sliceHeight <= 0) break;
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = imgWidth;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(fullCanvas, 0, currentY, imgWidth, sliceHeight, 0, 0, imgWidth, sliceHeight);
+        
+        const pageImgData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        const displayHeight = (sliceHeight * contentWidth) / imgWidth;
+        
+        pdf.addImage(pageImgData, 'JPEG', margin, margin, contentWidth, displayHeight);
+        
+        currentY = actualCutY;
+        pageNum++;
+      }
+
+      pdf.save(`Admin_Monitoring_${period}.pdf`);
+
+    } catch (err) {
+      console.error('PDF Export failed:', err);
+      content.style.cssText = originalCssText;
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "Supervisor,Login Time,Total Agents,Active,On Break\n"
+      + supervisors.map(s => `${s.supervisor_name},${s.login_time},${s.total_agents},${s.active_agents},${s.on_break}`).join("\n");
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csvContent));
+    link.setAttribute("download", `monitoring_${period}_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <Card style={{ padding: '0', overflow: 'hidden', marginTop: '32px', border: '1px solid var(--border-color)' }}>
-      <div style={{ 
+      <div ref={tableRef}>
+        <div style={{ 
         padding: '24px', 
         borderBottom: '1px solid var(--border-color)', 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        background: 'var(--bg-app)',
         flexWrap: 'wrap',
         gap: '20px'
       }}>
@@ -66,93 +187,30 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
             Admin Monitoring
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {monPeriod === 'live' ? 'Real-time overview of current activity.' : `Summary of activity for the selected ${monPeriod} period.`}
+            {period === 'live' ? 'Real-time overview of current activity.' : `Summary of activity for the selected ${period} period.`}
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          {/* Custom Date Inputs */}
-          {monPeriod === 'custom' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
-                type="date" 
-                value={monStart} 
-                onChange={(e) => setMonStart(e.target.value)}
-                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
-              />
-              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>to</span>
-              <input 
-                type="date" 
-                value={monEnd} 
-                onChange={(e) => setMonEnd(e.target.value)}
-                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
-              />
-            </div>
-          )}
-
-          {/* Period Selector */}
-          <div style={{ 
-            display: 'flex', 
-            background: 'var(--bg-card)', 
-            padding: '4px', 
-            borderRadius: '10px', 
-            border: '1px solid var(--border-color)',
-            gap: '2px'
-          }}>
-            {periods.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setMonPeriod(p.id)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  background: monPeriod === p.id ? 'hsl(var(--primary))' : 'transparent',
-                  color: monPeriod === p.id ? 'white' : 'var(--text-muted)',
-                }}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
 
           <div style={{ color: 'var(--border-color)' }}>|</div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button 
-              onClick={() => {
-                const csvContent = "data:text/csv;charset=utf-8," 
-                  + "Supervisor,Total Agents,Active,On Break\n"
-                  + supervisors.map(s => `${s.supervisor_name},${s.total_agents},${s.active_agents},${s.on_break}`).join("\n");
-                const link = document.createElement("a");
-                link.setAttribute("href", encodeURI(csvContent));
-                link.setAttribute("download", `monitoring_${monPeriod}_${new Date().getTime()}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-              }}
-              style={{ 
-                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer',
-                padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
-                transition: 'all 0.2s'
-              }}
-              className="hover-brighten"
-            >
-              Export
-            </button>
+          <div style={{ display: 'flex', gap: '8px' }} className="hide-on-print">
+            <ExportDropdown 
+              isExporting={isExporting}
+              options={[
+                { label: 'Export as PDF', icon: FileText, onClick: handleExportPDF },
+                { label: 'Export as CSV', icon: FileSpreadsheet, onClick: handleExportCSV }
+              ]}
+            />
             <button 
               onClick={fetchActivity}
               style={{ 
-                background: '#8b5cf6', border: 'none', color: 'white', cursor: 'pointer',
+                background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', cursor: 'pointer',
                 padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
+                transition: 'all 0.2s'
               }}
-              className="hover-brighten"
+              className="hover:brightness-110"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             </button>
@@ -165,6 +223,7 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
           <thead>
             <tr style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)' }}>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Supervisor</th>
+              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Login Time</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Agents</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>On Break</th>
@@ -174,7 +233,7 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
             <AnimatePresence>
               {supervisors.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     {loading ? 'Compiling hierarchy...' : 'No supervisors found.'}
                   </td>
                 </tr>
@@ -193,6 +252,12 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
                         {sup.supervisor_name.charAt(0)}
                       </div>
                       {sup.supervisor_name}
+                    </td>
+                    <td style={{ padding: '16px 24px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Clock size={14} style={{ color: 'var(--text-muted)', opacity: 0.7 }} /> 
+                        {sup.login_time || '--'}
+                      </div>
                     </td>
                     <td style={{ padding: '16px 24px', fontWeight: 600 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -224,6 +289,7 @@ const AdminMonitoringTable = ({ onSummaryChange }) => {
             </AnimatePresence>
           </tbody>
         </table>
+      </div>
       </div>
     </Card>
   );

@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\User;
 use App\Models\CallLog;
 use App\Models\PaymentAuth;
+use App\Models\UserActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -569,11 +570,21 @@ class DashboardController extends Controller
                 $loginTime = $loginActivity ? $loginActivity->created_at->timezone($tz)->format('h:i A') : '--';
 
                 $breakSeconds = 0;
+                $totalLoginSeconds = 0;
                 $currentSegmentStart = null;
                 $currentSegmentType = null;
+                $sessionStart = null;
 
                 foreach ($activities as $activity) {
                     $type = $activity->activity_type;
+
+                    if ($type === 'login') {
+                        $sessionStart = $activity->created_at;
+                    } elseif ($type === 'logout' && $sessionStart) {
+                        $totalLoginSeconds += abs($activity->created_at->diffInSeconds($sessionStart));
+                        $sessionStart = null;
+                    }
+
                     $state = 'active';
                     if ($type === 'break_start') $state = 'break';
                     elseif ($type === 'on_call') $state = 'on_call';
@@ -593,15 +604,12 @@ class DashboardController extends Controller
                     }
                 }
 
-                if ($currentSegmentStart && $currentSegmentType === 'break') {
-                    $breakSeconds += abs(now()->diffInSeconds($currentSegmentStart));
+                if ($sessionStart) {
+                    $totalLoginSeconds += abs(now()->diffInSeconds($sessionStart));
                 }
 
-                $breakFormatted = $breakSeconds > 0 ? floor($breakSeconds / 60) . ' min' : '--';
-                if ($breakSeconds >= 3600) {
-                    $hours = floor($breakSeconds / 3600);
-                    $mins = floor(($breakSeconds % 3600) / 60);
-                    $breakFormatted = "{$hours}h {$mins}m";
+                if ($currentSegmentStart && $currentSegmentType === 'break') {
+                    $breakSeconds += abs(now()->diffInSeconds($currentSegmentStart));
                 }
 
                 $stats = $bookingStats->get($agent->id);
@@ -614,7 +622,8 @@ class DashboardController extends Controller
                     'calls_picked' => (int) ($callCounts[$agent->id] ?? 0),
                     'bookings_created' => (int) ($stats->bookings_created ?? 0),
                     'daily_revenue' => (float) ($stats->period_revenue ?? 0),
-                    'break_time' => $breakFormatted,
+                    'break_time' => $this->formatSeconds($breakSeconds),
+                    'total_login_time' => $this->formatSeconds($totalLoginSeconds),
                 ];
             })->values();
         });
@@ -650,31 +659,44 @@ class DashboardController extends Controller
 
             $start = null;
             $end = now();
+            $tz = config('app.timezone');
 
             if ($period !== 'live') {
                 switch ($period) {
                     case 'daily':
-                        $start = now()->startOfDay();
+                        $start = now()->timezone($tz)->startOfDay();
                         break;
                     case 'weekly':
-                        $start = now()->subDays(7);
+                        $start = now()->timezone($tz)->subDays(7);
                         break;
                     case 'monthly':
-                        $start = now()->subDays(30);
+                        $start = now()->timezone($tz)->subDays(30);
                         break;
                     case 'custom':
-                        $start = $customStart ? now()->parse($customStart)->startOfDay() : now()->subDays(30);
-                        $end = $customEnd ? now()->parse($customEnd)->endOfDay() : now();
+                        $start = $customStart ? now()->parse($customStart)->timezone($tz)->startOfDay() : now()->timezone($tz)->subDays(30);
+                        $end = $customEnd ? now()->parse($customEnd)->timezone($tz)->endOfDay() : now()->timezone($tz);
                         break;
                     default:
                         $period = 'live';
                 }
             }
 
-            return $supervisors->map(function ($sup) use ($period, $start, $end) {
+            // Get supervisor logins
+            $supIds = $supervisors->pluck('id')->toArray();
+            $logins = \App\Models\UserActivity::whereIn('user_id', $supIds)
+                ->where('activity_type', 'login')
+                ->whereDate('created_at', now()->toDateString())
+                ->orderBy('created_at', 'asc')
+                ->get()
+                ->groupBy('user_id');
+
+            return $supervisors->map(function ($sup) use ($period, $start, $end, $logins, $tz) {
                 $agents = $sup->supervisedAgents;
                 $agentIds = $agents->pluck('id')->toArray();
                 
+                $login = $logins->get($sup->id, collect())->first();
+                $loginTime = $login ? $login->created_at->timezone($tz)->format('h:i A') : '--';
+
                 if ($period === 'live') {
                     $totalAgents = $agents->count();
                     $active = $agents->filter(function ($agent) {
@@ -707,6 +729,7 @@ class DashboardController extends Controller
                 return [
                     'id' => $sup->id,
                     'supervisor_name' => $sup->name,
+                    'login_time' => $loginTime,
                     'total_agents' => $totalAgents,
                     'active_agents' => $active,
                     'on_break' => $onBreak,
@@ -909,5 +932,105 @@ class DashboardController extends Controller
                 'end_date' => $end->toDateString()
             ]
         ]);
+    }
+    public function getAttendanceReport(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->hasRole('admin') && !$user->hasRole('supervisor')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $month = (int) $request->get('month', now()->month);
+        $year = (int) $request->get('year', now()->year);
+        
+        $startOfMonth = now()->month($month)->year($year)->startOfMonth();
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+        
+        if ($user->hasRole('admin')) {
+            $agents = User::role(['agent', 'supervisor'])->get(['id', 'name']);
+        } else {
+            $agents = $user->supervisedAgents()->get(['users.id', 'users.name']);
+        }
+
+        $agentIds = $agents->pluck('id')->toArray();
+
+        $activities = UserActivity::query()
+            ->whereIn('user_id', $agentIds)
+            ->whereBetween('created_at', [$startOfMonth->toDateTimeString(), $endOfMonth->toDateTimeString()])
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->groupBy(function($activity) {
+                return $activity->user_id . '_' . $activity->created_at->format('Y-m-d');
+            });
+
+        $report = [];
+        foreach ($agents as $agent) {
+            $agentData = [
+                'id' => $agent->id,
+                'name' => $agent->name,
+                'days' => []
+            ];
+
+            for ($date = $startOfMonth->copy(); $date <= $endOfMonth; $date->addDay()) {
+                $dayKey = $agent->id . '_' . $date->format('Y-m-d');
+                $dayActivities = $activities->get($dayKey, collect());
+                
+                if ($dayActivities->isEmpty()) {
+                    $agentData['days'][$date->format('j')] = [
+                        'status' => 'Absent',
+                        'total_hours' => 0,
+                    ];
+                    continue;
+                }
+
+                $totalSeconds = 0;
+                $sessionStart = null;
+                $firstLogin = null;
+                $lastLogout = null;
+
+                foreach ($dayActivities as $activity) {
+                    if ($activity->activity_type === 'login') {
+                        if (!$firstLogin) $firstLogin = $activity->created_at;
+                        $sessionStart = $activity->created_at;
+                    } elseif ($activity->activity_type === 'logout' && $sessionStart) {
+                        $totalSeconds += abs($activity->created_at->diffInSeconds($sessionStart));
+                        $lastLogout = $activity->created_at;
+                        $sessionStart = null;
+                    }
+                }
+                
+                if ($sessionStart) {
+                    $dayEnd = $date->isToday() ? now() : $date->copy()->endOfDay();
+                    $totalSeconds += abs($dayEnd->diffInSeconds($sessionStart));
+                }
+
+                $agentData['days'][$date->format('j')] = [
+                    'status' => $totalSeconds > 0 ? 'Present' : 'Absent',
+                    'total_hours' => round($totalSeconds / 3600, 2),
+                    'first_login' => $firstLogin ? $firstLogin->format('h:i A') : null,
+                    'last_logout' => $lastLogout ? $lastLogout->format('h:i A') : ($sessionStart ? 'Active' : null),
+                ];
+            }
+            $report[] = $agentData;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'month' => (int)$month,
+                'year' => (int)$year,
+                'report' => $report,
+                'days_in_month' => $startOfMonth->daysInMonth
+            ]
+        ]);
+    }
+
+    private function formatSeconds($seconds)
+    {
+        if ($seconds <= 0) return '--';
+        if ($seconds < 3600) return floor($seconds / 60) . ' min';
+        $hours = floor($seconds / 3600);
+        $mins = floor(($seconds % 3600) / 60);
+        return "{$hours}h {$mins}m";
     }
 }

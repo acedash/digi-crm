@@ -35,6 +35,7 @@ class BookingService
             ->with([
                 'client:id,agent_id,first_name,last_name,name,phone,email',
                 'agent:id,name',
+                'creator:id,name',
                 'services:id,booking_id,serviceable_type,serviceable_id',
                 'services.serviceable',
                 'paymentAuthorizations:id,status,collected_at,approved_at,total_amount,currency', // Strictly avoid consent_snapshot/digital_signature
@@ -54,6 +55,9 @@ class BookingService
                             ->orWhere('phone', 'like', '%' . $search . '%')
                             ->orWhere('id', $search)
                             ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", ['%' . $search . '%']);
+                    })
+                    ->orWhereHas('creator', function ($creatorQuery) use ($search) {
+                        $creatorQuery->where('name', 'like', '%' . $search . '%');
                     });
             });
         }
@@ -347,11 +351,12 @@ class BookingService
                             'serviceable_type' => $service->serviceable_type,
                         ];
                     })->values()->all(),
-                    'created_by_name' => $details['created_by_name']
+                    'created_by_name' => $booking->creator->name 
+                        ?? $details['created_by_name']
                         ?? ($details['created_by_user_name'] ?? null)
                         ?? ($history->first()['from_agent_name'] ?? null)
                         ?? ($booking->agent->name ?? 'System'),
-                    'created_by_id' => $details['created_by_id'] ?? null,
+                    'created_by_id' => $booking->created_by ?? ($details['created_by_id'] ?? null),
                     'latest_handoff_remark' => $latestReassignment['remark']
                         ?? ($details['latest_reassignment_remark'] ?? null),
                     'status_remark' => $details['status_remark'] ?? null,

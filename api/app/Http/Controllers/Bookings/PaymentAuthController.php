@@ -111,6 +111,7 @@ class PaymentAuthController extends Controller
         $validated = $request->validate([
             'collection_reference' => 'nullable|string|max:255',
             'collection_notes' => 'nullable|string|max:2000',
+            'charge_status' => 'required|string|in:Charged/Captured,Pending,Decline,Chargeback,Refunded',
         ]);
 
         try {

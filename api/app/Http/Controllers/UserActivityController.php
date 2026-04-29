@@ -35,7 +35,7 @@ class UserActivityController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'activity_type' => 'required|string|in:login,logout,break_start,break_end,on_call,idle',
+            'activity_type' => 'required|string|in:login,logout,break_start,break_end,on_call,idle,week_off',
             'description' => 'nullable|string',
             'metadata' => 'nullable|array',
         ]);
@@ -48,12 +48,13 @@ class UserActivityController extends Controller
         ]);
 
         // Also update user status if needed
-        if (in_array($validated['activity_type'], ['break_start', 'break_end', 'login', 'logout', 'on_call', 'idle'])) {
+        if (in_array($validated['activity_type'], ['break_start', 'break_end', 'login', 'logout', 'on_call', 'idle', 'week_off'])) {
             $status = 'Active';
             if ($validated['activity_type'] === 'break_start') $status = 'Break';
             if ($validated['activity_type'] === 'logout') $status = 'Offline';
             if ($validated['activity_type'] === 'on_call') $status = 'On Call';
             if ($validated['activity_type'] === 'idle') $status = 'Idle';
+            if ($validated['activity_type'] === 'week_off') $status = 'Week Off';
             
             Auth::user()->update(['status' => $status]);
         }

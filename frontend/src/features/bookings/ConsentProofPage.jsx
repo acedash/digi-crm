@@ -4,9 +4,11 @@ import { ArrowLeft, Download, ShieldCheck, Mail, Globe, Clock3, Fingerprint, Ref
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import paymentAuthService from './paymentAuthService';
+import { getStatusLabel, getAuthorizationTypeLabel } from './bookingUtils';
 import { BACKEND_BASE_URL } from '../../services/api';
 import Button from '../../components/ui/Button';
 import sensitiveAuditService from '../../services/sensitiveAuditService';
+import ExportDropdown from '../../components/ui/ExportDropdown';
 
 const formatMoney = (amount, currency = 'USD') =>
   new Intl.NumberFormat('en-US', {
@@ -34,15 +36,22 @@ const DetailRow = ({ label, value }) => (
 const SectionCard = ({ icon, title, children, iconColor = '#059669' }) => {
   const SectionIcon = icon;
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
+    <div className="pdf-section" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
         <SectionIcon size={20} color={iconColor} />
-        <h2 style={{ fontSize: '18px', fontWeight: 800 }}>{title}</h2>
+        <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{title}</h2>
       </div>
       {children}
     </div>
   );
 };
+
+const SectionHeader = ({ icon: Icon, title, iconColor = '#059669' }) => (
+  <div className="pdf-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 24px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '20px' }}>
+    <Icon size={24} color={iconColor} />
+    <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>{title}</h2>
+  </div>
+);
 
 const ConsentProofPage = () => {
   const navigate = useNavigate();
@@ -67,10 +76,9 @@ const ConsentProofPage = () => {
 
   const proofContentRef = useRef(null);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [proof, setProof] = useState(null);
   const [error, setError] = useState('');
-  const [showExportOptions, setShowExportOptions] = useState(false);
-  const exportDropdownRef = useRef(null);
 
   useEffect(() => {
     const loadProof = async () => {
@@ -87,15 +95,7 @@ const ConsentProofPage = () => {
     loadProof();
   }, [id]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
-        setShowExportOptions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+
 
   useEffect(() => {
     sensitiveAuditService.logEvent({
@@ -164,7 +164,7 @@ const ConsentProofPage = () => {
     if (!content) return;
 
     try {
-      setLoading(true);
+      setIsExporting(true);
       const canvas = await html2canvas(content, {
         useCORS: true,
         scale: 2,
@@ -222,7 +222,7 @@ const ConsentProofPage = () => {
     } catch (err) {
       console.error('JPEG Export failed:', err);
     } finally {
-      setLoading(false);
+      setIsExporting(false);
     }
   };
 
@@ -230,20 +230,31 @@ const ConsentProofPage = () => {
     const content = proofContentRef.current;
     if (!content) return;
 
+    // Save original styles to guarantee we revert back to normal view
+    const originalCssText = content.style.cssText;
+
     try {
-      setLoading(true);
-      const canvas = await html2canvas(content, {
+      setIsExporting(true);
+
+      // 1. Synchronize Layouts: 
+      // Temporarily enforce the target PDF layout on the REAL DOM.
+      // This guarantees our bounding rect coordinates perfectly match the canvas capture.
+      content.style.cssText += '; padding: 40px !important; width: 1200px !important; background: #ffffff !important; margin: 0 auto !important;';
+
+      // Give browser time to reflow the layout completely
+      await new Promise(r => setTimeout(r, 150));
+
+      const contentRect = content.getBoundingClientRect();
+      const sections = Array.from(content.querySelectorAll('.pdf-section'));
+
+      // 2. Capture Canvas
+      const fullCanvas = await html2canvas(content, {
         useCORS: true,
         scale: 2,
         backgroundColor: '#ffffff',
-        windowWidth: 1200,
         onclone: (clonedDoc) => {
-          const area = clonedDoc.getElementById('proof-capture-area');
-          if (area) {
-            area.style.padding = '80px 100px';
-            area.style.background = '#ffffff';
-          }
-          // Force high-contrast styles into the clone
+          // Do NOT apply width/padding here anymore, the layout is already synchronized.
+          // Only apply high-contrast colors and hide buttons.
           const style = clonedDoc.createElement('style');
           style.innerHTML = `
             :root {
@@ -253,39 +264,81 @@ const ConsentProofPage = () => {
               --text-muted: #262626 !important;
               --border-color: #cccccc !important;
             }
-            * { color: #000000 !important; opacity: 1 !important; }
-            [style*="color: var(--text-muted)"] { color: #262626 !important; }
+            * { color: #000000 !important; opacity: 1 !important; transition: none !important; }
             button { display: none !important; }
           `;
           clonedDoc.head.appendChild(style);
         }
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
+      const imgWidth = fullCanvas.width;
+      const imgHeight = fullCanvas.height;
+      
+      // Calculate scale factor explicitly based on the synchronized dimensions
+      const scaleFactor = imgHeight / content.offsetHeight;
+      
+      // 3. Extract accurate breakpoints
+      const breakPoints = sections.map(s => {
+        const rect = s.getBoundingClientRect();
+        // Calculate offset from top of the container, scaled to canvas pixels
+        return (rect.top - contentRect.top) * scaleFactor - 8; // 8px safety margin above the section
+      }).filter(bp => bp > 0);
+      
+      breakPoints.push(imgHeight);
+      breakPoints.sort((a, b) => a - b);
 
+      // 4. Revert Layout instantly
+      content.style.cssText = originalCssText;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      const margin = 15; // 15mm margin
+      const margin = 10;
       const contentWidth = pdfWidth - (margin * 2);
-      const pageHeightWithoutMargin = pdfHeight - (margin * 2);
-      const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
 
-      let heightLeft = contentHeight;
-      let position = margin;
+      const pxPerMm = imgWidth / contentWidth;
+      const pageHeightPx = (pdfHeight - (margin * 2)) * pxPerMm;
 
-      // First page
-      pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-      heightLeft -= pageHeightWithoutMargin;
+      let currentY = 0;
+      let pageNum = 1;
 
-      // Additional pages if the content overflows
-      while (heightLeft > 0) {
-        position = position - pageHeightWithoutMargin; // Shift the image UP
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-        heightLeft -= pageHeightWithoutMargin;
+      // 5. Smart Slice Engine
+      while (currentY < imgHeight - 10) {
+        if (pageNum > 1) pdf.addPage();
+        
+        let targetCutY = currentY + pageHeightPx;
+        let actualCutY = targetCutY;
+        
+        // Find a breakpoint that is safely below the start of the page but before the target cut
+        const possibleBreaks = breakPoints.filter(bp => bp > currentY + 150 && bp <= targetCutY);
+        
+        if (possibleBreaks.length > 0) {
+          actualCutY = possibleBreaks[possibleBreaks.length - 1];
+        }
+        
+        // If remaining content fits, don't cut early
+        if (imgHeight - currentY <= pageHeightPx) {
+          actualCutY = imgHeight;
+        }
+
+        const sliceHeight = actualCutY - currentY;
+        
+        // Failsafe against infinite loops
+        if (sliceHeight <= 0) break;
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = imgWidth;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(fullCanvas, 0, currentY, imgWidth, sliceHeight, 0, 0, imgWidth, sliceHeight);
+        
+        const pageImgData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        const displayHeight = (sliceHeight * contentWidth) / imgWidth;
+        
+        pdf.addImage(pageImgData, 'JPEG', margin, margin, contentWidth, displayHeight);
+        
+        currentY = actualCutY;
+        pageNum++;
       }
 
       pdf.save(`consent-proof-${bookingReference}.pdf`);
@@ -293,13 +346,15 @@ const ConsentProofPage = () => {
       sensitiveAuditService.logEvent({
         event_type: 'Sensitive Export',
         module: 'Consent Proof',
-        description: 'Exported consent proof PDF (Direct)',
+        description: 'Exported consent proof PDF (Synchronized Smart Split)',
         details: { booking_id: Number(id), authorization_id: proof.id },
       }).catch(() => { });
     } catch (err) {
       console.error('PDF Export failed:', err);
+      // Failsafe revert
+      content.style.cssText = originalCssText;
     } finally {
-      setLoading(false);
+      setIsExporting(false);
     }
   };
 
@@ -333,120 +388,35 @@ const ConsentProofPage = () => {
             Refresh Snapshot
           </Button>
 
-          <div style={{ position: 'relative' }} ref={exportDropdownRef}>
-            <Button
-              variant="primary"
-              icon={Download}
-              onClick={() => setShowExportOptions(!showExportOptions)}
-              disabled={loading}
-            >
-              Export Evidence
-            </Button>
-
-            {showExportOptions && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                right: '0',
-                width: '210px',
-                backgroundColor: '#1e2235',
-                border: '1px solid var(--border-color)',
-                borderRadius: '12px',
-                padding: '4px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px',
-                boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)',
-                zIndex: 1000
-              }}>
-                <button
-                  onClick={() => { exportDirectPdf(); setShowExportOptions(false); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    width: '100%',
-                    background: 'transparent',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#f8fafc',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <FileText size={16} /> Export as PDF Report
-                </button>
-                <button
-                  onClick={() => { exportJpeg(); setShowExportOptions(false); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    width: '100%',
-                    background: 'transparent',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#06B68A',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <ImageIcon size={16} /> Export as JPEG Image
-                </button>
-                <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 8px', opacity: 0.3 }} />
-                <button
-                  onClick={() => {
-                    sensitiveAuditService.logEvent({
-                      event_type: 'Sensitive Export',
-                      module: 'Consent Proof',
-                      description: 'Exported consent proof JSON',
-                      details: { booking_id: Number(id), authorization_id: proof.id },
-                    }).catch(() => { });
-                    downloadJson(proof, `consent-proof-booking-${id}.json`);
-                    setShowExportOptions(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    width: '100%',
-                    background: 'transparent',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: 'var(--text-muted)',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <RefreshCcw size={16} /> Export Raw JSON
-                </button>
-              </div>
-            )}
-          </div>
+          <ExportDropdown
+            isExporting={isExporting}
+            label="Export Evidence"
+            buttonStyle={{ background: 'hsl(var(--primary))', color: 'white' }}
+            options={[
+              { label: 'Export as PDF Report', icon: FileText, onClick: exportDirectPdf },
+              { label: 'Export as JPEG Image', icon: ImageIcon, onClick: exportJpeg },
+              { 
+                label: 'Export Raw JSON', 
+                icon: RefreshCcw, 
+                onClick: () => {
+                  sensitiveAuditService.logEvent({
+                    event_type: 'Sensitive Export',
+                    module: 'Consent Proof',
+                    description: 'Exported consent proof JSON',
+                    details: { booking_id: Number(id), authorization_id: proof.id },
+                  }).catch(() => { });
+                  downloadJson(proof, `consent-proof-booking-${id}.json`);
+                }
+              },
+            ]}
+          />
         </div>
       </div>
 
 
       <div id="proof-capture-area" ref={proofContentRef} style={{ display: 'grid', gap: '24px' }}>
         <div
+          className="pdf-section"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -464,7 +434,7 @@ const ConsentProofPage = () => {
               Authorization Type
             </div>
             <div style={{ fontSize: '22px', fontWeight: 800, marginTop: '6px', color: isChangeCharge ? '#f59e0b' : '#059669' }}>
-              {isChangeCharge ? 'Change Charge Approval' : 'Initial Approval By Client'}
+              {getAuthorizationTypeLabel(isChangeCharge ? 'change_charge' : 'initial')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
               {isChangeCharge
@@ -488,20 +458,20 @@ const ConsentProofPage = () => {
               letterSpacing: '0.06em',
             }}
           >
-            {proof.status}
+            {getStatusLabel(proof.status)}
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '24px' }}>
           <SectionCard icon={ShieldCheck} title="Approval Evidence" iconColor="#059669">
-            <DetailRow label="Status" value={proof.status} />
+            <DetailRow label="Status" value={getStatusLabel(proof.status)} />
             <DetailRow label="Approved At" value={proof.approved_at || 'Pending'} />
             <DetailRow label="Approved Email" value={proof.approved_email} />
             <DetailRow label="IP Address" value={proof.ip_address} />
             <DetailRow label="User Agent" value={proof.user_agent} />
             <DetailRow label="Masked Card" value={proof.masked_card} />
             <DetailRow label="Declaration Ver." value={proof.declaration_version} />
-            <DetailRow label="Auth Type" value={isChangeCharge ? 'Change Charge Approval' : 'Initial Approval By Client'} />
+            <DetailRow label="Auth Type" value={getAuthorizationTypeLabel(isChangeCharge ? 'change_charge' : 'initial')} />
             <DetailRow label="Token Ref" value={proof.token} />
           </SectionCard>
 
@@ -515,7 +485,7 @@ const ConsentProofPage = () => {
               <DetailRow label="Contact Phone" value={snapshot.contact?.phone} />
             </SectionCard>
 
-            <div style={{ padding: '20px', borderRadius: '18px', background: 'rgba(6, 182, 212, 0.05)', border: '1px solid rgba(6, 182, 212, 0.15)' }}>
+            <div className="pdf-section" style={{ padding: '20px', borderRadius: '18px', background: 'rgba(6, 182, 212, 0.05)', border: '1px solid rgba(6, 182, 212, 0.15)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0891b2', marginBottom: '8px' }}>
                 <Shield size={18} />
                 <span style={{ fontSize: '14px', fontWeight: 800, textTransform: 'uppercase' }}>Security Verification</span>
@@ -686,64 +656,76 @@ const ConsentProofPage = () => {
           </SectionCard>
         </div>
 
-        <SectionCard icon={Plane} title="Flight Ticket Images" iconColor="#059669">
-          <div style={{ display: 'grid', gap: '16px' }}>
-            {ticketImages.length ? ticketImages.map((ticket, index) => (
-              <div key={`ticket-${index}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <div style={{ fontWeight: 700 }}>{ticket.booking_reference}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{ticket.segment_label || 'Ticket'}</div>
-                </div>
-                <img
-                  src={resolveImagePath(ticket.url || ticket.path)}
-                  crossOrigin="anonymous"
-                  alt={ticket.booking_reference}
-                  style={{ width: '100%', borderRadius: '14px', border: '1px solid var(--border-color)' }}
-                />
-              </div>
-            )) : (
-              <p style={{ color: 'var(--text-muted)' }}>No flight ticket images stored in this snapshot.</p>
-            )}
-          </div>
-        </SectionCard>
-
-        {hotelImages.length > 0 && (
-          <SectionCard icon={Hotel} title="Hotel & Accommodation" iconColor="#059669">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
-              {hotelImages.map((img, idx) => (
-                <div key={`hotel-img-${idx}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '12px' }}>{img.booking_reference} - {img.label}</div>
-                  <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ width: '100%', borderRadius: '14px' }} alt="Hotel" />
+        {ticketImages.length > 0 && (
+          <div style={{ display: 'grid', gap: '20px' }}>
+            <SectionHeader icon={Plane} title="Flight Ticket Images" iconColor="#059669" />
+            <div style={{ display: 'grid', gap: '20px' }}>
+              {ticketImages.map((ticket, index) => (
+                <div key={`ticket-${index}`} className="pdf-section" style={{ padding: '24px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div style={{ fontWeight: 800, fontSize: '18px' }}>{ticket.booking_reference}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{ticket.segment_label || 'Ticket'}</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                    <img
+                      src={resolveImagePath(ticket.url || ticket.path)}
+                      crossOrigin="anonymous"
+                      alt={ticket.booking_reference}
+                      style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'inline-block' }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
-          </SectionCard>
+          </div>
+        )}
+
+        {hotelImages.length > 0 && (
+          <div style={{ display: 'grid', gap: '20px' }}>
+            <SectionHeader icon={Hotel} title="Hotel & Accommodation" iconColor="#059669" />
+            <div style={{ display: 'grid', gap: '20px' }}>
+              {hotelImages.map((img, idx) => (
+                <div key={`hotel-img-${idx}`} className="pdf-section" style={{ padding: '24px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                  <div style={{ fontWeight: 800, marginBottom: '20px', fontSize: '18px' }}>{img.booking_reference} - {img.label}</div>
+                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                    <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'inline-block' }} alt="Hotel" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {carImages.length > 0 && (
-          <SectionCard icon={Car} title="Car Rental & Transfers" iconColor="#f59e0b">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gap: '20px' }}>
+            <SectionHeader icon={Car} title="Car Rental & Transfers" iconColor="#f59e0b" />
+            <div style={{ display: 'grid', gap: '20px' }}>
               {carImages.map((img, idx) => (
-                <div key={`car-img-${idx}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '12px' }}>{img.booking_reference} - {img.label}</div>
-                  <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ width: '100%', borderRadius: '14px' }} alt="Car" />
+                <div key={`car-img-${idx}`} className="pdf-section" style={{ padding: '24px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                  <div style={{ fontWeight: 800, marginBottom: '20px', fontSize: '18px' }}>{img.booking_reference} - {img.label}</div>
+                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                    <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'inline-block' }} alt="Car" />
+                  </div>
                 </div>
               ))}
             </div>
-          </SectionCard>
+          </div>
         )}
 
         {cruiseImages.length > 0 && (
-          <SectionCard icon={Waves} title="Cruise Assets" iconColor="#06b6d4">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gap: '20px' }}>
+            <SectionHeader icon={Waves} title="Cruise Assets" iconColor="#06b6d4" />
+            <div style={{ display: 'grid', gap: '20px' }}>
               {cruiseImages.map((img, idx) => (
-                <div key={`cruise-img-${idx}`} style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-app)' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '12px' }}>{img.booking_reference} - {img.label}</div>
-                  <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ width: '100%', borderRadius: '14px' }} alt="Cruise" />
+                <div key={`cruise-img-${idx}`} className="pdf-section" style={{ padding: '24px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                  <div style={{ fontWeight: 800, marginBottom: '20px', fontSize: '18px' }}>{img.booking_reference} - {img.label}</div>
+                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                    <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'inline-block' }} alt="Cruise" />
+                  </div>
                 </div>
               ))}
             </div>
-          </SectionCard>
+          </div>
         )}
       </div>
     </div>

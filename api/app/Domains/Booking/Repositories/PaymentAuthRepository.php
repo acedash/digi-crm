@@ -39,7 +39,7 @@ class PaymentAuthRepository extends BaseRepository
             ->whereHas('bookings')
             ->where('status', 'Approved')
             ->select([
-                'id', 'client_id', 'token', 'status', 'total_amount', 'currency', 
+                'id', 'client_id', 'token', 'status', 'charge_status', 'total_amount', 'currency', 
                 'approved_at', 'collected_at', 'collected_by', 'masked_card',
                 'metadata', 'consent_snapshot'
             ]) // digital_signature still excluded for bandwidth, but metadata/snapshot are required for frontend card logic

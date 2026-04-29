@@ -23,8 +23,10 @@ import {
   FileText,
   FileJson,
   CreditCard,
-  ClipboardList
+  ClipboardList,
+  HelpCircle
 } from 'lucide-react';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -37,6 +39,8 @@ import BookingRow from './components/BookingRow';
 import { useAuthStore } from '../auth/useAuthStore';
 import api, { BACKEND_BASE_URL } from '../../services/api';
 import { exportToExcel, exportToPDF, exportToJSON } from './utils/bookingExport';
+import ExportDropdown from '../../components/ui/ExportDropdown';
+import { getStatusLabel, statusIcons } from './bookingUtils';
 
 const BookingList = ({ onCreate, onEdit }) => {
   const { user } = useAuthStore();
@@ -52,8 +56,6 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [showCallLog, setShowCallLog] = useState(false);
-  const [showExportOptions, setShowExportOptions] = useState(false);
-  const exportDropdownRef = React.useRef(null);
   const [selectedBookingForCall, setSelectedBookingForCall] = useState(null);
   const [reassignModal, setReassignModal] = useState({ open: false, bookingId: null, currentAgentId: null });
   const [handoffRemark, setHandoffRemark] = useState('');
@@ -158,23 +160,24 @@ const BookingList = ({ onCreate, onEdit }) => {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [pagination.per_page, debouncedSearchTerm]);
+  }, [pagination.per_page, debouncedSearchTerm, startDate, endDate]);
 
+  // Re-fetch when page changes
   useEffect(() => {
     fetchBookings(pagination.current_page);
-  }, [pagination.current_page, startDate, endDate, fetchBookings]);
+  }, [pagination.current_page, fetchBookings]);
 
+  // Reset to page 1 when search or dates change
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
-        setShowExportOptions(false);
-      }
-    };
-    if (showExportOptions) {
-      document.addEventListener('mousedown', handleClickOutside);
+    setPagination(current => ({ ...current, current_page: 1 }));
+    // fetchBookings will be triggered by the current_page effect if it wasn't already 1
+    // If it was already 1, we still need to trigger it if startDate/endDate changed
+    if (pagination.current_page === 1) {
+      fetchBookings(1);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showExportOptions]);
+  }, [startDate, endDate, debouncedSearchTerm]);
+
+
 
   useEffect(() => {
     const flash = routeLocation.state?.flash;
@@ -380,22 +383,8 @@ const BookingList = ({ onCreate, onEdit }) => {
     onEdit(booking.id);
   }, [basePath, navigate, onEdit]);
 
-  const statusIcons = {
-    'Approved': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
-    'Change Approved': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
-    'Confirmed': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
-    'Work Pending': { icon: Clock, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)', shadow: 'rgba(236, 72, 153, 0.2)' },
-    'Awaiting Approval': { icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', shadow: 'rgba(139, 92, 246, 0.2)' },
-    'Awaiting Change Approval': { icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', shadow: 'rgba(139, 92, 246, 0.2)' },
-    'Pending': { icon: Clock, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', shadow: 'rgba(245, 158, 11, 0.2)' },
-    'Cancelled': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
-    'Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
-    'Change Rejected': { icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', shadow: 'rgba(239, 68, 68, 0.2)' },
-    'Completed': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
-    'Work Completed': { icon: CheckCircle2, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)', shadow: 'rgba(6, 182, 138, 0.2)' },
-    'Draft': { icon: FileText, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)', shadow: 'rgba(148, 163, 184, 0.2)' },
-    'Awaiting Cards': { icon: CreditCard, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', shadow: 'rgba(245, 158, 11, 0.2)' }
-  };
+  // Moved to bookingUtils.js
+  // const statusIcons = { ... }
 
   const getStatusGuidance = (status) => {
     switch (status) {
@@ -455,12 +444,7 @@ const BookingList = ({ onCreate, onEdit }) => {
         boxShadow: `0 4px 12px ${config.shadow}`
       }}>
         <Icon size={12} strokeWidth={3} />
-        {status === 'Pending' ? 'Email Send Pending' : 
-         status === 'Awaiting Approval' ? 'Pending Approval' :
-         status === 'Approved' ? 'Initial Approval By Client' : 
-         status === 'Completed' ? 'Work Completed' : 
-         status === 'Awaiting Cards' ? 'Pending Card Details' :
-         status}
+        {getStatusLabel(status)}
       </div>
     );
   };
@@ -675,12 +659,43 @@ const BookingList = ({ onCreate, onEdit }) => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              const { startTour } = useWalkthroughStore.getState();
+              startTour([
+                {
+                  target: '#booking-stats',
+                  title: 'Booking Overview',
+                  content: 'Quickly see the status of all your bookings, from drafts to completed trips.',
+                  position: 'bottom'
+                },
+                {
+                  target: '#booking-tools',
+                  title: 'Search & Filters',
+                  content: 'Search for specific bookings by ID, Client Name, or PNR. You can also filter by date ranges.',
+                  position: 'bottom'
+                },
+                {
+                  target: '#booking-list-container',
+                  title: 'Your Bookings',
+                  content: 'Manage your active bookings here. You can send approval links, edit details, or reassign them to other agents.',
+                  position: 'top'
+                }
+              ]);
+            }}
+            icon={HelpCircle}
+            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))', marginRight: '8px' }}
+          >
+            Show Guide
+          </Button>
           <Button variant="primary" icon={Plus} onClick={onCreate}>New Booking</Button>
         </div>
       </div>
 
       {/* Stats Quick View */}
-      <div style={{ 
+      <div id="booking-stats" style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
         gap: '20px', 
@@ -751,7 +766,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       </div>
 
       {/* Toolbar Area */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '40px' }}>
+      <div id="booking-tools" style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '40px' }}>
         {/* Row 1: Primary Search, Dates, Refresh, Export */}
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '300px', maxWidth: '400px' }}>
@@ -765,24 +780,26 @@ const BookingList = ({ onCreate, onEdit }) => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <div style={{ width: '190px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ width: '170px' }}>
               <Input 
                 type="date"
                 icon={Calendar}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
               />
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: 700 }}>to</div>
-            <div style={{ width: '190px' }}>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
+            <div style={{ width: '170px' }}>
               <Input 
                 type="date"
                 icon={Calendar}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
               />
             </div>
           </div>
@@ -795,43 +812,14 @@ const BookingList = ({ onCreate, onEdit }) => {
               isLoading={loading}
               title="Refresh List"
             />
-            
-            <div style={{ position: 'relative' }} ref={exportDropdownRef}>
-              <Button 
-                variant="glass" 
-                icon={Download} 
-                onClick={() => setShowExportOptions(!showExportOptions)}
-              >
-                Export Format
-              </Button>
-              {showExportOptions && (
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 'calc(100% + 8px)', 
-                  right: 0, 
-                  backgroundColor: '#1e2235', 
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: '12px', 
-                  padding: '4px', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '2px', 
-                  boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', 
-                  minWidth: '200px',
-                  zIndex: 1000
-                }}>
-                  <button onClick={() => { exportHandlers.pdf(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                    <FileText size={16} /> Export as PDF Report
-                  </button>
-                  <button onClick={() => { exportHandlers.excel(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                    <FileSpreadsheet size={16} /> Export as Excel Data
-                  </button>
-                  <button onClick={() => { exportHandlers.json(); setShowExportOptions(false); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                    <FileJson size={16} /> Export Raw JSON
-                  </button>
-                </div>
-              )}
-            </div>
+            <ExportDropdown 
+              options={[
+                { label: 'Export as PDF Report', icon: FileText, onClick: exportHandlers.pdf },
+                { label: 'Export as Excel Data', icon: FileSpreadsheet, onClick: exportHandlers.excel },
+                { label: 'Export Raw JSON', icon: FileJson, onClick: exportHandlers.json },
+              ]}
+              buttonStyle={{ background: 'var(--bg-card)', padding: '10px 16px', borderRadius: '12px' }}
+            />
           </div>
         </div>
           
@@ -855,13 +843,7 @@ const BookingList = ({ onCreate, onEdit }) => {
                 flexShrink: 0
               }}
             >
-              {status === 'all' ? 'All' : 
-               status === 'Pending' ? 'Email Send Pending' : 
-               status === 'Awaiting Approval' ? 'Pending Approval' :
-               status === 'Approved' ? 'Initial Approval By Client' : 
-               status === 'Completed' ? 'Work Completed' : 
-               status === 'Awaiting Cards' ? 'Pending Card Details' :
-               status}
+              {status === 'all' ? 'All' : getStatusLabel(status)}
             </button>
           ))}
         </div>
@@ -890,7 +872,7 @@ const BookingList = ({ onCreate, onEdit }) => {
           </div>
         </div>
 
-        <div style={{ width: '100%', overflow: 'hidden' }}>
+        <div id="booking-list-container" style={{ width: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'grid', gap: '6px', width: '100%' }}>
         <AnimatePresence mode="popLayout">
           {filteredBookings.map((booking, index) => {
@@ -975,7 +957,7 @@ const BookingList = ({ onCreate, onEdit }) => {
 
         {filteredBookings.length === 0 && !loading && (
           <div style={{ textAlign: 'center', padding: '64px', opacity: 0.5 }}>
-            <Package size={48} style={{ margin: '0 auto 16px' }} />
+            <ClipboardList size={48} style={{ margin: '0 auto 16px' }} />
             <p>No bookings found. Try adjusting your search or filters.</p>
           </div>
         )}

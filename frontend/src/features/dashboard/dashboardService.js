@@ -24,6 +24,9 @@ const dashboardService = {
         if (startDate) url += `&start_date=${startDate}`;
         if (endDate) url += `&end_date=${endDate}`;
         return api.get(url);
+    },
+    getAttendanceReport: (month, year) => {
+        return api.get(`/dashboard/attendance-report?month=${month}&year=${year}`);
     }
 };
 

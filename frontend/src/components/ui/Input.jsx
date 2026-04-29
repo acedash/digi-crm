@@ -39,7 +39,8 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
             top: '50%', 
             transform: 'translateY(-50%)',
             color: 'var(--text-muted)',
-            zIndex: 10
+            zIndex: 10,
+            pointerEvents: 'none'
           }}>
             <Icon size={18} />
           </div>
@@ -48,13 +49,14 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
           <div
             style={{
               position: 'absolute',
-              right: '16px',
+              left: '16px',
               top: '50%',
               transform: 'translateY(-50%)',
               color: 'var(--text-muted)',
               pointerEvents: 'none',
               display: 'flex',
               alignItems: 'center',
+              zIndex: 10
             }}
           >
             <CalendarDays size={18} />
@@ -118,14 +120,20 @@ const Input = ({ label, icon: Icon, error, style, className, onClear, required, 
           className="crm-input"
           {...props}
           type={inputType}
+          onClick={(e) => {
+            if (isDateField && e.target.showPicker) {
+              try { e.target.showPicker(); } catch (err) {}
+            }
+            if (props.onClick) props.onClick(e);
+          }}
           style={{
             width: '100%',
             background: isTransparent ? 'rgba(255,255,255,0.02)' : 'var(--bg-input)',
             border: `1px solid ${error ? '#ef4444' : (isTransparent ? 'rgba(255,255,255,0.08)' : 'var(--border-color)')}`,
             borderRadius: '14px',
             padding: '14px 18px',
-            paddingLeft: Icon ? '48px' : '18px',
-            paddingRight: (isDateField || showClear || isPasswordField) ? '48px' : '18px',
+            paddingLeft: (Icon || isDateField) ? '48px' : '18px',
+            paddingRight: (showClear || isPasswordField) ? '48px' : '18px',
             color: 'var(--text-main)',
             fontSize: '14px',
             fontWeight: 500,

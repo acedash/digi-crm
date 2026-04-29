@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Clock, Box, ArrowRight, Activity, Download, Search, Globe, Monitor, Eye, XCircle } from 'lucide-react';
+import { Shield, Clock, Box, ArrowRight, Activity, Download, Search, Globe, Monitor, Eye, XCircle, FileSpreadsheet, FileJson } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import ExportDropdown from '../../components/ui/ExportDropdown';
 import Card from '../../components/ui/Card';
 import api from '../../services/api';
 import { AnimatePresence } from 'framer-motion';
@@ -29,6 +31,32 @@ const AuditTrailPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    const data = filteredLogs.map(log => ({
+      Timestamp: formatDate(log.timestamp),
+      Actor: log.causer_name,
+      Module: log.module || 'N/A',
+      Event: log.event_type,
+      Source: log.source === 'system' ? 'Database' : 'Time Tracker',
+      IP: log.ip_address,
+      Summary: getDetailsSummary(log)
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "AuditTrail");
+    XLSX.writeFile(wb, `Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const handleExportJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredLogs, null, 2));
+    const dt = document.createElement('a');
+    dt.setAttribute("href", dataStr);
+    dt.setAttribute("download", `Audit_Trail_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(dt);
+    dt.click();
+    document.body.removeChild(dt);
   };
 
   const filteredLogs = logs.filter(log => {
@@ -211,7 +239,12 @@ const AuditTrailPage = () => {
           <Button variant="outline" size="sm" icon={Activity} onClick={fetchLogs} disabled={loading}>
             {loading ? 'Compiling...' : 'Live Sync'}
           </Button>
-          <Button variant="primary" size="sm" icon={Download}>Export CSV</Button>
+          <ExportDropdown
+            options={[
+              { label: 'As CSV Format', icon: FileSpreadsheet, onClick: handleExportCSV },
+              { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJSON },
+            ]}
+          />
         </div>
       </div>
 

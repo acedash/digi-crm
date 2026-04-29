@@ -1,63 +1,43 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, ShieldAlert, Globe, Compass, Plane, Sparkles } from 'lucide-react';
+import { 
+  Mail, 
+  Lock, 
+  LogIn, 
+  ShieldCheck, 
+  Eye, 
+  EyeOff, 
+  ArrowRight,
+  User
+} from 'lucide-react';
 import { useAuthStore } from './useAuthStore';
 import authService from './authService';
-import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import logo from '../../assets/logo.jpg';
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
+  const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const user = useAuthStore((state) => state.user);
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
-  const cardRef = useRef(null);
 
-  // 3D Tilt Values
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const mouseX = useSpring(x, { stiffness: 150, damping: 20 });
-  const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
-
-  const rotateX = useTransform(mouseY, [-0.5, 0.5], [10, -10]);
-  const rotateY = useTransform(mouseX, [-0.5, 0.5], [-10, 10]);
-
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       navigate('/dashboard', { replace: true });
     }
   }, [user, navigate]);
 
-  const handleMouseMove = (e) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const mouseXPos = e.clientX - rect.left;
-    const mouseYPos = e.clientY - rect.top;
-    const xPct = (mouseXPos / width) - 0.5;
-    const yPct = (mouseYPos / height) - 0.5;
-    x.set(xPct);
-    y.set(yPct);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const data = await authService.login({ email, password });
+      const data = await authService.login({ email: identity, password });
       setAuth(data.user, data.token);
       localStorage.setItem('token', data.token);
       navigate('/dashboard');
@@ -68,279 +48,281 @@ const LoginPage = () => {
     }
   };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.98 },
-    visible: { 
-      opacity: 1, 
-      scale: 1,
-      transition: { 
-        duration: 0.8,
-        ease: "easeOut",
-        staggerChildren: 0.1,
-        delayChildren: 0.3
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
-    }
-  };
-
   return (
     <div style={{ 
       minHeight: '100vh', 
       display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      background: '#020617',
+      background: '#fff',
       fontFamily: "'Inter', sans-serif",
       position: 'relative',
-      overflow: 'hidden',
-      padding: '20px'
+      overflow: 'hidden'
     }}>
+      {/* Immersive Background Image (Full Screen) */}
+      <div style={{ 
+        position: 'absolute', 
+        inset: 0, 
+        backgroundImage: 'url("/login-bg.png")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        zIndex: 0
+      }} />
       
-      {/* Aurora Ambient Background */}
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0 }}>
-        <motion.div
-          animate={{ 
-            scale: [1, 1.2, 1],
-            x: [0, 100, 0],
-            y: [0, 50, 0],
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-          style={{ 
-            position: 'absolute', top: '-20%', left: '-10%', width: '600px', height: '600px',
-            background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)',
-            filter: 'blur(100px)'
-          }}
-        />
-        <motion.div
-          animate={{ 
-            scale: [1.2, 1, 1.2],
-            x: [0, -100, 0],
-            y: [0, -50, 0],
-          }}
-          transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-          style={{ 
-            position: 'absolute', bottom: '-20%', right: '-10%', width: '600px', height: '600px',
-            background: 'radial-gradient(circle, rgba(6, 78, 59, 0.2) 0%, transparent 70%)',
-            filter: 'blur(100px)'
-          }}
-        />
-        
-        {/* Fine Grain / Noise Overlay */}
+      {/* Global Overlay for readability */}
+      <div style={{ 
+        position: 'absolute', 
+        inset: 0, 
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.2) 100%)',
+        zIndex: 1
+      }} />
+
+      {/* Content Layer */}
+      <div style={{ 
+        position: 'relative', 
+        zIndex: 2, 
+        width: '100%', 
+        display: 'flex',
+        minHeight: '100vh'
+      }}>
+        {/* Left Side: Branding */}
         <div style={{ 
-          position: 'absolute', inset: 0, 
-          backgroundImage: 'url("https://grainy-gradients.vercel.app/noise.svg")',
-          opacity: 0.04, mixBlendMode: 'overlay', pointerEvents: 'none'
-        }} />
-      </div>
-
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        ref={cardRef}
-        style={{ 
-          width: '100%', maxWidth: '390px', 
-          position: 'relative', zIndex: 1,
-          perspective: '1000px'
-        }}
-      >
-        <motion.div
-          style={{
-            rotateX,
-            rotateY,
-            transformStyle: 'preserve-3d',
-            background: 'rgba(15, 23, 42, 0.4)',
-            backdropFilter: 'blur(32px) saturate(160%)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '32px',
-            padding: '48px 32px',
-            boxShadow: '0 40px 80px -20px rgba(0,0,0,0.6), inset 0 1px 0 0 rgba(255,255,255,0.05)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-        >
-          {/* Shimmer Sweep Effect */}
-          <motion.div
-            animate={{ x: ['-200%', '200%'] }}
-            transition={{ duration: 7, repeat: Infinity, ease: 'linear', delay: 1 }}
-            style={{
-              position: 'absolute', top: 0, bottom: 0, width: '40%',
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent)',
-              transform: 'skewX(-20deg)',
-              pointerEvents: 'none'
-            }}
-          />
-
-          {/* Floating Brand Mark */}
-          <motion.div variants={itemVariants} style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-            <div 
-               style={{ 
-                 width: '88px', height: '88px', 
-                 borderRadius: '50%',
-                 overflow: 'hidden',
-                 border: '2.5px solid rgba(16, 185, 129, 0.3)',
-                 boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                 background: '#020617'
-               }}
-            >
-              <img src={logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          flex: '1.2', 
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '60px'
+        }}>
+          {/* Branding */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '48px', 
+              height: '48px', 
+              background: 'rgba(255,255,255,0.1)', 
+              backdropFilter: 'blur(8px)',
+              borderRadius: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              <img src="/digi-logo-sidebar.png" alt="DC" style={{ height: '32px', width: 'auto' }} />
             </div>
-          </motion.div>
+            <div>
+              <h2 style={{ color: 'white', fontSize: '24px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>DIGICIRCLE</h2>
+              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', margin: 0, fontWeight: 500 }}>Smarter travel management starts here</p>
+            </div>
+          </div>
 
-          <header style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <motion.h1 variants={itemVariants} style={{ fontSize: '32px', fontWeight: 950, color: 'white', letterSpacing: '-1.5px', marginBottom: '4px' }}>
-              Digi <span style={{ color: '#10b981' }}>Circle</span>
-            </motion.h1>
-            <motion.p variants={itemVariants} style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2.5px' }}>
-              Executive Access Control
-            </motion.p>
-          </header>
+          {/* Marketing Text */}
+          <div style={{ marginTop: 'auto', marginBottom: '120px' }}>
+            <h1 style={{ 
+              fontSize: '72px', 
+              fontWeight: 800, 
+              color: 'white', 
+              lineHeight: 1.1, 
+              letterSpacing: '-2px',
+              maxWidth: '600px',
+              textShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            }}>
+              Simplify.<br />
+              Connect.<br />
+              <span style={{ color: '#06B68A' }}>Elevate Travel.</span>
+            </h1>
+          </div>
+        </div>
 
-          <AnimatePresence mode="wait">
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
+        {/* Right Side: Login Form (Floating) */}
+        <div style={{ 
+          flex: '0.8', 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '40px'
+        }}>
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            style={{ 
+              width: '100%', 
+              maxWidth: '480px',
+              background: 'white',
+              borderRadius: '40px',
+              padding: '56px',
+              boxShadow: '0 30px 60px -12px rgba(0,0,0,0.25), 0 18px 36px -18px rgba(0,0,0,0.3)',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}
+          >
+            {/* Form Header */}
+            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+              <div style={{ 
+                width: '80px', 
+                height: '80px', 
+                background: '#020617', 
+                borderRadius: '24px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                margin: '0 auto 24px',
+                boxShadow: '0 12px 24px rgba(0,0,0,0.2)'
+              }}>
+                <img src="/digi-logo-sidebar.png" alt="DC" style={{ height: '48px', width: 'auto' }} />
+              </div>
+              <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', marginBottom: '12px' }}>Welcome back</h2>
+              <p style={{ color: '#64748b', fontSize: '15px', fontWeight: 500 }}>Use the credentials shared by your admin</p>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              {/* Error Message */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    style={{ 
+                      background: '#fef2f2', 
+                      color: '#dc2626', 
+                      padding: '12px 16px', 
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      border: '1px solid #fee2e2'
+                    }}
+                  >
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Identity Field */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: '#475569', paddingLeft: '4px' }}>Identity</label>
+                <div style={{ position: 'relative' }}>
+                  <User size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input 
+                    type="text"
+                    placeholder="Enter your email or username"
+                    value={identity}
+                    onChange={(e) => setIdentity(e.target.value)}
+                    required
+                    style={{ 
+                      width: '100%', 
+                      padding: '16px 16px 16px 48px', 
+                      borderRadius: '16px', 
+                      border: '1.5px solid #e2e8f0',
+                      fontSize: '15px',
+                      background: '#f8fafc',
+                      outline: 'none',
+                      transition: 'all 0.2s',
+                      color: '#0f172a'
+                    }}
+                    className="login-input"
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: '#475569', paddingLeft: '4px' }}>Password</label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    style={{ 
+                      width: '100%', 
+                      padding: '16px 48px 16px 48px', 
+                      borderRadius: '16px', 
+                      border: '1.5px solid #e2e8f0',
+                      fontSize: '15px',
+                      background: '#f8fafc',
+                      outline: 'none',
+                      transition: 'all 0.2s',
+                      color: '#0f172a'
+                    }}
+                    className="login-input"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ 
+                      position: 'absolute', 
+                      right: '16px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)', 
+                      background: 'none', 
+                      border: 'none', 
+                      padding: 0, 
+                      cursor: 'pointer', 
+                      color: '#94a3b8' 
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+
+              {/* Submit Button */}
+              <Button 
+                type="submit"
+                disabled={loading}
                 style={{ 
-                  background: 'rgba(239, 68, 68, 0.1)', 
-                  border: '1px solid rgba(239, 68, 68, 0.12)',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  marginBottom: '24px',
+                  height: '60px', 
+                  borderRadius: '18px', 
+                  background: 'linear-gradient(135deg, #06B68A 0%, #059669 100%)',
+                  fontSize: '16px',
+                  fontWeight: 800,
+                  color: 'white',
+                  border: 'none',
+                  boxShadow: '0 12px 24px rgba(6, 182, 138, 0.25)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  color: '#f87171',
-                  fontSize: '13px',
-                  fontWeight: 600
+                  justifyContent: 'center',
+                  gap: '12px',
+                  cursor: loading ? 'not-allowed' : 'pointer'
                 }}
               >
-                <ShieldAlert size={18} />
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <motion.div variants={itemVariants}>
-              <Input
-                label="AGENT IDENTITY"
-                placeholder="agent@digicircle.com"
-                icon={Mail}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                variant="transparent"
-                required
-              />
-            </motion.div>
-            
-            <motion.div variants={itemVariants}>
-              <Input
-                label="SECURITY KEY"
-                placeholder="••••••••"
-                icon={Lock}
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                variant="transparent"
-                required
-              />
-            </motion.div>
-
-            <motion.div variants={itemVariants} style={{ marginTop: '8px', position: 'relative' }}>
-              <Button 
-                type="submit" 
-                variant="primary" 
-                size="lg" 
-                fullWidth
-                isLoading={loading}
-                style={{ 
-                  height: '54px',
-                  fontSize: '15px',
-                  fontWeight: 850,
-                  borderRadius: '16px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  boxShadow: '0 15px 30px -5px rgba(16, 185, 129, 0.3)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1.5px',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-              >
-                {/* Button Light Sweep */}
-                <motion.div
-                  animate={{ x: ['-100%', '200%'] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", repeatDelay: 1 }}
-                  style={{
-                    position: 'absolute', top: 0, bottom: 0, width: '30%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
-                    transform: 'skewX(-30deg)',
-                    pointerEvents: 'none'
-                  }}
-                />
-                <LogIn size={20} style={{ marginRight: '12px', position: 'relative', zIndex: 1 }} />
-                <span style={{ position: 'relative', zIndex: 1 }}>SignIn Securely</span>
+                {loading ? (
+                  <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <>
+                    Sign In <ArrowRight size={20} />
+                  </>
+                )}
               </Button>
-            </motion.div>
-          </form>
+            </form>
 
-          <motion.footer variants={itemVariants} style={{ marginTop: '32px', textAlign: 'center' }}>
-            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>
-              © 2026 Digi Circle • Executive Console
-            </p>
-          </motion.footer>
-        </motion.div>
-      </motion.div>
+            {/* Footer Info */}
+            <div style={{ marginTop: '48px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#94a3b8', fontSize: '13px', fontWeight: 600 }}>
+                <ShieldCheck size={16} />
+                Secure login
+              </div>
+              
+              <p style={{ color: '#64748b', fontSize: '14px', fontWeight: 500 }}>
+                Don't have access? <span style={{ color: '#0f172a', fontWeight: 700, cursor: 'pointer' }}>Contact your administrator.</span>
+              </p>
 
-      {/* Atmospheric Accents */}
-      <motion.div
-        animate={{ 
-          rotate: [0, 360],
-          scale: [1, 1.2, 1]
-        }}
-        transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-        style={{ position: 'absolute', bottom: '10%', left: '10%', opacity: 0.04, color: 'white', pointerEvents: 'none' }}
-      >
-        <Sparkles size={160} />
-      </motion.div>
+              <p style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 500, marginTop: '12px' }}>
+                © 2026 Kreyton Digicircle Private Limited
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      </div>
 
-      {/* Gliding Planes */}
-      <motion.div
-        animate={{ 
-          x: ['-10vw', '110vw'],
-          y: ['10vh', '15vh'],
-          rotate: [15, 20, 15]
-        }}
-        transition={{ duration: 45, repeat: Infinity, ease: 'linear' }}
-        style={{ position: 'absolute', top: '20%', left: 0, opacity: 0.03, color: 'white', pointerEvents: 'none' }}
-      >
-        <Plane size={100} style={{ transform: 'rotate(90deg)' }} />
-      </motion.div>
-
-      <motion.div
-        animate={{ 
-          x: ['110vw', '-10vw'],
-          y: ['70vh', '65vh'],
-          rotate: [-195, -200, -195]
-        }}
-        transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
-        style={{ position: 'absolute', top: 0, left: 0, opacity: 0.02, color: 'white', pointerEvents: 'none' }}
-      >
-        <Plane size={140} style={{ transform: 'rotate(90deg)' }} />
-      </motion.div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .login-input:focus {
+          border-color: #06B68A !important;
+          background: #fff !important;
+          box-shadow: 0 0 0 4px rgba(6, 182, 138, 0.05);
+        }
+      `}} />
     </div>
   );
 };

@@ -40,6 +40,7 @@ class BookingRepository extends BaseRepository
             ->with([
                 'client',
                 'agent',
+                'creator',
                 'passengers',
                 'services',
                 'services.serviceable',

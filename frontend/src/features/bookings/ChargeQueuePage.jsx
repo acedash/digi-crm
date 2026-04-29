@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BadgeDollarSign, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BadgeDollarSign, CreditCard, RefreshCw, ShieldCheck, Calendar as CalendarIcon } from 'lucide-react';
 import paymentAuthService from './paymentAuthService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -110,6 +110,7 @@ const ChargeQueuePage = () => {
   const [revealedCards, setRevealedCards] = useState({});
   const [collectionReference, setCollectionReference] = useState('');
   const [collectionNotes, setCollectionNotes] = useState('');
+  const [chargeStatus, setChargeStatus] = useState('Charged/Captured');
   const [meta, setMeta] = useState({ total: 0, current_page: 1, last_page: 1 });
   const [stats, setStats] = useState({ initial: 0, modified: 0 }); 
   const [toast, setToast] = useState({ message: '', type: 'error' });
@@ -193,6 +194,7 @@ const ChargeQueuePage = () => {
     setRevealedCards({});
     setCollectionReference('');
     setCollectionNotes('');
+    setChargeStatus('Charged/Captured');
   };
 
   const revealCard = (recordId, card, index) => {
@@ -218,6 +220,7 @@ const ChargeQueuePage = () => {
       await paymentAuthService.markCharged(selectedRecord.id, {
         collection_reference: collectionReference,
         collection_notes: collectionNotes,
+        charge_status: chargeStatus,
       });
       setToast({ message: 'Marked as charged successfully.', type: 'success' });
       setSelectedRecord(null);
@@ -309,25 +312,26 @@ const ChargeQueuePage = () => {
         </div>
 
         {period === 'custom' && (
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', width: 'fit-content', marginTop: '4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>FROM</span>
-              <input 
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)', width: 'fit-content', marginTop: '4px', alignSelf: 'flex-end' }}>
+            <div style={{ width: '150px' }}>
+              <Input 
                 type="date" 
-                className="crm-input"
+                icon={CalendarIcon}
                 value={startDate} 
                 onChange={(e) => setStartDate(e.target.value)} 
-                style={{ padding: '6px 10px', fontSize: '12px' }} 
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>TO</span>
-              <input 
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px', fontSize: '13px' }}>to</span>
+            <div style={{ width: '150px' }}>
+              <Input 
                 type="date" 
-                className="crm-input"
+                icon={CalendarIcon}
                 value={endDate} 
                 onChange={(e) => setEndDate(e.target.value)} 
-                style={{ padding: '6px 10px', fontSize: '12px' }} 
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
               />
             </div>
           </div>
@@ -368,7 +372,7 @@ const ChargeQueuePage = () => {
               <div 
                 style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: '1.4fr 1.4fr 1.3fr 0.9fr 2fr', 
+                  gridTemplateColumns: '1.4fr 1.2fr 1.3fr 1fr 0.9fr 2fr', 
                   gap: '24px', 
                   padding: '12px 0', 
                   borderBottom: '2px solid var(--border-color)',
@@ -381,7 +385,8 @@ const ChargeQueuePage = () => {
               >
                 <div>Booking / Client</div>
                 <div>Type</div>
-                <div>{viewFilter === 'charged' ? 'Charge date and time' : 'Approved At'}</div>
+                <div>{viewFilter === 'charged' ? 'Processed At' : 'Approved At'}</div>
+                <div>Status</div>
                 <div>Amount</div>
                 <div style={{ textAlign: 'right' }}>Actions</div>
               </div>
@@ -400,7 +405,7 @@ const ChargeQueuePage = () => {
                   key={record.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1.4fr 1.4fr 1.3fr 0.9fr 2fr',
+                    gridTemplateColumns: '1.4fr 1.2fr 1.3fr 1fr 0.9fr 2fr',
                     gap: '24px',
                     padding: '24px 0',
                     borderBottom: '1px solid var(--border-color)',
@@ -428,6 +433,24 @@ const ChargeQueuePage = () => {
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                         by {record.collector.name}
                       </div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '12px' }}>
+                    {record.charge_status ? (
+                      <span style={{ 
+                        padding: '4px 8px', 
+                        borderRadius: '6px', 
+                        background: record.charge_status === 'Charged/Captured' ? 'rgba(22, 163, 74, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        color: record.charge_status === 'Charged/Captured' ? '#16a34a' : '#ef4444',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        fontSize: '10px',
+                        letterSpacing: '0.05em'
+                      }}>
+                        {record.charge_status}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>--</span>
                     )}
                   </div>
                   <div style={{ fontWeight: 800, color: '#16a34a', fontSize: '15px' }}>
@@ -459,8 +482,8 @@ const ChargeQueuePage = () => {
                       </Button>
                     )}
                     {record.collected_at ? (
-                      <div style={{ alignSelf: 'center', fontSize: '12px', color: '#16a34a', fontWeight: 700 }}>
-                        Charged
+                      <div style={{ alignSelf: 'center', fontSize: '12px', color: '#16a34a', fontWeight: 700, background: 'rgba(22, 163, 74, 0.1)', padding: '6px 12px', borderRadius: '8px' }}>
+                        Processed
                       </div>
                     ) : (
                       <Button
@@ -584,6 +607,34 @@ const ChargeQueuePage = () => {
                   </div>
                 )})}
               </div>
+            </div>
+
+             <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Charge Result Status
+              </label>
+              <select
+                value={chargeStatus}
+                onChange={(e) => setChargeStatus(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-main)',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="Charged/Captured">Charged/Captured</option>
+                <option value="Pending">Pending</option>
+                <option value="Decline">Decline</option>
+                <option value="Chargeback">Chargeback</option>
+                <option value="Refunded">Refunded</option>
+              </select>
             </div>
 
             <Input

@@ -80,7 +80,10 @@ class ClientRepository extends BaseRepository
                   ->orWhere('last_name', 'like', $clientName . '%')
                   ->orWhere('email', 'like', $clientName . '%')
                   ->orWhere('phone', 'like', $clientName . '%')
-                  ->orWhere('id', 'like', $clientName . '%');
+                  ->orWhere('id', 'like', $clientName . '%')
+                  ->orWhereHas('creator', function($cq) use ($clientName) {
+                      $cq->where('name', 'like', '%' . $clientName . '%');
+                  });
             });
         }
 
@@ -179,7 +182,8 @@ class ClientRepository extends BaseRepository
             unset($data['passengers'], $data['cards']);
 
             $client = $this->model->create(array_merge($data, [
-                'created_by' => auth()->id()
+                'created_by' => auth()->id(),
+                'agent_id' => $data['agent_id'] ?? (auth()->user()->hasRole('agent') ? auth()->id() : null)
             ]));
 
             // Always ensure the primary traveler (the client) is a passenger

@@ -2,7 +2,8 @@
 
 :root {
   /* Digi Circle Theme Tokens */
-  --primary: 165 94% 37%; /* Vibrant Teal Green #06B68A */
+  --primary: 165 94% 37%;
+  /* Vibrant Teal Green #06B68A */
   --primary-hover: 165 94% 32%;
   --radius: 1rem;
   --radius-pill: 9999px;
@@ -13,46 +14,48 @@
 .dark {
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
-  
+
   --card: 222.2 47% 11%;
   --card-foreground: 210 40% 98%;
-  
+
   --muted: 217.2 32.6% 17.5%;
   --muted-foreground: 215 20.2% 65.1%;
-  
+
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
-  
+
   --bg-app: hsl(222 47% 11%);
   --bg-card: rgba(30, 41, 59, 0.7);
   --bg-input: rgba(255, 255, 255, 0.03);
   --border-color: rgba(255, 255, 255, 0.08);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  
+
   --glass-blur: 12px;
 }
 
 .light {
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
-  
+
   --card: 0 0% 100%;
   --card-foreground: 222.2 84% 4.9%;
-  
+
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
-  
+
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  
-  --bg-app: #f2f2f7; /* Off-white / Lavender tint */
+
+  --bg-app: #f2f2f7;
+  /* Off-white / Lavender tint */
   --bg-card: rgba(255, 255, 255, 0.9);
   --bg-input: #ffffff;
   --border-color: rgba(0, 0, 0, 0.08);
-  --text-main: #333333; /* Charcoal */
+  --text-main: #333333;
+  /* Charcoal */
   --text-muted: #666666;
-  
+
   --glass-blur: 8px;
 }
 
@@ -73,15 +76,15 @@ body {
 }
 
 .dark body {
-  background-image: 
-    radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-    radial-gradient(at 50% 0%, hsla(225,39%,30%,0.2) 0, transparent 50%), 
-    radial-gradient(at 100% 0%, hsla(339,49%,30%,0.2) 0, transparent 50%);
+  background-image:
+    radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 0.2) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 0.2) 0, transparent 50%);
 }
 
 .light body {
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(6, 182, 138, 0.05) 0, transparent 50%), 
+  background-image:
+    radial-gradient(at 0% 0%, rgba(6, 182, 138, 0.05) 0, transparent 50%),
     radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.05) 0, transparent 50%);
 }
 
@@ -94,12 +97,7 @@ body {
   box-shadow: var(--shadow-premium);
 }
 
-.premium-gradient-text {
-  background: linear-gradient(to right, #06B68A, #059669);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
+
 
 button {
   cursor: pointer;
@@ -194,11 +192,12 @@ input[type="datetime-local"],
 }
 
 .premium-gradient-text {
-  background: linear-gradient(135deg, #06B68A 0%, #059669 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 800;
+  background-image: linear-gradient(135deg, #06B68A 0%, #10b981 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  display: inline !important;
 }
 
 .glass-panel {
@@ -211,7 +210,7 @@ input[type="datetime-local"],
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
   border-radius: inherit;
   pointer-events: none;
 }
@@ -251,40 +250,115 @@ select:focus {
   color: #333333;
 }
 
-/* Global Print Styles */
+/* --- Print Styles for Professional Reports --- */
 @media print {
-  aside, 
-  header, 
+
+  /* Hide the web application UI components directly */
+  aside,
+  header,
   nav,
-  .no-print {
+  footer,
+  .sidebar,
+  .navbar,
+  .hide-on-print {
     display: none !important;
   }
-  
-  body, 
-  html, 
-  #root, 
-  .admin-layout-container {
+
+  /* Force background visibility and color accuracy */
+  html,
+  body {
     background: white !important;
-    color: black !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Surgical isolation: Only show the report content scroll and its parents */
+  /* Instead of hiding body *, we'll just ensure the report is perfectly positioned */
+  .report-content-scroll {
+    visibility: visible !important;
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    z-index: 99999 !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Positioning the report for print */
+  .report-content-scroll {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
     height: auto !important;
     overflow: visible !important;
-  }
-
-  main {
+    display: block !important;
     padding: 0 !important;
     margin: 0 !important;
-    width: 100% !important;
-    max-width: none !important;
-    position: static !important;
-    overflow: visible !important;
+    background: white !important;
   }
 
-  .admin-content-wrapper {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    max-width: none !important;
+  /* Ensure backgrounds and colors are preserved */
+  .print-card,
+  .glass-panel {
+    background: #fff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    margin-bottom: 20px !important;
+    display: block !important;
+  }
+
+  .report-content-scroll * {
+    visibility: visible !important;
+  }
+
+  /* Professional Elements Visibility */
+  .show-only-on-print {
+    display: block !important;
+  }
+
+  .hide-on-print {
+    display: none !important;
+  }
+
+  /* Styling Reset for Print Clarity */
+  .print-card,
+  .glass-panel {
+    background: #fff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    margin-bottom: 20px !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  p,
+  span,
+  div {
+    color: #000 !important;
+  }
+
+  /* Professional Grid for Metrics */
+  .report-content-scroll>div[style*="grid"] {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 20px !important;
+  }
+
+  .page-break-avoid {
+    page-break-inside: avoid !important;
+  }
+
+  @page {
+    margin: 20mm;
+    size: A4 portrait;
   }
 }

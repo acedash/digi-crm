@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Calendar, ChevronRight, X, User, Phone, Coffee, CheckCircle2, LogOut } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, ChevronRight, X, User, Phone, Coffee, CheckCircle2, LogOut } from 'lucide-react';
 import activityService from './activityService';
 import { useAuthStore } from '../auth/useAuthStore';
+import Input from '../../components/ui/Input';
 
 const TODAY = new Date().toISOString().split('T')[0];
 
@@ -137,21 +138,17 @@ const ActivityLogs = () => {
               {managerSubtitle}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Date</label>
-            <input
-              type="date"
-              className="crm-input"
-              value={selectedDate}
-              onChange={(event) => fetchAdminDetails(event.target.value)}
-              style={{
-                padding: '9px 12px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
-              }}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ width: '160px' }}>
+              <Input
+                type="date"
+                icon={CalendarIcon}
+                value={selectedDate}
+                onChange={(event) => fetchAdminDetails(event.target.value)}
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', background: 'var(--bg-input)', fontSize: '13px', borderRadius: '10px' }}
+              />
+            </div>
           </div>
         </div>
 

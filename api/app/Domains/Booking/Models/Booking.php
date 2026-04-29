@@ -67,6 +67,7 @@ class Booking extends Model
     protected $fillable = [
         'client_id',
         'agent_id',
+        'created_by',
         'booking_reference',
         'status',
         'total_amount',
@@ -88,6 +89,14 @@ class Booking extends Model
     public function agent()
     {
         return $this->belongsTo(User::class, 'agent_id');
+    }
+
+    /**
+     * Get the user who created the booking.
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**

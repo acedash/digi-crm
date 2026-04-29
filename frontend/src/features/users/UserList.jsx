@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   FileJson
 } from 'lucide-react';
+import ExportDropdown from '../../components/ui/ExportDropdown';
 import userService from './userService';
 import UserForm from './UserForm';
 import jsPDF from 'jspdf';
@@ -36,24 +37,12 @@ const UserList = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showExportOptions, setShowExportOptions] = useState(false);
-  const exportDropdownRef = React.useRef(null);
 
   useEffect(() => {
     loadUsers();
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
-        setShowExportOptions(false);
-      }
-    };
-    if (showExportOptions) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showExportOptions]);
+
 
   const loadUsers = async () => {
     setLoading(true);
@@ -137,7 +126,6 @@ const UserList = () => {
       });
       doc.text("Team Members Export", 14, 15);
       doc.save(`Team_Export_${new Date().toISOString().split('T')[0]}.pdf`);
-      setShowExportOptions(false);
     } catch (err) {
       console.error("PDF generation failed:", err);
       alert("PDF Export failed.");
@@ -158,7 +146,6 @@ const UserList = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Team");
     XLSX.writeFile(wb, `Team_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
-    setShowExportOptions(false);
   };
 
   const handleExportJSON = () => {
@@ -169,7 +156,6 @@ const UserList = () => {
     document.body.appendChild(dt);
     dt.click();
     document.body.removeChild(dt);
-    setShowExportOptions(false);
   };
 
   return (
@@ -204,24 +190,13 @@ const UserList = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ position: 'relative', zIndex: 999 }} ref={exportDropdownRef}>
-            <Button variant="glass" icon={Download} onClick={() => setShowExportOptions(!showExportOptions)}>
-              Export Format
-            </Button>
-            {showExportOptions && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, backgroundColor: '#1e2235', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', minWidth: '180px' }}>
-                <button onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                  <FileText size={16} /> As PDF Report
-                </button>
-                <button onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                  <FileSpreadsheet size={16} /> As Excel Data
-                </button>
-                <button onClick={handleExportJSON} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                  <FileJson size={16} /> As Raw JSON
-                </button>
-              </div>
-            )}
-          </div>
+          <ExportDropdown
+            options={[
+              { label: 'As PDF Report', icon: FileText, onClick: handleExportPDF },
+              { label: 'As Excel Data', icon: FileSpreadsheet, onClick: handleExportExcel },
+              { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJSON },
+            ]}
+          />
           <Button variant="primary" icon={UserPlus} onClick={handleAddMember}>
             Add Team Member
           </Button>

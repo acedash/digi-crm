@@ -258,6 +258,7 @@ class PaymentAuthService
         $auth->update([
             'collected_at' => now(),
             'collected_by' => auth()->id(),
+            'charge_status' => $data['charge_status'],
             'collection_notes' => $data['collection_notes'] ?? null,
             'collection_reference' => $data['collection_reference'] ?? null,
         ]);
@@ -266,6 +267,7 @@ class PaymentAuthService
             $details = $booking->details_json ?? [];
             $details['latest_collection'] = [
                 'payment_auth_id' => $auth->id,
+                'charge_status' => $data['charge_status'],
                 'authorization_type' => $auth->consent_snapshot['authorization_type']
                     ?? $auth->metadata['authorization_type']
                     ?? 'initial',

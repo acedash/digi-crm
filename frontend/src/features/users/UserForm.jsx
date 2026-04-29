@@ -236,12 +236,6 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                   <Shield size={18} style={{ color: 'hsl(var(--primary))' }} />
                   <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Access & Security</h3>
                 </div>
-                {user && (
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px', fontStyle: 'italic' }}>
-                    * Leave blank to keep the current password.
-                  </p>
-                )}
-                
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-muted)' }}>
                     Roles <span style={{ color: '#ef4444' }}>*</span>
@@ -285,6 +279,11 @@ const UserForm = ({ user, onClose, onSuccess }) => {
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   required={!user} 
                 />
+                {user && (
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '-12px', marginBottom: '16px', fontStyle: 'italic' }}>
+                    * Leave blank to keep the current password.
+                  </p>
+                )}
               </section>
 
               <section>

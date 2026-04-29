@@ -9,6 +9,7 @@ import Input from '../../components/ui/Input';
 import callLogService from './callLogService';
 import clientService from '../clients/clientService';
 import sensitiveAuditService from '../../services/sensitiveAuditService';
+import ExportDropdown from '../../components/ui/ExportDropdown';
 
 const CallLoggingPage = () => {
   const [loading, setLoading] = useState(false);
@@ -16,7 +17,6 @@ const CallLoggingPage = () => {
   const [logs, setLogs] = useState([]);
   const [clients, setClients] = useState([]);
   const [toast, setToast] = useState(null);
-  const [showExportOptions, setShowExportOptions] = useState(false);
   const [scopeFilter, setScopeFilter] = useState('all');
   const [formData, setFormData] = useState({
     log_scope: 'general',
@@ -33,7 +33,7 @@ const CallLoggingPage = () => {
     callback_datetime: ''
   });
 
-  const callTypes = ['Flight', 'Hotel', 'Cruise', 'Car Rental', 'General Inquiry'];
+  const callTypes = ['Flight', 'Hotel', 'Cruise', 'Car Rental', 'General Details'];
   const outcomes = [
     'Booking created',
     'Inquiry only',
@@ -119,7 +119,6 @@ const CallLoggingPage = () => {
       setToast({ message: 'Failed to export CSV', type: 'error' });
     } finally {
       setExporting(false);
-      setShowExportOptions(false);
     }
   };
 
@@ -132,7 +131,7 @@ const CallLoggingPage = () => {
         Phone: log.contact_phone || log.client?.phone || '',
         Email: log.contact_email || log.client?.email || '',
         Types: (log.call_type || []).join(', '),
-        Inquiries: typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k,v]) => `${k}: ${v}`).join(' | ') : log.airline_inquiry,
+        'Category Details': typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k,v]) => `${k}: ${v}`).join(' | ') : log.airline_inquiry,
         Outcome: log.customer_outcome,
         Notes: log.notes
       }));
@@ -210,48 +209,15 @@ const CallLoggingPage = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: '32px', fontWeight: 800 }}>Call <span className="premium-gradient-text">Logging</span></h1>
           
-          <div style={{ position: 'relative' }}>
-            <Button
-              variant="glass"
-              icon={Download}
-              onClick={() => setShowExportOptions(!showExportOptions)}
-              isLoading={exporting}
-            >
-              Export Format
-            </Button>
-            
-            {showExportOptions && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                background: '#1e2235', border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', 
-                boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', minWidth: '180px', zIndex: 1000
-              }}>
-                {[
-                  { label: 'As PDF Report', icon: FileText, action: handleExportPdf },
-                  { label: 'As Excel Data', icon: Table, action: handleExportExcel },
-                  { label: 'As CSV Format', icon: FileText, action: handleExportCsv },
-                  { label: 'As Raw JSON', icon: FileJson, action: handleExportJson },
-                ].map(opt => (
-                  <button 
-                    key={opt.label}
-                    onClick={opt.action}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-                      padding: '10px 12px', border: 'none', background: 'transparent',
-                      color: '#f8fafc', fontSize: '13px', fontWeight: 500,
-                      textAlign: 'left', cursor: 'pointer', borderRadius: '8px'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <opt.icon size={16} />
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ExportDropdown
+            isExporting={exporting}
+            options={[
+              { label: 'As PDF Report', icon: FileText, onClick: handleExportPdf },
+              { label: 'As Excel Data', icon: Table, onClick: handleExportExcel },
+              { label: 'As CSV Format', icon: FileText, onClick: handleExportCsv },
+              { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJson },
+            ]}
+          />
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -519,7 +485,7 @@ const CallLoggingPage = () => {
                         const newTypes = isSelected 
                           ? formData.call_type.filter(x => x !== t)
                           : [...formData.call_type, t];
-                        setFormData({ ...formData, call_type: newTypes.length > 0 ? newTypes : ['General Inquiry'] });
+                        setFormData({ ...formData, call_type: newTypes.length > 0 ? newTypes : ['General Details'] });
                     }}
                     style={{
                       padding: '8px 12px', borderRadius: '10px', border: '1px solid',
@@ -537,7 +503,7 @@ const CallLoggingPage = () => {
 
             {formData.call_type.length > 0 && formData.call_type.map(t => (
               <div key={t} style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, marginBottom: '6px', color: 'hsl(var(--primary))', textTransform: 'uppercase' }}>{t} Inquiry</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, marginBottom: '6px', color: 'hsl(var(--primary))', textTransform: 'uppercase' }}>{t} Name</label>
                 <input 
                   type="text"
                   placeholder={`Details for ${t.toLowerCase()}...`}

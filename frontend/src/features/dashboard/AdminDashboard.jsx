@@ -13,18 +13,22 @@ import {
   Clock,
   Mail,
   UserPlus,
-  ChevronRight
+  ChevronRight,
+  HelpCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import dashboardService from './dashboardService';
 import AdminMonitoringTable from './AdminMonitoringTable';
 import { AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { getStatusLabel, getAuthorizationTypeLabel } from '../bookings/bookingUtils';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 const COLORS = [
   '#06B68A', // Emerald
-  '#06B68A', // Blue
+  '#3b82f6', // Blue
   '#f59e0b', // Amber
   '#ef4444', // Red
   '#8b5cf6', // Violet
@@ -42,6 +46,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [period, setPeriod] = useState('daily');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -68,11 +73,17 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await dashboardService.getStats(period, customStart, customEnd);
-      setStats(response.data.data);
+      if (response.data?.data) {
+        setStats(response.data.data);
+      } else {
+        throw new Error('Invalid response data');
+      }
     } catch (error) {
       console.error('Failed to fetch admin stats', error);
+      setError('Could not load dashboard statistics. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -108,39 +119,50 @@ const AdminDashboard = () => {
     );
   }
 
+  if (error && !stats) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '20px' }}>
+        <div style={{ color: '#ef4444', fontSize: '16px', fontWeight: 600 }}>{error}</div>
+        <Button onClick={fetchStats} icon={RefreshCw}>Retry Loading</Button>
+      </div>
+    );
+  }
+
+  if (!stats) return null;
+
   const statCards = [
     {
       title: 'Total Staff Members',
-      subtitle: `${stats.staff.active} active right now`,
-      value: stats.staff.total,
-      growth: stats.staff.growth,
+      subtitle: `${stats.staff?.active || 0} active right now`,
+      value: stats.staff?.total || 0,
+      growth: stats.staff?.growth,
       icon: Users,
       color: '#06B68A',
       onClick: () => navigate('/admin/users')
     },
     {
       title: 'Clients',
-      subtitle: `${stats.clients.period_count} new this ${period}`,
-      value: stats.clients.total,
-      growth: stats.clients.growth,
+      subtitle: `${stats.clients?.period_count || 0} new this ${period}`,
+      value: stats.clients?.total || 0,
+      growth: stats.clients?.growth,
       icon: Users,
       color: '#06B68A',
       onClick: () => navigate('/admin/clients')
     },
     {
       title: 'Bookings',
-      subtitle: `${stats.bookings.count_trend.current} created this ${period}`,
-      value: stats.bookings.total,
-      growth: stats.bookings.growth,
+      subtitle: `${stats.bookings?.count_trend?.current || 0} created this ${period}`,
+      value: stats.bookings?.total || 0,
+      growth: stats.bookings?.growth,
       icon: ClipboardList,
       color: '#06B68A',
       onClick: () => navigate('/admin/bookings')
     },
     {
       title: 'Call Logs',
-      subtitle: `${stats.calls.period_count} logs this ${period}`,
-      value: stats.calls.total,
-      growth: stats.calls.growth,
+      subtitle: `${stats.calls?.period_count || 0} logs this ${period}`,
+      value: stats.calls?.total || 0,
+      growth: stats.calls?.growth,
       icon: PhoneCall,
       color: '#06B68A',
       onClick: () => navigate('/admin/call-logs')
@@ -148,15 +170,15 @@ const AdminDashboard = () => {
     {
       title: 'Revenue Overview',
       subtitle: `Revenue this ${period}`,
-      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue.period_total) || 0),
-      growth: stats.revenue.growth,
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue?.period_total) || 0),
+      growth: stats.revenue?.growth,
       icon: CircleDollarSign,
       color: '#06B68A',
     },
     {
       title: 'Daily Revenue',
       subtitle: 'Collected today by admin',
-      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue.daily) || 0),
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue?.daily) || 0),
       icon: CircleDollarSign,
       color: '#06B68A',
       onClick: () => navigate('/admin/charge-queue')
@@ -172,10 +194,40 @@ const AdminDashboard = () => {
     { id: 'custom', label: 'Custom Date' },
   ];
 
+  const startDashboardTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#dashboard-title',
+        title: 'Welcome Back!',
+        content: 'This is your business command center. Monitor overall health and team activity at a glance.',
+        position: 'bottom'
+      },
+      {
+        target: '#sidebar-bookings',
+        title: 'Manage Bookings',
+        content: 'Everything starts here. View, create, and manage all your client reservations.',
+        position: 'right'
+      },
+      {
+        target: '#stat-cards',
+        title: 'Key Metrics',
+        content: 'Track your total revenue, pending PNRs, and agent performance in real-time.',
+        position: 'bottom'
+      },
+      {
+        target: '#admin-monitoring',
+        title: 'Team Activity',
+        content: 'See exactly what your agents are working on and their current status.',
+        position: 'top'
+      }
+    ]);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
-        <div>
+        <div id="dashboard-title">
           <h1 style={{ fontSize: '32px', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             Admin <span className="premium-gradient-text">Dashboard</span>
             {loading && <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--text-muted)' }}/>}
@@ -186,7 +238,16 @@ const AdminDashboard = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={startDashboardTour}
+            icon={HelpCircle}
+            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+          >
+            Show Guide
+          </Button>
+          <div id="period-selector" style={{ display: 'flex', gap: '8px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             {periods.map((p) => (
               <button
                 key={p.id}
@@ -210,27 +271,34 @@ const AdminDashboard = () => {
           </div>
 
           {period === 'custom' && (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '8px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-              <CalendarIcon size={16} style={{ color: 'var(--text-muted)' }} />
-              <input 
-                type="date" 
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                style={{ background: 'var(--bg-input)', border: 'none', padding: '6px', borderRadius: '6px', color: 'var(--text-main)', outline: 'none', fontSize: '13px' }}
-              />
-              <span style={{ color: 'var(--text-muted)' }}>-</span>
-              <input 
-                type="date" 
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                style={{ background: 'var(--bg-input)', border: 'none', padding: '6px', borderRadius: '6px', color: 'var(--text-main)', outline: 'none', fontSize: '13px' }}
-              />
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+              <div style={{ width: '160px' }}>
+                <Input 
+                  type="date" 
+                  icon={CalendarIcon}
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  style={{ marginBottom: 0 }}
+                  inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+                />
+              </div>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
+              <div style={{ width: '160px' }}>
+                <Input 
+                  type="date" 
+                  icon={CalendarIcon}
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  style={{ marginBottom: 0 }}
+                  inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+                />
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+      <div id="stat-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
         {statCards.map((item) => (
           <div 
             key={item.title} 
@@ -251,7 +319,7 @@ const AdminDashboard = () => {
       </div>
 
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', alignItems: 'stretch' }}>
+      <div id="revenue-charts" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', alignItems: 'stretch' }}>
         {stats.revenue_trends && stats.revenue_trends.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Global Revenue Trends (1 Year)</h3>
@@ -316,7 +384,7 @@ const AdminDashboard = () => {
                   />
                   <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
                   <Bar dataKey="Confirmed" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="Pending" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Pending" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -409,9 +477,7 @@ const AdminDashboard = () => {
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Type</div>
                   <div style={{ fontWeight: 700, color: (auth.consent_snapshot?.authorization_type || auth.metadata?.authorization_type) === 'change_charge' ? '#f59e0b' : '#059669', marginTop: '4px' }}>
-                    {(auth.consent_snapshot?.authorization_type || auth.metadata?.authorization_type) === 'change_charge'
-                      ? 'Change Charge Approval'
-                      : 'Initial Approval By Client'}
+                    {getAuthorizationTypeLabel(auth.consent_snapshot?.authorization_type || auth.metadata?.authorization_type)}
                   </div>
                 </div>
                 <div>
@@ -470,7 +536,7 @@ const AdminDashboard = () => {
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
                   <div style={{ fontWeight: 700, color: '#06B68A', marginTop: '4px' }}>
-                    {booking.status === 'Pending' ? 'Email Send Pending' : booking.status}
+                    {getStatusLabel(booking.status)}
                   </div>
                 </div>
                 <div>
@@ -485,7 +551,9 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <AdminMonitoringTable />
+      <div id="admin-monitoring">
+        <AdminMonitoringTable />
+      </div>
     </div>
   );
 };

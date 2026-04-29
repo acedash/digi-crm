@@ -19,6 +19,7 @@ class PaymentAuth extends Model
         'client_id',
         'token',
         'status',
+        'charge_status',
         'total_amount',
         'currency',
         'approved_at',

@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/agent-monitor', [\App\Http\Controllers\DashboardController::class, 'getAgentMonitor']);
     Route::get('/dashboard/admin-monitor', [\App\Http\Controllers\DashboardController::class, 'getAdminMonitor']);
     Route::get('/dashboard/agent-report/{agentId}', [\App\Http\Controllers\DashboardController::class, 'getAgentStatsReport']);
+    Route::get('/dashboard/attendance-report', [\App\Http\Controllers\DashboardController::class, 'getAttendanceReport']);
 
     Route::group(['prefix' => 'admin'], function () {
         Route::apiResource('clients', ClientController::class);

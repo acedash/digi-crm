@@ -12,11 +12,13 @@ import {
   Edit,
   User as UserIcon,
   Trash2,
-  Download,
   FileText,
   FileSpreadsheet,
-  FileJson
+  FileJson,
+  Calendar as CalendarIcon,
+  Download
 } from 'lucide-react';
+import ExportDropdown from '../../components/ui/ExportDropdown';
 import clientService from './clientService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -36,8 +38,6 @@ const ClientList = ({ isEmbedded = false }) => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [showExportOptions, setShowExportOptions] = useState(false);
-  const exportDropdownRef = React.useRef(null);
   const [filters, setFilters] = useState({
     pnr: '',
     booking_id: '',
@@ -51,17 +51,7 @@ const ClientList = ({ isEmbedded = false }) => {
   const [stats, setStats] = useState({ total: 0, today: 0, yesterday: 0 });
   const isFetchingRef = React.useRef(false);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
-        setShowExportOptions(false);
-      }
-    };
-    if (showExportOptions) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showExportOptions]);
+
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -159,7 +149,6 @@ const ClientList = ({ isEmbedded = false }) => {
       autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
       doc.text("Clients Data Export", 14, 15);
       doc.save("Clients_Export.pdf");
-      setShowExportOptions(false);
     } catch (err) {
       console.error("PDF generation failed:", err);
       alert("PDF Export failed. Check browser console.");
@@ -183,7 +172,6 @@ const ClientList = ({ isEmbedded = false }) => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Clients");
     XLSX.writeFile(wb, "Clients_Export.xlsx");
-    setShowExportOptions(false);
   };
 
   const handleExportJSON = () => {
@@ -194,7 +182,6 @@ const ClientList = ({ isEmbedded = false }) => {
     document.body.appendChild(dt);
     dt.click();
     document.body.removeChild(dt);
-    setShowExportOptions(false);
   };
 
   const renderCategoryDetails = (client) => {
@@ -241,24 +228,13 @@ const ClientList = ({ isEmbedded = false }) => {
               Centralized management for travelers and corporate accounts.
             </p>
           </div>
-          <div style={{ position: 'relative', zIndex: 9999 }} ref={exportDropdownRef}>
-            <Button variant="glass" icon={Download} onClick={() => setShowExportOptions(!showExportOptions)}>
-              Export Format
-            </Button>
-            {showExportOptions && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, backgroundColor: '#1e2235', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', minWidth: '180px' }}>
-                <button onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                  <FileText size={16} /> As PDF Report
-                </button>
-                <button onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                  <FileSpreadsheet size={16} /> As Excel Data
-                </button>
-                <button onClick={handleExportJSON} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#f8fafc', width: '100%', textAlign: 'left', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                  <FileJson size={16} /> As Raw JSON
-                </button>
-              </div>
-            )}
-          </div>
+          <ExportDropdown
+            options={[
+              { label: 'As PDF Report', icon: FileText, onClick: handleExportPDF },
+              { label: 'As Excel Data', icon: FileSpreadsheet, onClick: handleExportExcel },
+              { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJSON },
+            ]}
+          />
         </div>
       )}
 
@@ -299,24 +275,26 @@ const ClientList = ({ isEmbedded = false }) => {
             style={{ marginBottom: 0 }}
           />
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <div style={{ width: '180px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ width: '160px' }}>
               <Input 
                 type="date"
-                icon={RefreshCw} // Placeholder icon matching input.jsx logic
+                icon={CalendarIcon}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
               />
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: 700 }}>to</div>
-            <div style={{ width: '180px' }}>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
+            <div style={{ width: '160px' }}>
               <Input 
                 type="date"
-                icon={RefreshCw}
+                icon={CalendarIcon}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
               />
             </div>
           </div>
@@ -495,7 +473,15 @@ const ClientList = ({ isEmbedded = false }) => {
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                           <Button variant="glass" size="sm" icon={Edit} onClick={() => handleEditClient(client)} style={{ padding: '6px' }} />
                           <Button variant="ghost" size="sm" icon={Trash2} onClick={() => handleDeleteClient(client)} style={{ color: '#f87171', padding: '6px' }} />
-                          <Button variant="ghost" size="sm" icon={ArrowRight} onClick={() => handleViewClient(client)}>Details</Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            id={idx === 0 ? 'client-details-btn-0' : undefined}
+                            icon={ArrowRight} 
+                            onClick={() => handleViewClient(client)}
+                          >
+                            Details
+                          </Button>
                         </div>
                       </td>
                     </MotionTr>

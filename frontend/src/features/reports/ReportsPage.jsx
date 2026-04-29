@@ -7,8 +7,11 @@ import {
   Calendar,
   TrendingUp,
   CreditCard,
-  Users
+  Users,
+  FileSpreadsheet,
+  FileJson
 } from 'lucide-react';
+import ExportDropdown from '../../components/ui/ExportDropdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -81,6 +84,16 @@ const ReportsPage = () => {
     document.body.removeChild(link);
   };
 
+  const handleExportJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredData, null, 2));
+    const dt = document.createElement('a');
+    dt.setAttribute("href", dataStr);
+    dt.setAttribute("download", `reports_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(dt);
+    dt.click();
+    document.body.removeChild(dt);
+  };
+
   const totalRevenue = filteredData.reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
 
   return (
@@ -95,9 +108,12 @@ const ReportsPage = () => {
             Advanced analytics and record exportation for business intelligence.
           </p>
         </div>
-        <Button variant="primary" icon={Download} onClick={exportToCSV} disabled={filteredData.length === 0}>
-          Export to CSV
-        </Button>
+        <ExportDropdown
+          options={[
+            { label: 'As CSV Format', icon: FileSpreadsheet, onClick: exportToCSV },
+            { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJSON },
+          ]}
+        />
       </div>
 
       {/* Quick Summary Cards */}

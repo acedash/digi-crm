@@ -126,8 +126,16 @@ const ClientProfile = () => {
           Go Back
         </Button>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <Button 
+            id="new-booking-btn"
+            variant="primary" 
+            icon={Plus} 
+            onClick={() => navigate(`${basePath}/bookings/new?client_id=${id}`)}
+          >
+            New Booking
+          </Button>
           {client.bookings?.length > 0 && (
-            <Button variant="primary" icon={Edit} onClick={() => navigate(`${basePath}/bookings/${client.bookings[0].id}/edit`)}>Edit Booking</Button>
+            <Button variant="glass" icon={Edit} onClick={() => navigate(`${basePath}/bookings/${client.bookings[0].id}/edit`)}>Edit Booking</Button>
           )}
           <Button variant="ghost" icon={Trash2} onClick={handleDelete} style={{ color: '#f87171' }}>Delete</Button>
         </div>

@@ -3,19 +3,22 @@ import { RefreshCw, Users, Clock, Phone, Coffee, CircleDollarSign } from 'lucide
 import Card from '../../components/ui/Card';
 import dashboardService from './dashboardService';
 import { motion, AnimatePresence } from 'framer-motion';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import ExportDropdown from '../../components/ui/ExportDropdown';
+import { FileText, FileSpreadsheet } from 'lucide-react';
 
-const AgentActivityTable = ({ onViewReport }) => {
+const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
   const MotionTr = motion.tr;
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [monPeriod, setMonPeriod] = useState('daily');
-  const [monStart, setMonStart] = useState('');
-  const [monEnd, setMonEnd] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const tableRef = React.useRef(null);
 
   const fetchActivity = async () => {
     try {
       setLoading(true);
-      const res = await dashboardService.getAgentMonitor(monPeriod, monStart, monEnd);
+      const res = await dashboardService.getAgentMonitor(period, startDate, endDate);
       if (res.data?.success) {
         setAgents(res.data.data);
       }
@@ -28,11 +31,11 @@ const AgentActivityTable = ({ onViewReport }) => {
 
   useEffect(() => {
     fetchActivity();
-    if (monPeriod === 'daily') {
+    if (period === 'live' || period === 'daily') {
       const interval = setInterval(fetchActivity, 60000); // refresh every minute for current day
       return () => clearInterval(interval);
     }
-  }, [monPeriod, monStart, monEnd]);
+  }, [period, startDate, endDate]);
 
   const periods = [
     { id: 'daily', label: 'Daily' },
@@ -53,15 +56,133 @@ const AgentActivityTable = ({ onViewReport }) => {
     }
   };
 
+  const handleExportPDF = async () => {
+    const content = tableRef.current;
+    if (!content || agents.length === 0) return;
+
+    const originalCssText = content.style.cssText;
+
+    try {
+      setIsExporting(true);
+      content.style.cssText += '; width: 1200px !important; max-width: none !important; background: #ffffff !important; padding: 20px !important;';
+
+      await new Promise(r => setTimeout(r, 200));
+
+      const sections = Array.from(content.querySelectorAll('tr'));
+      const contentRect = content.getBoundingClientRect();
+
+      const fullCanvas = await html2canvas(content, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            :root {
+              --bg-card: #ffffff !important;
+              --bg-app: #ffffff !important;
+              --text-main: #000000 !important;
+              --text-muted: #262626 !important;
+              --border-color: #cccccc !important;
+            }
+            * { color: #000000 !important; opacity: 1 !important; transition: none !important; }
+            .hide-on-print { display: none !important; }
+            ::-webkit-scrollbar { display: none !important; }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
+      });
+
+      const imgWidth = fullCanvas.width;
+      const imgHeight = fullCanvas.height;
+      const scaleFactor = imgHeight / content.offsetHeight;
+      
+      const breakPoints = sections.map(s => {
+        const rect = s.getBoundingClientRect();
+        return (rect.top - contentRect.top) * scaleFactor - 8;
+      }).filter(bp => bp > 0);
+      
+      breakPoints.push(imgHeight);
+      breakPoints.sort((a, b) => a - b);
+
+      content.style.cssText = originalCssText;
+
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pdfWidth - (margin * 2);
+
+      const pxPerMm = imgWidth / contentWidth;
+      const pageHeightPx = (pdfHeight - (margin * 2)) * pxPerMm;
+
+      let currentY = 0;
+      let pageNum = 1;
+
+      while (currentY < imgHeight - 10) {
+        if (pageNum > 1) pdf.addPage();
+        
+        let targetCutY = currentY + pageHeightPx;
+        let actualCutY = targetCutY;
+        
+        const possibleBreaks = breakPoints.filter(bp => bp > currentY + 150 && bp <= targetCutY);
+        if (possibleBreaks.length > 0) {
+          actualCutY = possibleBreaks[possibleBreaks.length - 1];
+        }
+        
+        if (imgHeight - currentY <= pageHeightPx) {
+          actualCutY = imgHeight;
+        }
+
+        const sliceHeight = actualCutY - currentY;
+        if (sliceHeight <= 0) break;
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = imgWidth;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(fullCanvas, 0, currentY, imgWidth, sliceHeight, 0, 0, imgWidth, sliceHeight);
+        
+        const pageImgData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        const displayHeight = (sliceHeight * contentWidth) / imgWidth;
+        
+        pdf.addImage(pageImgData, 'JPEG', margin, margin, contentWidth, displayHeight);
+        
+        currentY = actualCutY;
+        pageNum++;
+      }
+
+      pdf.save(`Agent_Activity_${period}.pdf`);
+
+    } catch (err) {
+      console.error('PDF Export failed:', err);
+      content.style.cssText = originalCssText;
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "Agent,Login Time,Status,Calls Picked,Bookings Created,Revenue,Break Time\n"
+      + agents.map(a => `${a.agent_name},${a.login_time},${a.status},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time}`).join("\n");
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csvContent));
+    link.setAttribute("download", `team_activity_${period}_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <Card style={{ padding: '0', overflow: 'hidden', marginTop: '32px', border: '1px solid var(--border-color)' }}>
-      <div style={{ 
+      <div ref={tableRef}>
+        <div style={{ 
         padding: '24px', 
         borderBottom: '1px solid var(--border-color)', 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        background: 'var(--bg-app)',
         flexWrap: 'wrap',
         gap: '20px'
       }}>
@@ -70,84 +191,22 @@ const AgentActivityTable = ({ onViewReport }) => {
             Live Team Activity
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {monPeriod === 'live' ? 'Track agent status in real time.' : `Performance summary for the selected ${monPeriod} period.`}
+            {period === 'live' ? 'Track agent status in real time.' : `Performance summary for the selected ${period} period.`}
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          {/* Custom Date Inputs */}
-          {monPeriod === 'custom' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
-                type="date" 
-                value={monStart} 
-                onChange={(e) => setMonStart(e.target.value)}
-                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
-              />
-              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>to</span>
-              <input 
-                type="date" 
-                value={monEnd} 
-                onChange={(e) => setMonEnd(e.target.value)}
-                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
-              />
-            </div>
-          )}
-
-          {/* Period Selector */}
-          <div style={{ 
-            display: 'flex', 
-            background: 'var(--bg-card)', 
-            padding: '4px', 
-            borderRadius: '10px', 
-            border: '1px solid var(--border-color)',
-            gap: '2px'
-          }}>
-            {periods.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setMonPeriod(p.id)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  background: monPeriod === p.id ? 'hsl(var(--primary))' : 'transparent',
-                  color: monPeriod === p.id ? 'white' : 'var(--text-muted)',
-                }}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
 
           <div style={{ color: 'var(--border-color)' }}>|</div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button 
-              onClick={() => {
-                const csvContent = "data:text/csv;charset=utf-8," 
-                  + "Agent,Login Time,Status,Calls Picked,Bookings Created,Revenue,Break Time\n"
-                  + agents.map(a => `${a.agent_name},${a.login_time},${a.status},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time}`).join("\n");
-                const link = document.createElement("a");
-                link.setAttribute("href", encodeURI(csvContent));
-                link.setAttribute("download", `team_activity_${monPeriod}_${new Date().getTime()}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-              }}
-              style={{ 
-                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer',
-                padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700,
-                transition: 'all 0.2s'
-              }}
-              className="hover:brightness-110"
-            >
-              Export
-            </button>
+          <div style={{ display: 'flex', gap: '8px' }} className="hide-on-print">
+            <ExportDropdown 
+              isExporting={isExporting}
+              options={[
+                { label: 'Export as PDF', icon: FileText, onClick: handleExportPDF },
+                { label: 'Export as CSV', icon: FileSpreadsheet, onClick: handleExportCSV }
+              ]}
+            />
             <button 
               onClick={fetchActivity}
               style={{ 
@@ -173,9 +232,10 @@ const AgentActivityTable = ({ onViewReport }) => {
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calls Picked</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bookings Created</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                {monPeriod === 'live' || monPeriod === 'daily' ? 'Daily' : monPeriod === 'custom' ? 'Period' : monPeriod} Revenue
+                {period === 'live' || period === 'daily' ? 'Daily' : period === 'custom' ? 'Period' : period} Revenue
               </th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Break Time</th>
+              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Hours</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
@@ -254,9 +314,17 @@ const AgentActivityTable = ({ onViewReport }) => {
                           {agent.break_time}
                         </div>
                       </td>
+                      <td style={{ padding: '16px 24px', fontWeight: 700, color: 'var(--text-main)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ background: 'rgba(96, 165, 250, 0.1)', padding: '6px', borderRadius: '6px' }}>
+                            <Clock size={14} style={{ color: '#60a5fa' }} />
+                          </div>
+                          {agent.total_login_time || '--'}
+                        </div>
+                      </td>
                       <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                         <button
-                          onClick={() => onViewReport && onViewReport(agent.id, monPeriod, monStart, monEnd)}
+                          onClick={() => onViewReport && onViewReport(agent.id, period, startDate, endDate)}
                           style={{ 
                             background: 'rgba(96, 165, 250, 0.1)', 
                             border: '1px solid rgba(96, 165, 250, 0.2)', 
@@ -272,7 +340,7 @@ const AgentActivityTable = ({ onViewReport }) => {
                             gap: '6px',
                             transition: 'all 0.2s'
                           }}
-                          className="hover:scale-105"
+                          className="hover:scale-105 hide-on-print"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                           Report
@@ -285,6 +353,7 @@ const AgentActivityTable = ({ onViewReport }) => {
             </AnimatePresence>
           </tbody>
         </table>
+      </div>
       </div>
     </Card>
   );
