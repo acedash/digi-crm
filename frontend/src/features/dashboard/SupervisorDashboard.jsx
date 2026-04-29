@@ -39,6 +39,7 @@ import {
 import userService from '../users/userService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import dashboardService from './dashboardService';
 import bookingService from '../bookings/bookingService';
 import Toast from '../../components/ui/Toast';
