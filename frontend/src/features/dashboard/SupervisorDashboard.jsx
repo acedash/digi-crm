@@ -279,24 +279,34 @@ const SupervisorDashboard = () => {
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>Logged in as</div>
           <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '15px' }}>{user?.name}</div>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Active Agents</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: 'hsl(var(--primary))' }}>
+            {(stats?.agent_performance || []).filter(a => ['active', 'on call'].includes(a.status?.toLowerCase())).length}
+          </div>
         </div>
       </div>
 
       {renderFilterBar()}
 
-      {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-        <Card title="Team Bookings" icon={TrendingUp}>
+      {/* Top row of summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
+        <Card title="Team Bookings" icon={Plane}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'baseline' }}>
               <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.period_bookings || 0}</span>
               <Trend value={stats?.bookings_growth} />
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#06B68A', background: 'rgba(6,182,138,0.1)', padding: '2px 8px', borderRadius: '6px' }}>
-              {period.toUpperCase()}
-            </span>
+            <div style={{ 
+              fontSize: '10px', 
+              color: '#06B68A', 
+              fontWeight: 800, 
+              background: 'rgba(6, 182, 138, 0.1)', 
+              padding: '2px 8px', 
+              borderRadius: '6px',
+              textTransform: 'uppercase'
+            }}>{period}</div>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Total team bookings in the selected period</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>Total team bookings in the selected period</div>
         </Card>
 
         <Card title="Revenue Generated" icon={CircleDollarSign}>
@@ -339,47 +349,47 @@ const SupervisorDashboard = () => {
         </Card>
       </div>
 
-      {/* Inquiry Tags & Monitoring Bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-        <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <div style={{ paddingRight: '24px', borderRight: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Team Status</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)' }}></div>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>
-                {(stats?.agent_performance || []).filter(a => ['active', 'on call'].includes(a.status?.toLowerCase())).length} Active
-              </span>
+      {/* Live Insights Pulse Bar - Very Compact */}
+      <div className="glass-panel" style={{ 
+        padding: '12px 24px', 
+        borderRadius: '16px', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginBottom: '24px',
+        border: '1px solid var(--border-color)',
+        background: 'rgba(255, 255, 255, 0.02)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Inquiry Mix:</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {inquiryTags.slice(0, 4).map((t, idx) => (
+                <span key={idx} style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  color: 'var(--text-main)',
+                  padding: '2px 8px',
+                  background: 'var(--bg-input)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  {t.tag}: <span style={{ color: 'hsl(var(--primary))' }}>{t.count}</span>
+                </span>
+              ))}
             </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', flex: 1 }}>
-            {inquiryTags.slice(0, 5).map((t, idx) => (
-              <div key={idx} style={{ 
-                padding: '6px 12px', 
-                background: 'var(--bg-input)', 
-                border: '1px solid var(--border-color)', 
-                borderRadius: '10px',
-                fontSize: '12px',
-                fontWeight: 700,
-                color: 'var(--text-main)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                <span style={{ opacity: 0.6 }}>{t.tag || 'Other'}:</span>
-                <span style={{ color: 'hsl(var(--primary))' }}>{t.count}</span>
-              </div>
-            ))}
-          </div>
         </div>
-        
-        <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>New Bookings</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)' }}>+{stats?.period_bookings || 0}</div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>New Inquiries:</span>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.total_inquiries || 0}</span>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Inquiries</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.total_inquiries || 0}</div>
+          <div style={{ width: '1px', height: '16px', background: 'var(--border-color)' }}></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Bookings:</span>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: '#06B68A' }}>+{stats?.period_bookings || 0}</span>
           </div>
         </div>
       </div>
