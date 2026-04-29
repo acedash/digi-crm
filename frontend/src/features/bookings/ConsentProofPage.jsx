@@ -657,23 +657,21 @@ const ConsentProofPage = () => {
         </div>
 
         {ticketImages.length > 0 && (
-          <div style={{ display: 'grid', gap: '20px' }}>
+          <div style={{ display: 'grid', gap: '16px' }}>
             <SectionHeader icon={Plane} title="Flight Ticket Images" iconColor="#059669" />
-            <div style={{ display: 'grid', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
               {ticketImages.map((ticket, index) => (
-                <div key={`ticket-${index}`} className="pdf-section" style={{ padding: '24px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div style={{ fontWeight: 800, fontSize: '18px' }}>{ticket.booking_reference}</div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{ticket.segment_label || 'Ticket'}</div>
+                <div key={`ticket-${index}`} className="pdf-section" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                  <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)' }}>
+                    <span style={{ fontWeight: 800, fontSize: '14px' }}>{ticket.booking_reference}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>{ticket.segment_label || 'Ticket'}</span>
                   </div>
-                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                    <img
-                      src={resolveImagePath(ticket.url || ticket.path)}
-                      crossOrigin="anonymous"
-                      alt={ticket.booking_reference}
-                      style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'inline-block' }}
-                    />
-                  </div>
+                  <img
+                    src={resolveImagePath(ticket.url || ticket.path)}
+                    crossOrigin="anonymous"
+                    alt={ticket.booking_reference}
+                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                  />
                 </div>
               ))}
             </div>
@@ -681,15 +679,22 @@ const ConsentProofPage = () => {
         )}
 
         {hotelImages.length > 0 && (
-          <div style={{ display: 'grid', gap: '20px' }}>
+          <div style={{ display: 'grid', gap: '16px' }}>
             <SectionHeader icon={Hotel} title="Hotel & Accommodation" iconColor="#059669" />
-            <div style={{ display: 'grid', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
               {hotelImages.map((img, idx) => (
-                <div key={`hotel-img-${idx}`} className="pdf-section" style={{ padding: '24px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
-                  <div style={{ fontWeight: 800, marginBottom: '20px', fontSize: '18px' }}>{img.booking_reference} - {img.label}</div>
-                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                    <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'inline-block' }} alt="Hotel" />
-                  </div>
+                <div key={`hotel-img-${idx}`} className="pdf-section" style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                  <img
+                    src={resolveImagePath(img.url || img.path)}
+                    crossOrigin="anonymous"
+                    alt="Hotel"
+                    style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }}
+                  />
+                  {(img.booking_reference || img.label) && (
+                    <div style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', borderTop: '1px solid var(--border-color)' }}>
+                      {img.booking_reference}{img.label ? ` - ${img.label}` : ''}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -697,15 +702,22 @@ const ConsentProofPage = () => {
         )}
 
         {carImages.length > 0 && (
-          <div style={{ display: 'grid', gap: '20px' }}>
+          <div style={{ display: 'grid', gap: '16px' }}>
             <SectionHeader icon={Car} title="Car Rental & Transfers" iconColor="#f59e0b" />
-            <div style={{ display: 'grid', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
               {carImages.map((img, idx) => (
-                <div key={`car-img-${idx}`} className="pdf-section" style={{ padding: '24px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
-                  <div style={{ fontWeight: 800, marginBottom: '20px', fontSize: '18px' }}>{img.booking_reference} - {img.label}</div>
-                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                    <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'inline-block' }} alt="Car" />
-                  </div>
+                <div key={`car-img-${idx}`} className="pdf-section" style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                  <img
+                    src={resolveImagePath(img.url || img.path)}
+                    crossOrigin="anonymous"
+                    alt="Car"
+                    style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }}
+                  />
+                  {(img.booking_reference || img.label) && (
+                    <div style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', borderTop: '1px solid var(--border-color)' }}>
+                      {img.booking_reference}{img.label ? ` - ${img.label}` : ''}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -713,15 +725,22 @@ const ConsentProofPage = () => {
         )}
 
         {cruiseImages.length > 0 && (
-          <div style={{ display: 'grid', gap: '20px' }}>
+          <div style={{ display: 'grid', gap: '16px' }}>
             <SectionHeader icon={Waves} title="Cruise Assets" iconColor="#06b6d4" />
-            <div style={{ display: 'grid', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
               {cruiseImages.map((img, idx) => (
-                <div key={`cruise-img-${idx}`} className="pdf-section" style={{ padding: '24px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
-                  <div style={{ fontWeight: 800, marginBottom: '20px', fontSize: '18px' }}>{img.booking_reference} - {img.label}</div>
-                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                    <img src={resolveImagePath(img.url || img.path)} crossOrigin="anonymous" style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'inline-block' }} alt="Cruise" />
-                  </div>
+                <div key={`cruise-img-${idx}`} className="pdf-section" style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                  <img
+                    src={resolveImagePath(img.url || img.path)}
+                    crossOrigin="anonymous"
+                    alt="Cruise"
+                    style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }}
+                  />
+                  {(img.booking_reference || img.label) && (
+                    <div style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', borderTop: '1px solid var(--border-color)' }}>
+                      {img.booking_reference}{img.label ? ` - ${img.label}` : ''}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
