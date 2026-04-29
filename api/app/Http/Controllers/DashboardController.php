@@ -512,12 +512,12 @@ class DashboardController extends Controller
         $customStart = $request->get('start_date');
         $customEnd = $request->get('end_date');
 
-        $cacheKey = 'dashboard.agent-monitor.v2.' . ($user->hasRole('admin') ? 'admin' : 'supervisor.' . $user->id) . '.' . $period;
+        $cacheKey = 'dashboard.agent-monitor.v3.' . ($user->hasRole('admin') ? 'admin' : 'supervisor.' . $user->id) . '.' . $period;
         if ($period === 'custom') {
             $cacheKey .= '.' . md5($customStart . $customEnd);
         }
 
-        $activityData = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($agents, $period, $customStart, $customEnd) {
+        $activityData = Cache::remember($cacheKey, ($period === 'live' || $period === 'daily') ? now()->addSeconds(10) : now()->addMinutes(2), function () use ($agents, $period, $customStart, $customEnd) {
             $tz = config('app.timezone');
             $agentIds = $agents->pluck('id')->all();
 
@@ -578,42 +578,39 @@ class DashboardController extends Controller
             return $agents->map(function ($agent) use ($activitiesByUser, $callCounts, $bookingStats, $tz, $period, $start, $end) {
                 $activities = $activitiesByUser->get($agent->id, collect());
                 
-                // Check if user was logged in at the START of the period
-                // We find the last activity before the start of the period
+                $sessionStart = null;
+                $totalSeconds = 0;
+                $breakSeconds = 0;
+                
+                // Track ongoing sessions from start of period
                 $lastActivityBefore = \App\Models\UserActivity::where('user_id', $agent->id)
                     ->where('created_at', '<', $start)
                     ->orderBy('created_at', 'desc')
                     ->first();
                 
                 $isLoggedInAtStart = $lastActivityBefore && in_array($lastActivityBefore->activity_type, ['login', 'on_call', 'idle', 'break_start']);
-                $sessionStart = $isLoggedInAtStart ? $start : null;
-                
+                if ($isLoggedInAtStart) {
+                    $sessionStart = $start;
+                }
+
                 $loginActivity = $activities->firstWhere('activity_type', 'login');
                 $loginTime = $loginActivity ? $loginActivity->created_at->timezone($tz)->format('h:i A') : ($isLoggedInAtStart ? 'Prev. Session' : '--');
 
-                $breakSeconds = 0;
-                $totalLoginSeconds = 0;
                 $currentSegmentStart = $isLoggedInAtStart ? $start : null;
                 $currentSegmentType = $isLoggedInAtStart ? ($lastActivityBefore->activity_type === 'break_start' ? 'break' : 'active') : null;
 
                 foreach ($activities as $activity) {
                     $type = $activity->activity_type;
 
-                    // Session tracking
                     if ($type === 'login') {
                         $sessionStart = $activity->created_at;
                     } elseif ($type === 'logout' && $sessionStart) {
-                        $totalLoginSeconds += abs($activity->created_at->diffInSeconds($sessionStart));
+                        $totalSeconds += abs($activity->created_at->diffInSeconds($sessionStart));
                         $sessionStart = null;
                     }
 
-                    // Break/Active segment tracking
-                    $state = 'active';
-                    if ($type === 'break_start') $state = 'break';
-                    elseif ($type === 'on_call') $state = 'on_call';
-                    elseif ($type === 'idle') $state = 'active';
-                    elseif ($type === 'logout') $state = 'offline';
-
+                    $state = in_array($type, ['break_start']) ? 'break' : (in_array($type, ['logout']) ? 'offline' : 'active');
+                    
                     if ($currentSegmentStart && $currentSegmentType === 'break') {
                         $breakSeconds += abs($activity->created_at->diffInSeconds($currentSegmentStart));
                     }
@@ -627,29 +624,27 @@ class DashboardController extends Controller
                     }
                 }
 
-                // Handle ongoing sessions at the END of the period
                 $effectiveEnd = $end->isFuture() ? now() : $end;
-
                 if ($sessionStart) {
-                    $totalLoginSeconds += abs($effectiveEnd->diffInSeconds($sessionStart));
+                    $totalSeconds += abs($effectiveEnd->diffInSeconds($sessionStart));
                 }
-
                 if ($currentSegmentStart && $currentSegmentType === 'break') {
                     $breakSeconds += abs($effectiveEnd->diffInSeconds($currentSegmentStart));
                 }
 
                 $stats = $bookingStats->get($agent->id);
-
+                
                 return [
                     'id' => $agent->id,
+                    'agent_id' => $agent->id,
                     'agent_name' => $agent->name,
+                    'status' => $agent->status,
                     'login_time' => $loginTime,
-                    'status' => $agent->status ?? 'Offline',
-                    'calls_picked' => (int) ($callCounts[$agent->id] ?? 0),
+                    'calls_picked' => (int) ($callCounts->get($agent->id) ?? 0),
                     'bookings_created' => (int) ($stats->bookings_created ?? 0),
                     'daily_revenue' => (float) ($stats->period_revenue ?? 0),
                     'break_time' => $this->formatSeconds($breakSeconds),
-                    'total_login_time' => $this->formatSeconds($totalLoginSeconds),
+                    'total_login_time' => round($totalSeconds / 3600, 1) . 'h',
                 ];
             })->values();
         });
@@ -671,18 +666,19 @@ class DashboardController extends Controller
         $customStart = $request->get('start_date');
         $customEnd = $request->get('end_date');
 
-        $cacheKey = 'dashboard.admin-monitor.v2.' . $period;
+        $cacheKey = 'dashboard.admin-monitor.v3.' . $period;
         if ($period === 'custom') {
             $cacheKey .= '.' . md5($customStart . $customEnd);
         }
 
-        $data = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($period, $customStart, $customEnd) {
+        $data = Cache::remember($cacheKey, ($period === 'live' || $period === 'daily') ? now()->addSeconds(10) : now()->addMinutes(2), function () use ($period, $customStart, $customEnd) {
             $supervisors = User::role('supervisor')
                 ->with(['supervisedAgents' => function ($query) {
                     $query->select('users.id', 'users.status');
                 }])
                 ->get(['id', 'name']);
 
+            $tz = config('app.timezone');
             $start = now()->timezone($tz)->startOfDay();
             $end = now()->timezone($tz)->endOfDay();
 

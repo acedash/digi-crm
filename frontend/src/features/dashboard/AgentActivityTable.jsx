@@ -252,7 +252,7 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
                   const style = getStatusColor(agent.status);
                   return (
                     <MotionTr 
-                      key={agent.id} 
+                      key={agent.id || `agent-${idx}`} 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05 }}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, ShieldCheck, Users, Activity, Coffee, Clock } from 'lucide-react';
+import { RefreshCw, ShieldCheck, Users, Activity, Coffee, Clock, CircleDollarSign } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import dashboardService from './dashboardService';
 import { motion, AnimatePresence } from 'framer-motion';
