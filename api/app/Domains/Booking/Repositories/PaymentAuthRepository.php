@@ -41,8 +41,8 @@ class PaymentAuthRepository extends BaseRepository
             ->select([
                 'id', 'client_id', 'token', 'status', 'charge_status', 'total_amount', 'currency', 
                 'approved_at', 'collected_at', 'collected_by', 'masked_card',
-                'metadata', 'consent_snapshot'
-            ]) // digital_signature still excluded for bandwidth, but metadata/snapshot are required for frontend card logic
+                'metadata'
+            ]) // digital_signature and consent_snapshot excluded for bandwidth; metadata is sufficient for list view logic
             ->with(['client:id,name,first_name,last_name', 'bookings:id,booking_reference,agent_id,details_json', 'bookings.agent:id,name', 'collector:id,name']);
 
         if ($view === 'charged') {
