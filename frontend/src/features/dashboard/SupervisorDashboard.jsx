@@ -63,8 +63,14 @@ const SupervisorDashboard = () => {
   const [toast, setToast] = useState({ message: '', type: 'error' });
 
   useEffect(() => {
-    fetchData();
-  }, [period]);
+    if (period === 'custom') {
+      if (customRange.start && customRange.end) {
+        fetchData();
+      }
+    } else {
+      fetchData();
+    }
+  }, [period, customRange.start, customRange.end]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -82,12 +88,6 @@ const SupervisorDashboard = () => {
       console.error('Failed to load supervisor data');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleApplyCustomFilter = () => {
-    if (customRange.start && customRange.end) {
-      fetchData();
     }
   };
 
@@ -228,22 +228,6 @@ const SupervisorDashboard = () => {
                 inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px', height: 'auto' }}
               />
             </div>
-            <button 
-              onClick={handleApplyCustomFilter}
-              style={{
-                marginLeft: '4px',
-                padding: '8px 16px',
-                borderRadius: '10px',
-                background: 'hsl(var(--primary))',
-                color: 'white',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              Apply
-            </button>
           </div>
         )}
 
