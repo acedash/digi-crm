@@ -241,7 +241,8 @@ const AdminLayout = () => {
               style={{ 
                 height: '64px', 
                 width: 'auto',
-                display: 'block'
+                display: 'block',
+                borderRadius: '16px'
               }} 
             />
           </div>

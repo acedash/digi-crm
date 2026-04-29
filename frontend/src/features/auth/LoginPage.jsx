@@ -99,8 +99,9 @@ const LoginPage = () => {
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
+              borderRadius: '16px'
             }}>
-              <img src="/digi-logo.jpeg" alt="DC" style={{ height: '56px', width: 'auto' }} />
+              <img src="/digi-logo.jpeg" alt="DC" style={{ height: '56px', width: 'auto', borderRadius: '12px' }} />
             </div>
             <div>
               <h2 style={{ color: 'white', fontSize: '24px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>DIGICIRCLE</h2>
@@ -155,7 +156,7 @@ const LoginPage = () => {
                 justifyContent: 'center',
                 margin: '0 auto 16px',
               }}>
-                <img src="/digi-logo.jpeg" alt="DC" style={{ height: '80px', width: 'auto' }} />
+                <img src="/digi-logo.jpeg" alt="DC" style={{ height: '80px', width: 'auto', borderRadius: '18px' }} />
               </div>
               <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#1e293b', marginBottom: '4px' }}>Welcome back</h2>
               <p style={{ color: '#64748b', fontSize: '15px', fontWeight: 500 }}>Use the credentials shared by your admin</p>
