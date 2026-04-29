@@ -346,7 +346,9 @@ const SupervisorDashboard = () => {
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Team Status</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)' }}></div>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>{agents.filter(a => a.status === 'Active').length} Active</span>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>
+                {agents.filter(a => ['active', 'on call'].includes(a.status?.toLowerCase())).length} Active
+              </span>
             </div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', flex: 1 }}>
@@ -485,8 +487,13 @@ const SupervisorDashboard = () => {
                     <td style={{ padding: '16px', borderRadius: '16px 0 0 16px', border: '1px solid var(--border-color)', borderRight: 'none' }}>
                       <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{agent.name}</div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: agent.status === 'Active' ? '#22c55e' : '#f59e0b' }} />
-                        {agent.status}
+                        <div style={{ 
+                          width: '6px', 
+                          height: '6px', 
+                          borderRadius: '50%', 
+                          background: ['active', 'on call'].includes(agent.status?.toLowerCase()) ? '#22c55e' : (agent.status?.toLowerCase() === 'break' ? '#f59e0b' : '#ef4444') 
+                        }} />
+                        {agent.status || 'Offline'}
                       </div>
                     </td>
                     <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
