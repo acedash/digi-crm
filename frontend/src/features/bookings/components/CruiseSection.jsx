@@ -121,6 +121,13 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
               <Input label="Arrival Date & Time" type="datetime-local" value={cruise.arrival_date || ''} onChange={e => setCruise({...cruise, arrival_date: e.target.value})} />
             </div>
 
+            <div style={{ margin: '24px 0', height: '1px', background: 'var(--border-color)', opacity: 0.5 }}></div>
+
+            <div style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '4px', height: '14px', background: 'hsl(var(--primary))', borderRadius: '4px' }}></div>
+              Payment &amp; Due Dates
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
               <Input label="Deposit Amount" type="number" placeholder="0.00" value={cruise.deposit_amount || ''} onChange={e => setCruise({...cruise, deposit_amount: e.target.value})} />
               <Input label="Due Amount" type="number" placeholder="0.00" value={cruise.due_amount || ''} onChange={e => setCruise({...cruise, due_amount: e.target.value})} />
