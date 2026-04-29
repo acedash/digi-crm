@@ -156,7 +156,7 @@ class ClientRepository extends BaseRepository
                 'cards',
                 // Limit to recent 20 bookings to avoid loading entire booking history on every profile view
                 'bookings' => function ($query) {
-                    $query->select(['id', 'client_id', 'agent_id', 'booking_reference', 'status', 'total_amount', 'currency', 'travel_date', 'created_at', 'details_json'])
+                    $query->select(['id', 'client_id', 'agent_id', 'booking_reference', 'status', 'total_amount', 'currency', 'created_at', 'details_json'])
                           ->latest('created_at')
                           ->limit(20)
                           ->with([
