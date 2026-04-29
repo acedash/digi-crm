@@ -186,15 +186,26 @@ const AdminLayout = () => {
         }}
       >
         <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'center' }}>
-          <img 
-            src="/digi-logo-sidebar.png" 
-            alt="Digi CRM" 
-            style={{ 
-              height: '48px', 
-              width: 'auto',
-              display: 'block'
-            }} 
-          />
+          <div style={{ 
+            width: '64px', 
+            height: '64px', 
+            background: '#020617', 
+            borderRadius: '18px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            boxShadow: '0 8px 16px rgba(0,0,0,0.15)'
+          }}>
+            <img 
+              src="/digi-logo-sidebar.png" 
+              alt="Digi CRM" 
+              style={{ 
+                height: '38px', 
+                width: 'auto',
+                display: 'block'
+              }} 
+            />
+          </div>
         </div>
 
         <nav style={{ flex: 1 }}>
