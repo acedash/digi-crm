@@ -649,23 +649,16 @@ const BookingList = ({ onCreate, onEdit }) => {
   return (
     <div style={{ padding: window.innerWidth <= 768 ? '16px' : '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header Area */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: window.innerWidth <= 768 ? 'flex-start' : 'center', 
-        marginBottom: '32px',
-        flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
-        gap: '20px'
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
-          <h1 className="premium-gradient-text" style={{ fontSize: window.innerWidth <= 768 ? '28px' : '32px', fontWeight: 800, marginBottom: '8px' }}>
+          <h1 className="premium-gradient-text" style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
             Bookings
           </h1>
           <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '14px' }}>
             Manage client reservations and itineraries.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', width: window.innerWidth <= 768 ? '100%' : 'auto' }}>
+        <div style={{ display: 'flex', gap: '12px' }}>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -693,11 +686,11 @@ const BookingList = ({ onCreate, onEdit }) => {
               ]);
             }}
             icon={HelpCircle}
-            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))', flex: 1 }}
+            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))', marginRight: '8px' }}
           >
-            Guide
+            Show Guide
           </Button>
-          <Button variant="primary" icon={Plus} onClick={onCreate} style={{ flex: 2 }}>New Booking</Button>
+          <Button variant="primary" icon={Plus} onClick={onCreate}>New Booking</Button>
         </div>
       </div>
 
