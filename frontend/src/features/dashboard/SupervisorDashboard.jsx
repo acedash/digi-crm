@@ -347,7 +347,7 @@ const SupervisorDashboard = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)' }}></div>
               <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>
-                {agents.filter(a => ['active', 'on call'].includes(a.status?.toLowerCase())).length} Active
+                {(stats?.agent_performance || []).filter(a => ['active', 'on call'].includes(a.status?.toLowerCase())).length} Active
               </span>
             </div>
           </div>

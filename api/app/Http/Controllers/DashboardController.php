@@ -270,7 +270,7 @@ class DashboardController extends Controller
                 break;
         }
 
-        $cacheDuration = ($period === 'daily' || $period === 'custom') ? 60 : 600; // 1 min for live data, 10 mins for others
+        $cacheDuration = ($period === 'daily' || $period === 'custom') ? 30 : 600; // 30 sec for live data, 10 mins for others
 
         $data = Cache::remember($cacheKey, now()->addSeconds($cacheDuration), function () use ($user, $startDate, $endDate, $period) {
             $agentIds = $user->supervisedAgents()->pluck('users.id')->toArray();
@@ -309,7 +309,7 @@ class DashboardController extends Controller
                 'total_revenue' => $agentStats->sum('total_revenue')
             ];
 
-            $agents = User::role('agent')
+            $agents = User::query()
                 ->whereHas('supervisors', function ($query) use ($user) {
                     $query->where('users.id', $user->id);
                 })
