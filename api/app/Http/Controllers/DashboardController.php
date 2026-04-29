@@ -526,21 +526,28 @@ class DashboardController extends Controller
 
             if ($period !== 'live') {
                 switch ($period) {
-                    case 'daily':
-                        $start = now()->timezone($tz)->startOfDay();
+                    case 'yesterday':
+                        $start = now()->timezone($tz)->subDay()->startOfDay();
+                        $end = now()->timezone($tz)->subDay()->endOfDay();
                         break;
                     case 'weekly':
-                        $start = now()->timezone($tz)->subDays(7);
+                        $start = now()->timezone($tz)->subDays(7)->startOfDay();
                         break;
                     case 'monthly':
-                        $start = now()->timezone($tz)->subDays(30);
+                        $start = now()->timezone($tz)->subDays(30)->startOfDay();
+                        break;
+                    case 'all':
+                        $start = now()->timezone($tz)->subYears(5)->startOfDay();
                         break;
                     case 'custom':
                         $start = $customStart ? now()->parse($customStart)->timezone($tz)->startOfDay() : now()->timezone($tz)->subDays(30);
                         $end = $customEnd ? now()->parse($customEnd)->timezone($tz)->endOfDay() : now()->timezone($tz);
                         break;
+                    case 'daily':
                     default:
                         $start = now()->timezone($tz)->startOfDay();
+                        $end = now()->timezone($tz)->endOfDay();
+                        break;
                 }
             }
 
@@ -661,27 +668,33 @@ class DashboardController extends Controller
                 }])
                 ->get(['id', 'name']);
 
-            $start = null;
-            $end = now();
-            $tz = config('app.timezone');
+            $start = now()->timezone($tz)->startOfDay();
+            $end = now()->timezone($tz)->endOfDay();
 
             if ($period !== 'live') {
                 switch ($period) {
-                    case 'daily':
-                        $start = now()->timezone($tz)->startOfDay();
+                    case 'yesterday':
+                        $start = now()->timezone($tz)->subDay()->startOfDay();
+                        $end = now()->timezone($tz)->subDay()->endOfDay();
                         break;
                     case 'weekly':
-                        $start = now()->timezone($tz)->subDays(7);
+                        $start = now()->timezone($tz)->subDays(7)->startOfDay();
                         break;
                     case 'monthly':
-                        $start = now()->timezone($tz)->subDays(30);
+                        $start = now()->timezone($tz)->subDays(30)->startOfDay();
+                        break;
+                    case 'all':
+                        $start = now()->timezone($tz)->subYears(5)->startOfDay();
                         break;
                     case 'custom':
                         $start = $customStart ? now()->parse($customStart)->timezone($tz)->startOfDay() : now()->timezone($tz)->subDays(30);
                         $end = $customEnd ? now()->parse($customEnd)->timezone($tz)->endOfDay() : now()->timezone($tz);
                         break;
+                    case 'daily':
                     default:
-                        $period = 'live';
+                        $start = now()->timezone($tz)->startOfDay();
+                        $end = now()->timezone($tz)->endOfDay();
+                        break;
                 }
             }
 
@@ -701,6 +714,11 @@ class DashboardController extends Controller
                 $login = $logins->get($sup->id, collect())->first();
                 $loginTime = $login ? $login->created_at->timezone($tz)->format('h:i A') : '--';
 
+                // Calculate Revenue for the team
+                $teamRevenue = Booking::whereIn('agent_id', $agentIds)
+                    ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
+                    ->sum('total_amount');
+
                 if ($period === 'live') {
                     $totalAgents = $agents->count();
                     $active = $agents->filter(function ($agent) {
@@ -712,14 +730,14 @@ class DashboardController extends Controller
                 } else {
                     // Historical aggregation from UserActivity
                     $activeAgentIds = \App\Models\UserActivity::whereIn('user_id', $agentIds)
-                        ->whereBetween('created_at', [$start, $end])
+                        ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
                         ->whereIn('activity_type', ['login', 'on_call', 'idle'])
                         ->distinct('user_id')
                         ->pluck('user_id')
                         ->toArray();
 
                     $breakAgentIds = \App\Models\UserActivity::whereIn('user_id', $agentIds)
-                        ->whereBetween('created_at', [$start, $end])
+                        ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
                         ->where('activity_type', 'break_start')
                         ->distinct('user_id')
                         ->pluck('user_id')
@@ -737,6 +755,7 @@ class DashboardController extends Controller
                     'total_agents' => $totalAgents,
                     'active_agents' => $active,
                     'on_break' => $onBreak,
+                    'revenue' => (float) $teamRevenue,
                 ];
             })->values();
         });

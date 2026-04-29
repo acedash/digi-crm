@@ -159,8 +159,8 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
 
   const handleExportCSV = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
-      + "Supervisor,Login Time,Total Agents,Active,On Break\n"
-      + supervisors.map(s => `${s.supervisor_name},${s.login_time},${s.total_agents},${s.active_agents},${s.on_break}`).join("\n");
+      + "Supervisor,Login Time,Total Agents,Active,On Break,Revenue\n"
+      + supervisors.map(s => `${s.supervisor_name},${s.login_time},${s.total_agents},${s.active_agents},${s.on_break},${s.revenue || 0}`).join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
     link.setAttribute("download", `monitoring_${period}_${new Date().getTime()}.csv`);
@@ -227,13 +227,14 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Agents</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>On Break</th>
+              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Team Revenue</th>
             </tr>
           </thead>
           <tbody>
             <AnimatePresence>
               {supervisors.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan="6" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     {loading ? 'Compiling hierarchy...' : 'No supervisors found.'}
                   </td>
                 </tr>
@@ -281,6 +282,14 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
                           <Coffee size={14} style={{ color: '#f59e0b' }} />
                         </div>
                         {sup.on_break}
+                      </div>
+                    </td>
+                    <td style={{ padding: '16px 24px', fontWeight: 700, color: '#22c55e' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                         <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '6px', borderRadius: '6px' }}>
+                            <CircleDollarSign size={14} style={{ color: '#22c55e' }} />
+                         </div>
+                         {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(sup.revenue || 0)}
                       </div>
                     </td>
                   </motion.tr>
