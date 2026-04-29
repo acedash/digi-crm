@@ -575,7 +575,7 @@ class DashboardController extends Controller
                 ->get()
                 ->keyBy('agent_id');
 
-            return $agents->map(function ($agent) use ($activitiesByUser, $callCounts, $bookingStats, $tz, $period) {
+            return $agents->map(function ($agent) use ($activitiesByUser, $callCounts, $bookingStats, $tz, $period, $start, $end) {
                 $activities = $activitiesByUser->get($agent->id, collect());
                 
                 // Check if user was logged in at the START of the period
