@@ -35,7 +35,18 @@ const AdminLayout = () => {
   const location = useLocation();
   const [shieldActive, setShieldActive] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const lastShortcutLogRef = useRef(0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) setMobileMenuOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -178,7 +189,7 @@ const AdminLayout = () => {
       
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
-        {mobileMenuOpen && (
+        {isMobile && mobileMenuOpen && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -200,12 +211,12 @@ const AdminLayout = () => {
         className="no-print sidebar-nav"
         initial={false}
         animate={{ 
-          x: (window.innerWidth <= 768 && !mobileMenuOpen) ? -240 : 0,
+          x: (isMobile && !mobileMenuOpen) ? -240 : 0,
           width: 240
         }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         style={{
-          position: window.innerWidth <= 768 ? 'absolute' : 'relative',
+          position: isMobile ? 'absolute' : 'relative',
           height: '100%',
           background: 'var(--bg-card)',
           backdropFilter: 'blur(10px)',
@@ -237,26 +248,27 @@ const AdminLayout = () => {
               }} 
             />
           </div>
-          <button 
-            className="show-on-mobile"
-            onClick={() => setMobileMenuOpen(false)}
-            style={{ 
-              position: 'absolute', 
-              right: '-10px', 
-              top: '-10px', 
-              background: 'var(--bg-app)', 
-              border: 'none', 
-              borderRadius: '50%', 
-              width: '32px', 
-              height: '32px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              color: 'var(--text-main)'
-            }}
-          >
-            <X size={18} />
-          </button>
+          {isMobile && (
+            <button 
+              onClick={() => setMobileMenuOpen(false)}
+              style={{ 
+                position: 'absolute', 
+                right: '-10px', 
+                top: '-10px', 
+                background: 'var(--bg-app)', 
+                border: 'none', 
+                borderRadius: '50%', 
+                width: '32px', 
+                height: '32px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: 'var(--text-main)'
+              }}
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
         <nav style={{ flex: 1, overflowY: 'auto' }}>
@@ -343,19 +355,20 @@ const AdminLayout = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: window.innerWidth <= 768 ? '0 20px' : '0 40px',
+          padding: isMobile ? '0 20px' : '0 40px',
           zIndex: 40,
           width: '100%'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button 
-              className="show-on-mobile"
-              onClick={() => setMobileMenuOpen(true)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '4px' }}
-            >
-              <Menu size={24} />
-            </button>
-            <div style={{ color: 'var(--text-main)', fontSize: window.innerWidth <= 768 ? '16px' : '18px', fontWeight: 700 }}>
+            {isMobile && (
+              <button 
+                onClick={() => setMobileMenuOpen(true)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '4px' }}
+              >
+                <Menu size={24} />
+              </button>
+            )}
+            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? '16px' : '18px', fontWeight: 700 }}>
               {(() => {
                 const activeItem = navItems.find(item => item.path === location.pathname);
                 if (activeItem) return activeItem.label;
@@ -365,7 +378,7 @@ const AdminLayout = () => {
             </div>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: window.innerWidth <= 768 ? '12px' : '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '20px' }}>
             <Button 
               variant="ghost" 
               size="sm" 
@@ -373,13 +386,15 @@ const AdminLayout = () => {
               icon={theme === 'dark' ? Sun : Moon}
               style={{ borderRadius: '100px', width: '36px', height: '36px', padding: 0 }}
             />
-            <div className="hide-on-mobile">
-              <StatusToggle />
-            </div>
-            <div style={{ textAlign: 'right' }} className="hide-on-mobile">
-              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{user?.name}</p>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{activeRole}</p>
-            </div>
+            {!isMobile && (
+              <>
+                <StatusToggle />
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{user?.name}</p>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{activeRole}</p>
+                </div>
+              </>
+            )}
             <div style={{ 
               width: '36px', 
               height: '36px', 
@@ -396,7 +411,7 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        <main style={{ flex: 1, overflowY: 'auto', padding: window.innerWidth <= 768 ? '24px 20px' : '40px' }}>
+        <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '24px 20px' : '40px' }}>
           <div
             style={{
               maxWidth: '1200px',
