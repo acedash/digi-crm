@@ -130,9 +130,47 @@ const ConsentProofPage = () => {
 
   if (error || !proof) {
     return (
-      <div style={{ padding: '32px' }}>
-        <Button variant="ghost" icon={ArrowLeft} onClick={() => navigate(-1)}>Back</Button>
-        <p style={{ marginTop: '20px', color: '#ef4444' }}>{error || 'Consent proof not available.'}</p>
+      <div style={{ 
+        padding: '60px 24px', 
+        maxWidth: '500px', 
+        margin: '0 auto', 
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '24px'
+      }}>
+        <div style={{ 
+          width: '80px', 
+          height: '80px', 
+          borderRadius: '24px', 
+          background: 'rgba(239, 68, 68, 0.1)', 
+          color: '#ef4444',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '8px'
+        }}>
+          <Shield size={40} />
+        </div>
+        
+        <div>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px' }}>
+            Consent Proof Not Found
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.6 }}>
+            {error || "We couldn't find any payment authorization or consent proof for this booking. The client may not have completed the authorization process yet."}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+          <Button variant="outline" icon={ArrowLeft} onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+          <Button variant="primary" icon={Mail} onClick={() => navigate(`/${id?.includes('BK') ? 'agent' : 'admin'}/bookings/${id}`)}>
+            View Booking
+          </Button>
+        </div>
       </div>
     );
   }
