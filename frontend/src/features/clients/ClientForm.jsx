@@ -206,8 +206,9 @@ const ClientForm = ({ client, onClose, onSuccess, isFullPage = false }) => {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          background: isFullPage ? 'transparent' : 'var(--bg-card)',
-          border: isFullPage ? '1px solid var(--border-color)' : '1px solid var(--border-color)'
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-premium)'
         }}
       >
         {/* Modal Header */}

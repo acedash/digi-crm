@@ -436,7 +436,10 @@ class BookingOrchestrator
                 return $existingClient->id;
             }
 
-            $client = Client::create(array_merge($data['new_client'], ['agent_id' => auth()->id()]));
+            $client = Client::create(array_merge($data['new_client'], [
+                'agent_id' => $data['agent_id'] ?? auth()->id(),
+                'created_by' => auth()->id()
+            ]));
             return $client->id;
         }
         

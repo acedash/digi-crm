@@ -196,7 +196,7 @@ const ClientProfile = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
               <InfoItem icon={Calendar} label="Date of Birth" value={client.date_of_birth || 'Not Set'} />
               <InfoItem icon={User} label="Gender" value={client.gender || 'Not Set'} />
-              <InfoItem icon={UserPlus} label="Created By" value={client.agent?.name || 'Self/System'} />
+              <InfoItem icon={UserPlus} label="Created By" value={client.creator?.name || client.agent?.name || 'Self/System'} />
               <InfoItem icon={ShieldCheck} label="Membership" value="Active Explorer" />
             </div>
           </Card>

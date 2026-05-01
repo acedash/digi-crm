@@ -88,7 +88,7 @@ const ClientList = ({ isEmbedded = false }) => {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [filters, debouncedSearch]);
+  }, [filters, debouncedSearch, startDate, endDate]);
 
   useEffect(() => {
     fetchClients();
@@ -243,7 +243,7 @@ const ClientList = ({ isEmbedded = false }) => {
         {[
           { label: 'Total Clients', value: stats?.total || 0, icon: Users, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)' },
           { label: 'Registered Today', value: stats?.today || 0, icon: UserIcon, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)' },
-          { label: 'Registered Yesterday', value: stats?.yesterday || 0, icon: UserIcon, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
+          { label: 'Registered Yesterday', value: stats?.yesterday || 0, icon: UserIcon, color: '#06B68A', bg: 'rgba(6, 182, 138, 0.1)' },
         ].map((stat, i) => (
           <Card key={i} style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -466,7 +466,7 @@ const ClientList = ({ isEmbedded = false }) => {
                       </td>
                       <td style={{ padding: '20px 24px', whiteSpace: 'nowrap', minWidth: '140px' }}>
                         <div style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 600 }}>
-                          {client.creator?.name || '---'}
+                          {client.creator?.name || client.agent?.name || '---'}
                         </div>
                       </td>
                       <td style={{ padding: '20px 24px', textAlign: 'right' }}>

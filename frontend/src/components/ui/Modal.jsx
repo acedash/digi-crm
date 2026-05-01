@@ -1,10 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 const Modal = ({ isOpen, onClose, title, children, maxWidth = '500px' }) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div 
       style={{
         position: 'fixed',
@@ -14,7 +26,7 @@ const Modal = ({ isOpen, onClose, title, children, maxWidth = '500px' }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2000,
+        zIndex: 9999,
         padding: '20px',
       }}
       onClick={onClose}
@@ -55,7 +67,7 @@ const Modal = ({ isOpen, onClose, title, children, maxWidth = '500px' }) => {
             <X size={20} />
           </button>
         </div>
-        <div style={{ padding: '24px' }}>
+        <div style={{ padding: '24px', maxHeight: '80vh', overflowY: 'auto' }}>
           {children}
         </div>
         
@@ -70,6 +82,8 @@ const Modal = ({ isOpen, onClose, title, children, maxWidth = '500px' }) => {
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default Modal;

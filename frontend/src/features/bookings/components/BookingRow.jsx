@@ -24,6 +24,7 @@ import {
   ClipboardList
 } from 'lucide-react';
 import Card from '../../../components/ui/Card';
+import Modal from '../../../components/ui/Modal';
 
 const actionPalette = {
   default: {
@@ -175,11 +176,12 @@ const BookingRow = ({
   };
 
   const clientDisplayName = getClientDisplayName(booking);
-  const createdByName =
-    booking.created_by_name ||
-    booking.agent?.name ||
-    'Unknown';
-  const currentAssignee = booking.agent?.name || 'Self/System';
+  const createdByDisplay = booking.creator?.user_custom_id 
+    ? `${booking.creator.name} (${booking.creator.user_custom_id})`
+    : (booking.created_by_name || booking.agent?.name || 'Unknown');
+  const currentAssigneeDisplay = booking.agent?.user_custom_id
+    ? `${booking.agent.name} (${booking.agent.user_custom_id})`
+    : (booking.agent?.name || 'Self/System');
   const wasReassigned = Boolean(booking.was_reassigned);
   const latestHandoffRemark = booking.latest_handoff_remark || '';
 
@@ -275,7 +277,7 @@ const BookingRow = ({
             </div>
             
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {booking.services?.map((service, si) => {
+              {(Array.isArray(booking.services) ? booking.services : []).map((service, si) => {
                 const ServiceIcon = getServiceIcon(service.serviceable_type);
                 return (
                   <div 
@@ -307,17 +309,17 @@ const BookingRow = ({
               <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', opacity: 0.6, letterSpacing: '0.08em', marginBottom: '4px' }}>CREATED BY</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                   {createdByName}
+                   {createdByDisplay}
                 </span>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
               <span style={{ fontSize: '10px', fontWeight: 800, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>ASSIGNED TO</span>
-              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>{currentAssignee}</span>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>{currentAssigneeDisplay}</span>
             </div>
 
-            {booking.reassignment_history && booking.reassignment_history.length > 0 && (
+            {Array.isArray(booking.reassignment_history) && booking.reassignment_history.length > 0 && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -343,54 +345,51 @@ const BookingRow = ({
                 onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)'}
               >
                 <ArrowRightLeft size={10} />
-                <span>{showHistory ? 'HIDE LOG' : `HISTORY (${booking.reassignment_history.length})`}</span>
+                <span>{`HISTORY (${booking.reassignment_history.length})`}</span>
               </button>
             )}
 
-            {showHistory && booking.reassignment_history && (
-              <div 
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: 'absolute',
-                  zIndex: 100,
-                  top: '100%',
-                  left: '24px',
-                  width: '320px',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-                  marginTop: '4px'
-                }}
-              >
-                <h4 style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Handover History</h4>
-                <div style={{ display: 'grid', gap: '12px', maxHeight: '200px', overflowY: 'auto', paddingRight: '8px' }}>
-                  {booking.reassignment_history.map((h, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '12px', position: 'relative' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6' }}></div>
-                         {i < booking.reassignment_history.length - 1 && <div style={{ flex: 1, width: '2px', background: 'var(--border-color)', margin: '4px 0' }}></div>}
-                      </div>
-                      <div style={{ flex: 1, paddingBottom: i < booking.reassignment_history.length - 1 ? '12px' : 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-main)' }}>{h.to_agent_name || `Agent #${h.to_agent_id}`}</span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(h.reassigned_at).toLocaleDateString()}</span>
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                          From: {h.from_agent_name || 'System'} • By: {h.reassigned_by_name}
-                        </div>
-                        {h.remark && (
-                          <div style={{ fontSize: '10px', fontStyle: 'italic', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '4px', borderLeft: '2px solid rgba(139, 92, 246, 0.4)' }}>
-                            "{h.remark}"
-                          </div>
-                        )}
-                      </div>
+            <Modal 
+              isOpen={showHistory} 
+              onClose={() => setShowHistory(false)} 
+              title="Handover History"
+              maxWidth="450px"
+            >
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {(Array.isArray(booking.reassignment_history) ? booking.reassignment_history : []).map((h, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '16px', position: 'relative' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                       <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 10px rgba(139, 92, 246, 0.4)' }}></div>
+                       {i < booking.reassignment_history.length - 1 && <div style={{ flex: 1, width: '2px', background: 'var(--border-color)', margin: '4px 0' }}></div>}
                     </div>
-                  )).reverse()}
-                </div>
+                    <div style={{ flex: 1, paddingBottom: i < booking.reassignment_history.length - 1 ? '16px' : 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>{h.to_agent_name || `Agent #${h.to_agent_id}`}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{new Date(h.reassigned_at).toLocaleDateString()}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', gap: '8px' }}>
+                        <span>From: <strong style={{color: 'var(--text-main)'}}>{h.from_agent_name || 'System'}</strong></span>
+                        <span style={{opacity: 0.3}}>|</span>
+                        <span>By: <strong style={{color: 'var(--text-main)'}}>{h.reassigned_by_name}</strong></span>
+                      </div>
+                      {h.remark && (
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: 'var(--text-main)', 
+                          background: 'var(--bg-app)', 
+                          padding: '12px', 
+                          borderRadius: '12px', 
+                          border: '1px solid var(--border-color)',
+                          lineHeight: 1.5
+                        }}>
+                          "{h.remark}"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )).reverse()}
               </div>
-            )}
+            </Modal>
           </div>
 
           {/* Group 4: Status / Amount */}

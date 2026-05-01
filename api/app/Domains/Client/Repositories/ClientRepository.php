@@ -44,15 +44,18 @@ class ClientRepository extends BaseRepository
                 'created_by',
                 'first_name',
                 'last_name',
+                'name',
                 'email',
                 'alternate_email',
                 'phone',
                 'alternate_phone',
                 'type',
+                'is_active',
                 'created_at',
             ])
             ->with([
                 'creator:id,name',
+                'agent:id,name',
                 'latestBooking' => function($q) {
                     $q->select(['bookings.id', 'bookings.client_id', 'bookings.agent_id', 'bookings.booking_reference', 'bookings.status', 'bookings.total_amount', 'bookings.currency', 'bookings.created_at']);
                 },

@@ -810,9 +810,9 @@ const BookingList = ({ onCreate, onEdit }) => {
             />
             <ExportDropdown 
               options={[
-                { label: 'Export as PDF Report', icon: FileText, onClick: exportHandlers.pdf },
-                { label: 'Export as Excel Data', icon: FileSpreadsheet, onClick: exportHandlers.excel },
-                { label: 'Export Raw JSON', icon: FileJson, onClick: exportHandlers.json },
+                { label: 'As PDF Report', icon: FileText, onClick: exportHandlers.pdf },
+                { label: 'As Excel Data', icon: FileSpreadsheet, onClick: exportHandlers.excel },
+                { label: 'As Raw JSON', icon: FileJson, onClick: exportHandlers.json },
               ]}
               buttonStyle={{ background: 'var(--bg-card)', padding: '10px 16px', borderRadius: '12px' }}
             />

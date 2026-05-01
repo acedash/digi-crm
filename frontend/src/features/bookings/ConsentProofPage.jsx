@@ -406,13 +406,13 @@ const ConsentProofPage = () => {
 
           <ExportDropdown
             isExporting={isExporting}
-            label="Export Evidence"
-            buttonStyle={{ background: 'hsl(var(--primary))', color: 'white' }}
+            label="Export Format"
+            buttonStyle={{ background: 'var(--bg-card)', padding: '10px 16px', borderRadius: '12px' }}
             options={[
-              { label: 'Export as PDF Report', icon: FileText, onClick: exportDirectPdf },
-              { label: 'Export as JPEG Image', icon: ImageIcon, onClick: exportJpeg },
+              { label: 'As PDF Report', icon: FileText, onClick: exportDirectPdf },
+              { label: 'As JPEG Image', icon: ImageIcon, onClick: exportJpeg },
               { 
-                label: 'Export Raw JSON', 
+                label: 'As Raw JSON', 
                 icon: RefreshCcw, 
                 onClick: () => {
                   sensitiveAuditService.logEvent({

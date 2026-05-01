@@ -49,7 +49,7 @@
 
   --bg-app: #f2f2f7;
   /* Off-white / Lavender tint */
-  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card: #ffffff;
   --bg-input: #ffffff;
   --border-color: rgba(0, 0, 0, 0.08);
   --text-main: #333333;

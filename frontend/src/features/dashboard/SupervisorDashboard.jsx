@@ -301,7 +301,7 @@ const SupervisorDashboard = () => {
 
       {/* Top row of summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
-        <Card title="Team Bookings" icon={Plane}>
+        <Card title="Team Bookings" icon={ClipboardList}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'baseline' }}>
               <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.period_bookings || 0}</span>
@@ -531,7 +531,7 @@ const SupervisorDashboard = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           <Card title="Recent Inquiries" subtitle="Latest team inquiries" icon={Phone}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-              {stats?.recent_inquiries.map(inq => (
+              {(Array.isArray(stats?.recent_inquiries) ? stats.recent_inquiries : []).map(inq => (
                 <div key={inq.id} style={{ 
                   padding: '16px', 
                   borderRadius: '16px', 
@@ -561,9 +561,9 @@ const SupervisorDashboard = () => {
             </div>
           </Card>
 
-          <Card title="Recent Team Bookings" subtitle="Latest team activity" icon={Plane}>
+          <Card title="Recent Team Bookings" subtitle="Latest team activity" icon={ClipboardList}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-              {stats?.recent_bookings && stats.recent_bookings.length > 0 ? stats.recent_bookings.map(book => (
+              {Array.isArray(stats?.recent_bookings) && stats.recent_bookings.length > 0 ? stats.recent_bookings.map(book => (
                 <div key={book.id} style={{ 
                   padding: '16px', 
                   borderRadius: '18px', 

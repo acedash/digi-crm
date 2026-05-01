@@ -26,19 +26,20 @@ const ExportDropdown = ({
   }, [showOptions]);
 
   const defaultStyle = {
-    background: 'transparent', 
+    background: 'var(--bg-input)', 
     border: '1px solid var(--border-color)', 
-    color: 'var(--text-muted)', 
+    color: 'var(--text-main)', 
     cursor: isExporting ? 'not-allowed' : 'pointer',
-    padding: '8px 12px', 
-    borderRadius: '8px', 
+    padding: '8px 16px', 
+    borderRadius: '12px', 
     display: 'flex', 
     alignItems: 'center', 
-    gap: '6px', 
-    fontSize: '12px', 
+    gap: '8px', 
+    fontSize: '13px', 
     fontWeight: 700,
     transition: 'all 0.2s', 
     opacity: isExporting ? 0.5 : 1,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
     ...buttonStyle
   };
 
@@ -48,9 +49,9 @@ const ExportDropdown = ({
         onClick={() => !isExporting && setShowOptions(!showOptions)}
         disabled={isExporting}
         style={defaultStyle}
-        className="hover-brighten"
+        className="hover-glow"
       >
-        <Download size={14} />
+        <Download size={15} style={{ color: 'hsl(var(--primary))' }} />
         {isExporting ? 'Exporting...' : label}
       </button>
 
@@ -59,19 +60,20 @@ const ExportDropdown = ({
           position: 'absolute', 
           top: 'calc(100% + 8px)', 
           right: 0, 
-          backgroundColor: '#1e2235', 
+          backgroundColor: 'var(--bg-card)', 
+          backdropFilter: 'blur(10px)',
           border: '1px solid var(--border-color)', 
-          borderRadius: '12px', 
-          padding: '4px', 
+          borderRadius: '16px', 
+          padding: '6px', 
           display: 'flex', 
           flexDirection: 'column', 
           gap: '2px', 
-          boxShadow: '0 10px 40px -10px rgba(0,0,0,0.8)', 
-          minWidth: '200px',
+          boxShadow: '0 10px 40px -10px rgba(0,0,0,0.3)', 
+          minWidth: '220px',
           zIndex: 1000
         }}>
-          <div style={{ padding: '8px 12px 4px', fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            Export Format
+          <div style={{ padding: '10px 12px 6px', fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            Choose Format
           </div>
           {options.map((opt, idx) => (
             <button 
@@ -83,22 +85,22 @@ const ExportDropdown = ({
               style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
-                gap: '10px', 
-                padding: '10px 12px', 
+                gap: '12px', 
+                padding: '12px', 
                 background: 'transparent', 
                 border: 'none', 
-                color: '#f8fafc', 
+                color: 'var(--text-main)', 
                 width: '100%', 
                 textAlign: 'left', 
-                borderRadius: '8px', 
+                borderRadius: '10px', 
                 cursor: 'pointer', 
                 fontSize: '13px', 
-                fontWeight: 500 
+                fontWeight: 600 
               }} 
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'} 
+              onMouseEnter={(e) => e.currentTarget.style.background = 'hsla(var(--primary), 0.1)'} 
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
-              {opt.icon && <opt.icon size={16} />} 
+              {opt.icon && <opt.icon size={18} style={{ color: 'var(--text-muted)' }} />} 
               {opt.label}
             </button>
           ))}

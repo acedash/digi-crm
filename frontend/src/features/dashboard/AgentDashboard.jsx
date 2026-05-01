@@ -142,7 +142,7 @@ const AgentDashboard = () => {
           borderRadius: '32px',
           position: 'relative',
           overflow: 'hidden',
-          background: 'linear-gradient(135deg, hsla(var(--primary), 0.1) 0%, var(--bg-input) 100%)'
+          background: 'var(--bg-card)'
         }}
       >
         <div style={{ position: 'relative', zIndex: 1 }}>
@@ -198,10 +198,7 @@ const AgentDashboard = () => {
             </div>
           </div>
           
-          <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-            <Button variant="primary" icon={Plane}>Plan New Trip</Button>
-            <Button variant="outline" icon={FileText}>View Queue</Button>
-          </div>
+          {/* Buttons removed as requested */}
         </div>
 
         {/* Decorative elements */}
@@ -256,7 +253,7 @@ const AgentDashboard = () => {
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', background: 'linear-gradient(135deg, hsla(var(--primary), 0.05) 0%, transparent 100%)' }}>
+        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--bg-card)' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(6, 182, 138, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))' }}>
             <Clock size={24} />
           </div>
