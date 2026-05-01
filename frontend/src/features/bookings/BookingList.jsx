@@ -659,37 +659,6 @@ const BookingList = ({ onCreate, onEdit }) => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => {
-              const { startTour } = useWalkthroughStore.getState();
-              startTour([
-                {
-                  target: '#booking-stats',
-                  title: 'Booking Overview',
-                  content: 'Quickly see the status of all your bookings, from drafts to completed trips.',
-                  position: 'bottom'
-                },
-                {
-                  target: '#booking-tools',
-                  title: 'Search & Filters',
-                  content: 'Search for specific bookings by ID, Client Name, or PNR. You can also filter by date ranges.',
-                  position: 'bottom'
-                },
-                {
-                  target: '#booking-list-container',
-                  title: 'Your Bookings',
-                  content: 'Manage your active bookings here. You can send approval links, edit details, or reassign them to other agents.',
-                  position: 'top'
-                }
-              ]);
-            }}
-            icon={HelpCircle}
-            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))', marginRight: '8px' }}
-          >
-            Show Guide
-          </Button>
           <Button variant="primary" icon={Plus} onClick={onCreate}>New Booking</Button>
         </div>
       </div>
