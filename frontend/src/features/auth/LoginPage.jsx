@@ -71,7 +71,7 @@ const LoginPage = () => {
       <div style={{ 
         position: 'absolute', 
         inset: 0, 
-        background: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.1))',
+        background: 'linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.2))',
         zIndex: 1
       }} />
 
@@ -86,26 +86,39 @@ const LoginPage = () => {
       }}>
         {/* Left Side: Branding */}
         <div style={{ 
-          flex: '1.2', 
+          flex: '1', 
           display: 'flex',
           flexDirection: 'column',
           padding: '40px 80px'
         }}>
           {/* Branding */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '16px'
+          }}>
             <div style={{ 
-              width: '64px', 
-              height: '64px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              borderRadius: '16px'
+              width: '56px', 
+              height: '56px', 
+              borderRadius: '50%',
+              overflow: 'hidden'
             }}>
-              <img src="/digi-logo.jpeg" alt="DC" style={{ height: '56px', width: 'auto', borderRadius: '12px' }} />
+              <img src="/digi-logo.jpeg" alt="DC" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
             </div>
             <div>
-              <h2 style={{ color: 'white', fontSize: '24px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>DIGICIRCLE</h2>
-              <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', margin: 0, fontWeight: 500 }}>Smarter travel management starts here</p>
+              <h2 style={{ 
+                color: 'white', 
+                fontSize: '24px', 
+                fontWeight: 800, 
+                margin: 0, 
+                letterSpacing: '-0.5px'
+              }}>DIGICIRCLE</h2>
+              <p style={{ 
+                color: 'rgba(255,255,255,0.9)', 
+                fontSize: '13px', 
+                margin: 0, 
+                fontWeight: 500
+              }}>Smarter travel management starts here</p>
             </div>
           </div>
 
@@ -129,7 +142,7 @@ const LoginPage = () => {
 
         {/* Right Side: Login Form (Floating) */}
         <div style={{ 
-          flex: '0.8', 
+          flex: '1', 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -150,14 +163,13 @@ const LoginPage = () => {
             {/* Form Header */}
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
               <div style={{ 
-                width: '100px', 
-                height: '100px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
+                width: '80px', 
+                height: '80px', 
                 margin: '0 auto 16px',
+                borderRadius: '50%',
+                overflow: 'hidden'
               }}>
-                <img src="/digi-logo.jpeg" alt="DC" style={{ height: '80px', width: 'auto', borderRadius: '18px' }} />
+                <img src="/digi-logo.jpeg" alt="DC" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#1e293b', marginBottom: '4px' }}>Welcome back</h2>
               <p style={{ color: '#64748b', fontSize: '15px', fontWeight: 500 }}>Use the credentials shared by your admin</p>
