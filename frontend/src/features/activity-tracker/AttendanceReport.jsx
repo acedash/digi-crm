@@ -179,18 +179,20 @@ const AttendanceReport = ({ onClose }) => {
             <thead>
               <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
                 <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left', minWidth: '250px', position: 'sticky', left: 0, background: 'var(--bg-input)', zIndex: 10, borderRight: '1px solid var(--border-color)' }}>Employee</th>
+                <th style={{ padding: '16px 16px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left', minWidth: '110px' }}>Shift</th>
+                <th style={{ padding: '16px 16px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left', minWidth: '140px' }}>Week Off</th>
                 {data && Array.from({ length: data.days_in_month }, (_, i) => (
                   <th key={i+1} style={{ padding: '12px 8px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'center', minWidth: '45px' }}>
                     {i+1}
                   </th>
                 ))}
-                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right', minWidth: '100px' }}>Total</th>
+                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right', minWidth: '90px' }}>Total</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={data ? data.days_in_month + 2 : 32} style={{ padding: '80px', textAlign: 'center' }}>
+                  <td colSpan={data ? data.days_in_month + 4 : 34} style={{ padding: '80px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
                       <Clock size={40} className="animate-spin" style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
                       <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Analyzing activity logs...</p>
@@ -212,6 +214,18 @@ const AttendanceReport = ({ onClose }) => {
                           <span style={{ fontSize: '14px' }}>{agent.name}</span>
                           <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500 }}>ID: #{agent.id}</span>
                         </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 8px', borderRadius: '6px', width: 'fit-content', whiteSpace: 'nowrap' }}>
+                        {agent.shift || 'N/A'}
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', borderRight: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '120px' }}>
+                        {agent.week_off ? agent.week_off.split(',').map((day, idx) => (
+                          <span key={idx} style={{ background: 'var(--bg-input)', padding: '2px 4px', borderRadius: '4px', whiteSpace: 'nowrap' }}>{day.trim()}</span>
+                        )) : 'N/A'}
                       </div>
                     </td>
                     {Array.from({ length: data.days_in_month }, (_, i) => {

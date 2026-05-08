@@ -1046,9 +1046,9 @@ class DashboardController extends Controller
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
         
         if ($user->hasRole('admin')) {
-            $agents = User::role(['agent', 'supervisor'])->get(['id', 'name']);
+            $agents = User::role(['agent', 'supervisor'])->get(['id', 'name', 'shift', 'week_off']);
         } else {
-            $agents = $user->supervisedAgents()->get(['users.id', 'users.name']);
+            $agents = $user->supervisedAgents()->get(['users.id', 'users.name', 'shift', 'week_off']);
         }
 
         $agentIds = $agents->pluck('id')->toArray();
@@ -1067,6 +1067,8 @@ class DashboardController extends Controller
             $agentData = [
                 'id' => $agent->id,
                 'name' => $agent->name,
+                'shift' => $agent->shift,
+                'week_off' => $agent->week_off,
                 'days' => []
             ];
 
