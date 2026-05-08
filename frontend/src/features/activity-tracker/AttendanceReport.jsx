@@ -3,12 +3,14 @@ import { Calendar, ChevronLeft, ChevronRight, FileSpreadsheet, Users, Clock, Ale
 import Card from '../../components/ui/Card';
 import dashboardService from '../dashboard/dashboardService';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 
 const AttendanceReport = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [searchTerm, setSearchTerm] = useState('');
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -84,11 +86,11 @@ const AttendanceReport = ({ onClose }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Calendar size={28} style={{ color: '#06B68A' }} />
-            <h2 style={{ fontSize: '24px', fontWeight: 800, margin: 0 }}>
+            <h2 style={{ fontSize: '26px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
               <span className="premium-gradient-text">Monthly Attendance Report</span>
             </h2>
           </div>
@@ -97,29 +99,39 @@ const AttendanceReport = ({ onClose }) => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-            <button onClick={handlePrevMonth} style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '6px' }}><ChevronLeft size={20}/></button>
-            <span style={{ fontSize: '14px', fontWeight: 700, minWidth: '120px', textAlign: 'center', color: 'var(--text-main)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', width: '200px' }}>
+            <Input 
+              placeholder="Search employee..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ marginBottom: 0 }}
+              inputStyle={{ padding: '8px 12px', paddingLeft: '12px', background: 'var(--bg-input)', fontSize: '13px', borderRadius: '10px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <button onClick={handlePrevMonth} style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '6px', borderRadius: '8px' }} className="hover-bg-fade"><ChevronLeft size={18}/></button>
+            <span style={{ fontSize: '13px', fontWeight: 700, minWidth: '110px', textAlign: 'center', color: 'var(--text-main)' }}>
               {months[currentMonth-1]} {currentYear}
             </span>
-            <button onClick={handleNextMonth} style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '6px' }}><ChevronRight size={20}/></button>
+            <button onClick={handleNextMonth} style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '6px', borderRadius: '8px' }} className="hover-bg-fade"><ChevronRight size={18}/></button>
           </div>
           
           <button 
             onClick={handleExportCSV}
             disabled={loading || !data}
             style={{
-              background: 'transparent', 
+              background: 'var(--bg-card)', 
               border: '1px solid var(--border-color)', 
-              color: 'var(--text-muted)', 
+              color: 'var(--text-main)', 
               cursor: (loading || !data) ? 'not-allowed' : 'pointer',
-              padding: '8px 12px', 
-              borderRadius: '8px', 
+              padding: '8px 16px', 
+              borderRadius: '10px', 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '6px', 
-              fontSize: '12px', 
+              gap: '8px', 
+              fontSize: '13px', 
               fontWeight: 700,
               transition: 'all 0.2s', 
               opacity: (loading || !data) ? 0.5 : 1,
@@ -130,9 +142,36 @@ const AttendanceReport = ({ onClose }) => {
             Export CSV
           </button>
           
-          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button variant="ghost" onClick={onClose} style={{ borderRadius: '10px' }}>Close</Button>
         </div>
       </div>
+
+      {data && !loading && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+          <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Team Hours</div>
+            <div style={{ fontSize: '24px', fontWeight: 800, color: '#06B68A', marginTop: '4px' }}>
+              {data.report.reduce((sum, agent) => sum + Object.values(agent.days).reduce((s, d) => s + (d.total_hours || 0), 0), 0).toFixed(1)}h
+            </div>
+          </div>
+          <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg. Daily Active</div>
+            <div style={{ fontSize: '24px', fontWeight: 800, color: '#8b5cf6', marginTop: '4px' }}>
+              {(data.report.reduce((sum, agent) => sum + Object.values(agent.days).filter(d => d.total_hours > 0).length, 0) / data.days_in_month).toFixed(1)}
+            </div>
+          </div>
+          <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Most Active</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginTop: '8px' }}>
+              {data.report.reduce((prev, curr) => {
+                const prevH = Object.values(prev.days).reduce((s, d) => s + (d.total_hours || 0), 0);
+                const currH = Object.values(curr.days).reduce((s, d) => s + (d.total_hours || 0), 0);
+                return prevH > currH ? prev : curr;
+              }, data.report[0])?.name || 'N/A'}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
         <div style={{ overflowX: 'auto', width: '100%' }}>
@@ -158,16 +197,21 @@ const AttendanceReport = ({ onClose }) => {
                     </div>
                   </td>
                 </tr>
-              ) : data?.report.map((agent) => {
+              ) : data?.report
+                  .filter(agent => agent.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .map((agent) => {
                 let monthlyTotal = 0;
                 return (
-                  <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                  <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover-bg-fade">
                     <td style={{ padding: '12px 24px', fontWeight: 700, color: 'var(--text-main)', position: 'sticky', left: 0, background: 'var(--bg-card)', zIndex: 5, minWidth: '250px', borderRight: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        <div style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(6, 182, 138, 0.1)', color: '#06B68A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap' }}>
+                        <div style={{ flexShrink: 0, width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(6, 182, 138, 0.12)', color: '#06B68A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800 }}>
                           {agent.name.charAt(0)}
                         </div>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{agent.name}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '14px' }}>{agent.name}</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500 }}>ID: #{agent.id}</span>
+                        </div>
                       </div>
                     </td>
                     {Array.from({ length: data.days_in_month }, (_, i) => {
@@ -178,8 +222,16 @@ const AttendanceReport = ({ onClose }) => {
                       let cellColor = 'transparent';
                       let textColor = 'var(--text-muted)';
                       if (hours > 0) {
-                        cellColor = hours > 7 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)';
-                        textColor = hours > 7 ? '#10b981' : '#f59e0b';
+                        if (hours >= 10) {
+                           cellColor = 'rgba(139, 92, 246, 0.15)'; // Overtime
+                           textColor = '#8b5cf6';
+                        } else if (hours >= 8) {
+                          cellColor = 'rgba(34, 197, 94, 0.15)'; // Full day
+                          textColor = '#10b981';
+                        } else {
+                          cellColor = 'rgba(245, 158, 11, 0.15)'; // Partial
+                          textColor = '#f59e0b';
+                        }
                       }
 
                       return (
@@ -189,19 +241,22 @@ const AttendanceReport = ({ onClose }) => {
                             style={{ 
                               background: cellColor, 
                               color: textColor, 
-                              padding: '4px 0', 
-                              borderRadius: '6px', 
-                              fontWeight: 700,
-                              fontSize: '11px'
+                              padding: '6px 0', 
+                              borderRadius: '8px', 
+                              fontWeight: 800,
+                              fontSize: '11px',
+                              transition: 'all 0.2s',
+                              cursor: hours > 0 ? 'help' : 'default'
                             }}
+                            className={hours > 0 ? "hover-scale-sm" : ""}
                           >
                             {hours > 0 ? hours.toFixed(1) : '-'}
                           </div>
                         </td>
                       );
                     })}
-                    <td style={{ padding: '12px 24px', fontWeight: 800, color: '#06B68A', textAlign: 'right' }}>
-                      {monthlyTotal.toFixed(1)}h
+                    <td style={{ padding: '12px 24px', fontWeight: 900, color: '#06B68A', textAlign: 'right', fontSize: '15px' }}>
+                      {monthlyTotal.toFixed(1)}<span style={{ fontSize: '11px', marginLeft: '2px', fontWeight: 600 }}>H</span>
                     </td>
                   </tr>
                 );
@@ -210,18 +265,22 @@ const AttendanceReport = ({ onClose }) => {
           </table>
         </div>
         
-        <div style={{ padding: '16px 24px', background: 'var(--bg-input)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '24px' }}>
+        <div style={{ padding: '16px 24px', background: 'var(--bg-input)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'rgba(34, 197, 94, 0.15)' }} />
+            <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.15)' }} />
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Overtime (10h+)</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)' }} />
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Full Day (8h+)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'rgba(245, 158, 11, 0.15)' }} />
+            <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.15)' }} />
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Partial Activity</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
             <AlertCircle size={14} style={{ color: 'var(--text-muted)' }} />
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Hover over hours to see shift timings</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Values represent logged work hours</span>
           </div>
         </div>
       </Card>
