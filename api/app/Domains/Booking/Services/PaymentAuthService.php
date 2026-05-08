@@ -131,8 +131,21 @@ class PaymentAuthService
         });
 
         if ($options['send_email'] ?? true) {
-            $this->authorizationMailer->send($auth);
+            try {
+                $this->authorizationMailer->send($auth);
+                Log::info('Authorization email sent successfully', ['auth_id' => $auth->id]);
+            } catch (\Exception $e) {
+                Log::error('Authorization email failed to send', [
+                    'auth_id' => $auth->id,
+                    'error' => $e->getMessage(),
+                    'trace' => substr($e->getTraceAsString(), 0, 500)
+                ]);
+                // If it's a first time send and it fails, we still want the auth created
+                // but we should probably tell the user why it failed.
+                throw $e;
+            }
         }
+
 
         return $auth;
     }

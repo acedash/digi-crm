@@ -323,11 +323,19 @@ class AuthorizationEmail extends Mailable
     {
         // 1. Prioritize CID embedding for local files - this is the MOST RELIABLE method
         if (filled($path) && !str_starts_with($path, 'data:')) {
-            // Fix: Use Storage disk instead of hardcoded storage_path to support custom public roots (like Hostinger/uploads)
+            // Fix: Normalize path and try to find it in the uploads folder
             $normalizedPath = ltrim(preg_replace('#^/?(storage|uploads)/#', '', $path), '/');
-            $absolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($normalizedPath);
+            
+            // Try public_path first (most reliable for web assets)
+            $absolutePath = public_path('uploads/' . $normalizedPath);
+
+            if (!is_file($absolutePath)) {
+                // Fallback to storage disk if public_path failed
+                $absolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($normalizedPath);
+            }
 
             if (is_file($absolutePath)) {
+
                 if ($this->isPreview) {
                     return $resolvedUrl;
                 }

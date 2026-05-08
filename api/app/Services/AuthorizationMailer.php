@@ -35,15 +35,22 @@ class AuthorizationMailer
         }
 
         if (!$this->systemSettingService->hasMailSettings()) {
-            throw new \RuntimeException('SMTP settings are not configured.');
+            throw new \RuntimeException('SMTP settings are not configured in System Settings.');
         }
 
+        \Illuminate\Support\Facades\Log::info('Applying mail config for authorization', ['auth_id' => $authorization->id]);
         $this->systemSettingService->applyMailConfig();
 
         $approvalUrl = rtrim(config('app.frontend_url'), '/') . '/authorize/' . $authorization->token;
+
+        \Illuminate\Support\Facades\Log::info('Dispatching authorization email', [
+            'to' => $authorization->client->email,
+            'auth_id' => $authorization->id
+        ]);
 
         Mail::to($authorization->client->email)->send(
             new AuthorizationEmail($authorization, $approvalUrl)
         );
     }
+
 }

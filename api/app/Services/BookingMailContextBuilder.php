@@ -164,9 +164,22 @@ class BookingMailContextBuilder
             }
         }
 
-        // Direct path approach as requested by user (adding /public/uploads/)
-        return rtrim($baseUrl, '/') . '/public/uploads/' . $normalizedPath;
+        // Hostinger / Subfolder deployment logic:
+        // 1. If baseUrl contains /api, we use /uploads/ because we'll rewrite it in .htaccess
+        // 2. If it's a production URL but doesn't have /public/, we use /uploads/ as well
+        // 3. Fallback to /public/uploads/ for local dev
+        $uploadPrefix = '/public/uploads/';
+        
+        if (str_contains($baseUrl, '/api')) {
+            $uploadPrefix = '/uploads/';
+        } elseif (!str_contains($baseUrl, 'localhost') && !str_contains($baseUrl, '127.0.0.1')) {
+            // In production, we assume our .htaccess maps /uploads/ to core/public/uploads/
+            $uploadPrefix = '/uploads/';
+        }
+
+        return rtrim($baseUrl, '/') . $uploadPrefix . $normalizedPath;
     }
+
 
     protected function processContentForAbsoluteUrls(?string $html): string
     {

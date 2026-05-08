@@ -2,6 +2,11 @@
     RewriteEngine On
     RewriteBase /
 
+    # Allow direct access to core/public files (uploads, etc)
+    # This ensures images load correctly in emails and previews
+    RewriteCond %{DOCUMENT_ROOT}/core/public/$1 -f
+    RewriteRule ^(?:api/|uploads/)?(.*)$ core/public/$1 [L]
+
     # Forward /api requests to the new 'core' folder
     RewriteRule ^api/(.*)$ core/public/index.php [L]
 
@@ -10,3 +15,4 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule . /index.html [L]
 </IfModule>
+

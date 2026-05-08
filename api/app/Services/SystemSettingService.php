@@ -264,6 +264,16 @@ class SystemSettingService
     public function applyMailConfig(): void
     {
         $settings = $this->getMailSettings();
+        if (!$settings) {
+            \Illuminate\Support\Facades\Log::warning('applyMailConfig called but no settings found');
+            return;
+        }
+
+        \Illuminate\Support\Facades\Log::info('Applying SMTP settings', [
+            'host' => $settings['host'] ?? 'not set',
+            'from' => $settings['from_address'] ?? 'not set'
+        ]);
+
         $scheme = 'smtp';
 
         if (($settings['encryption'] ?? null) === 'ssl') {

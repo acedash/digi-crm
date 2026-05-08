@@ -258,27 +258,36 @@ const BookingList = ({ onCreate, onEdit }) => {
     
     try {
       setLoading(true);
-      // We need to either fetch the preview of an existing auth OR a preview of what a new one would look like.
-      // For simplicity, let's look for a pending one first.
+      
+      // 1. Find if an authorization already exists
       const pendingCollection = (booking.payment_authorizations || booking.paymentAuthorizations || [])
-        .find(a => a.authorization_type === 'card_collection' && String(a.status).toLowerCase() === 'pending');
+        .find(a => String(a.status).toLowerCase() === 'pending');
 
-      let previewResponse;
-      if (pendingCollection) {
-        previewResponse = await paymentAuthService.previewEmail(pendingCollection.id);
-      } else {
-        // If no pending, we'd normally create one first. 
-        // But for previewing "Resend Approval", we usually have one.
-        // Let's create a temporary one or just show the user they need to create it if it's the first time.
-        // Actually, let's keep the existing logic: if it exists, preview and send. If not, create and send (maybe preview the creation?)
-        // The user specifically asked for "Resend Approval" which implies it exists.
-        const latestAuth = (booking.payment_authorizations || booking.paymentAuthorizations || [])
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-        
-        if (latestAuth) {
-          previewResponse = await paymentAuthService.previewEmail(latestAuth.id);
+      const latestAuth = (booking.payment_authorizations || booking.paymentAuthorizations || [])
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+      let targetAuthId = pendingCollection?.id || latestAuth?.id;
+
+      // 2. If no authorization exists, create one first (without sending) so we can preview it
+      if (!targetAuthId) {
+        try {
+          const createRes = await paymentAuthService.create({
+            client_id: booking.client_id,
+            booking_ids: [booking.id],
+            send_email: false // Don't send yet, we want to preview first
+          });
+          targetAuthId = createRes.data.data.id;
+          // Refresh bookings to include the new auth
+          fetchBookings(pagination.current_page);
+        } catch (err) {
+          setToast({ message: err?.response?.data?.message || 'Failed to initialize payment link', type: 'error' });
+          setLoading(false);
+          return;
         }
       }
+
+      // 3. Fetch the preview for the target authorization
+      const previewResponse = await paymentAuthService.previewEmail(targetAuthId);
 
       if (previewResponse) {
         setEmailPreview({
@@ -289,53 +298,26 @@ const BookingList = ({ onCreate, onEdit }) => {
           onConfirm: async () => {
             try {
               setEmailPreview(prev => ({ ...prev, isLoading: true }));
-              if (pendingCollection) {
-                await paymentAuthService.sendEmail(pendingCollection.id);
-              } else {
-                const latestAuth = (booking.payment_authorizations || booking.paymentAuthorizations || [])
-                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-                await paymentAuthService.sendEmail(latestAuth.id);
-              }
+              await paymentAuthService.sendEmail(targetAuthId);
               setToast({ message: 'Approval email sent successfully', type: 'success' });
               setEmailPreview({ open: false });
+              fetchBookings(pagination.current_page);
             } catch (err) {
-              setToast({ message: err?.response?.data?.message || 'Failed to send email', type: 'error' });
+              setToast({ message: err?.response?.data?.message || 'Failed to send email. Check SMTP settings.', type: 'error' });
             } finally {
               setEmailPreview(prev => ({ ...prev, isLoading: false }));
             }
           }
         });
-      } else {
-        // Fallback for first time send if no auth exists yet
-        setConfirmModal({
-          open: true,
-          title: 'Generate & Send Payment Link',
-          message: `No payment link exists for this booking yet. Generate a new secure link for ${booking.booking_reference} and send to ${clientName} (${email})?`,
-          confirmLabel: 'Generate & Send',
-          onConfirm: async () => {
-            try {
-              setConfirmModal(prev => ({ ...prev, isLoading: true }));
-              await paymentAuthService.create({
-                client_id: booking.client_id,
-                booking_ids: [booking.id],
-              });
-              setToast({ message: 'Approval email generated and sent', type: 'success' });
-              setConfirmModal({ open: false });
-              fetchBookings(pagination.current_page);
-            } catch (err) {
-              setToast({ message: err?.response?.data?.message || 'Failed to generate link', type: 'error' });
-            } finally {
-              setConfirmModal(prev => ({ ...prev, isLoading: false }));
-            }
-          }
-        });
       }
     } catch (error) {
+      console.error('Email preview error:', error);
       setToast({ message: 'Failed to generate email preview', type: 'error' });
     } finally {
       setLoading(false);
     }
   }, [pagination.current_page, fetchBookings]);
+
 
   const templateActionMeta = React.useMemo(() => ({
     flight_change: {

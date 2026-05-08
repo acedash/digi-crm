@@ -43,8 +43,9 @@ class PaymentAuthController extends Controller
             $auth = $this->paymentAuthService->createAuthorization(
                 $request->booking_ids,
                 $request->client_id,
-                $request->only(['authorization_type', 'card_allocations', 'change_entries'])
+                $request->only(['authorization_type', 'card_allocations', 'change_entries', 'send_email'])
             );
+
 
             return $this->successResponse([
                 'id' => $auth->id,
