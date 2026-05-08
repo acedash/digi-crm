@@ -22,10 +22,11 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
         const data = res.data.data;
         setSupervisors(data);
         if (onSummaryChange) {
+          const summary = res.data.summary;
           onSummaryChange({
-            supervisors: data.length,
-            active: data.reduce((acc, sup) => acc + (sup.active_agents || 0), 0),
-            break: data.reduce((acc, sup) => acc + (sup.on_break || 0), 0)
+            supervisors: summary?.total_supervisors ?? data.length,
+            active: summary?.total_active ?? data.reduce((acc, sup) => acc + (sup.active_agents || 0), 0),
+            break: summary?.total_break ?? data.reduce((acc, sup) => acc + (sup.on_break || 0), 0)
           });
         }
       }
@@ -261,26 +262,20 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
                       </div>
                     </td>
                     <td style={{ padding: '16px 24px', fontWeight: 600 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '6px' }}>
-                          <Users size={14} style={{ color: 'var(--text-main)' }} />
-                        </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+                        <Users size={14} style={{ opacity: 0.6 }} />
                         {sup.total_agents}
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px', fontWeight: 600, color: '#10b981' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '6px', borderRadius: '6px' }}>
-                          <Activity size={14} style={{ color: '#10b981' }} />
-                        </div>
+                    <td style={{ padding: '16px 24px', fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981' }}>
+                        <Activity size={14} style={{ opacity: 0.8 }} />
                         {sup.active_agents}
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px', fontWeight: 600, color: '#f59e0b' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '6px', borderRadius: '6px' }}>
-                          <Coffee size={14} style={{ color: '#f59e0b' }} />
-                        </div>
+                    <td style={{ padding: '16px 24px', fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b' }}>
+                        <Coffee size={14} style={{ opacity: 0.8 }} />
                         {sup.on_break}
                       </div>
                     </td>

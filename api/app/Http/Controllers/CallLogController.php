@@ -28,9 +28,10 @@ class CallLogController extends Controller
             $query->where(function ($q) {
                 $q->where('agent_id', Auth::id())
                   ->orWhereHas('agent', function ($aq) {
-                      $aq->whereHas('supervisors', function ($sq) {
-                          $sq->where('users.id', '=', Auth::id());
-                      });
+                      $aq->where('supervisor_id', Auth::id())
+                        ->orWhereHas('supervisors', function ($sq) {
+                            $sq->where('users.id', '=', Auth::id());
+                        });
                   });
             });
         }

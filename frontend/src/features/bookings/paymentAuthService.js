@@ -31,6 +31,7 @@ const paymentAuthService = {
   markCharged: (paymentAuthId, data) => api.post(`/admin/payment-authorizations/${paymentAuthId}/mark-charged`, data),
   refreshProofSnapshot: (token) => api.post(`/payment-authorizations/${token}/refresh`),
   sendEmail: (id) => api.post(`/payment-authorizations/${id}/send-email`),
+  previewEmail: (id) => api.get(`/payment-authorizations/${id}/preview-email`),
 };
 
 export default paymentAuthService;

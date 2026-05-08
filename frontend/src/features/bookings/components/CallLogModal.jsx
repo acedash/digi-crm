@@ -4,11 +4,47 @@ import { XCircle, PhoneCall, CheckCircle2 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import api from '../../../services/api';
 
-const CallLogModal = ({ client, onClose, onSuccess }) => {
+const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
+
+  // Auto-extract service names from booking
+  const getInitialInquiryData = () => {
+    const inquiry = {};
+    if (booking?.services) {
+      booking.services.forEach(service => {
+        const type = service.serviceable_type?.split('\\').pop();
+        const name = service.serviceable_name || '';
+        
+        if (type === 'Flight') {
+          inquiry['Flight'] = name || service.serviceable?.airline_code;
+        } else if (type === 'Hotel') {
+          inquiry['Hotel'] = name || service.serviceable?.name;
+        } else if (type === 'Car') {
+          inquiry['Car Rental'] = name || service.serviceable?.company || service.serviceable?.vendor_name;
+        } else if (type === 'Cruise') {
+          inquiry['Cruise'] = name || service.serviceable?.cruise_name;
+        }
+      });
+    }
+    return inquiry;
+  };
+
+  const getInitialCallTypes = () => {
+    if (!booking?.services?.length) return ['Flight'];
+    const types = new Set();
+    booking.services.forEach(s => {
+      const type = s.serviceable_type?.split('\\').pop();
+      if (type === 'Flight') types.add('Flight');
+      if (type === 'Hotel') types.add('Hotel');
+      if (type === 'Car') types.add('Car Rental');
+      if (type === 'Cruise') types.add('Cruise');
+    });
+    return types.size > 0 ? Array.from(types) : ['Flight'];
+  };
+
   const [formData, setFormData] = useState({
-    call_type: ['Flight'],
-    airline_inquiry: {},
+    call_type: getInitialCallTypes(),
+    airline_inquiry: getInitialInquiryData(),
     customer_outcome: 'Inquiry only',
     notes: '',
     callback_required: false,
@@ -51,9 +87,9 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
     }}>
       <div
         className="glass-panel"
-        style={{ 
-          width: '100%', maxWidth: '450px', borderRadius: '24px', 
-          background: 'var(--bg-card)', padding: '24px', border: '1px solid var(--border-color)' 
+        style={{
+          width: '100%', maxWidth: '450px', borderRadius: '24px',
+          background: 'var(--bg-card)', padding: '24px', border: '1px solid var(--border-color)'
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -83,7 +119,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
                     key={type}
                     type="button"
                     onClick={() => {
-                      const newTypes = isSelected 
+                      const newTypes = isSelected
                         ? formData.call_type.filter(t => t !== type)
                         : [...formData.call_type, type];
                       // Ensure at least one is selected or handle empty
@@ -108,11 +144,11 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
           {formData.call_type.length > 0 && formData.call_type.map(type => (
             <motion.div key={type} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#06B68A', marginBottom: '6px', textTransform: 'uppercase' }}>
-                {type} Inquiry
+                {type} Name
               </label>
               <input 
                 type="text"
-                placeholder={`Specifics for ${type.toLowerCase()}...`}
+                placeholder={`Select or type ${type.toLowerCase()} name...`}
                 value={formData.airline_inquiry[type] || ''}
                 onChange={(e) => setFormData({ 
                   ...formData, 
@@ -129,7 +165,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Call Outcome</label>
-            <select 
+            <select
               value={formData.customer_outcome}
               onChange={(e) => setFormData({ ...formData, customer_outcome: e.target.value })}
               style={{
@@ -144,7 +180,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Notes (Optional)</label>
-            <textarea 
+            <textarea
               placeholder="Quick notes about the call..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -160,7 +196,7 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
             {formData.customer_outcome === 'Follow up required' && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ overflow: 'hidden' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Scheduled Callback Time</label>
-                <input 
+                <input
                   type="datetime-local"
                   value={formData.callback_datetime || ''}
                   onChange={(e) => setFormData({ ...formData, callback_datetime: e.target.value })}
@@ -176,10 +212,10 @@ const CallLogModal = ({ client, onClose, onSuccess }) => {
           </div>
 
           <div style={{ marginTop: '16px' }}>
-            <Button 
-              variant="primary" 
-              fullWidth 
-              type="submit" 
+            <Button
+              variant="primary"
+              fullWidth
+              type="submit"
               isLoading={loading}
               icon={CheckCircle2}
             >

@@ -85,6 +85,11 @@ class PaymentAuthRepository extends BaseRepository
         });
     }
 
+    public function findById(int $id)
+    {
+        return $this->model->with(['client', 'bookings'])->find($id);
+    }
+
     public function findByIdForCollection(int $id)
     {
         return $this->model

@@ -4,6 +4,7 @@ namespace App\Domains\Booking\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Client;
 use App\Models\User;
 use App\Models\Passenger;
@@ -13,7 +14,7 @@ use Spatie\Activitylog\Contracts\Activity;
 
 class Booking extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     public function getActivitylogOptions(): LogOptions
     {

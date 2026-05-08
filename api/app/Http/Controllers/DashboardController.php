@@ -144,7 +144,8 @@ class DashboardController extends Controller
             $globalCounts = DB::selectOne("
                 SELECT
                     (SELECT COUNT(*) FROM users) as total_staff,
-                    (SELECT COUNT(*) FROM users WHERE LOWER(status) IN ('active', 'on call')) as active_staff,
+                    (SELECT COUNT(*) FROM users WHERE LOWER(status) IN ('active', 'on call', 'idle')) as active_staff,
+                    (SELECT COUNT(*) FROM users WHERE LOWER(status) = 'break') as on_break_staff,
                     (SELECT COUNT(*) FROM clients) as total_clients,
                     (SELECT COUNT(*) FROM bookings) as total_bookings,
                     (SELECT COUNT(*) FROM call_logs WHERE log_scope = 'booking') as total_calls,
@@ -198,6 +199,7 @@ class DashboardController extends Controller
                 'staff' => [
                     'total' => $totalStaffAll,
                     'active' => $activeStaff,
+                    'on_break' => $globalCounts->on_break_staff,
                     'period_count' => $staffTrend['current'],
                     'growth' => $staffTrend['growth']
                 ],
@@ -589,12 +591,30 @@ class DashboardController extends Controller
                     ->first();
                 
                 $isLoggedInAtStart = $lastActivityBefore && in_array($lastActivityBefore->activity_type, ['login', 'on_call', 'idle', 'break_start']);
+                
+                $sessionStart = null;
                 if ($isLoggedInAtStart) {
                     $sessionStart = $start;
                 }
 
                 $loginActivity = $activities->firstWhere('activity_type', 'login');
-                $loginTime = $loginActivity ? $loginActivity->created_at->timezone($tz)->format('h:i A') : ($isLoggedInAtStart ? 'Prev. Session' : '--');
+                $loginTime = '--';
+                
+                if ($loginActivity) {
+                    $loginTime = $loginActivity->created_at->timezone($tz)->format('h:i A');
+                } elseif ($isLoggedInAtStart) {
+                    $prevLogin = \App\Models\UserActivity::where('user_id', $agent->id)
+                        ->where('activity_type', 'login')
+                        ->where('created_at', '<', $start)
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+                    
+                    if ($prevLogin) {
+                        $loginTime = $prevLogin->created_at->timezone($tz)->format('M d, h:i A');
+                    } else {
+                        $loginTime = 'Prev. Session';
+                    }
+                }
 
                 $currentSegmentStart = $isLoggedInAtStart ? $start : null;
                 $currentSegmentType = $isLoggedInAtStart ? ($lastActivityBefore->activity_type === 'break_start' ? 'break' : 'active') : null;
@@ -718,7 +738,8 @@ class DashboardController extends Controller
                 ->get()
                 ->groupBy('user_id');
 
-            return $supervisors->map(function ($sup) use ($period, $start, $end, $logins, $tz) {
+            $supervisorSummary = $supervisors->map(function ($sup) use ($period, $start, $end, $logins, $tz) {
+                // ... (supervisor mapping logic)
                 $agents = $sup->supervisedAgents;
                 $agentIds = $agents->pluck('id')->toArray();
                 
@@ -733,30 +754,33 @@ class DashboardController extends Controller
                 if ($period === 'live') {
                     $totalAgents = $agents->count();
                     $active = $agents->filter(function ($agent) {
-                        return in_array(strtolower((string) $agent->status), ['active', 'on call'], true);
+                        $status = strtolower((string) ($agent->status ?? ''));
+                        return in_array($status, ['active', 'on call', 'idle'], true);
                     })->count();
                     $onBreak = $agents->filter(function ($agent) {
-                        return strtolower((string) $agent->status) === 'break';
+                        return strtolower((string) ($agent->status ?? '')) === 'break';
                     })->count();
                 } else {
-                    // Historical aggregation from UserActivity
-                    $activeAgentIds = \App\Models\UserActivity::whereIn('user_id', $agentIds)
+                    $latestActivities = \App\Models\UserActivity::whereIn('user_id', $agentIds)
                         ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
-                        ->whereIn('activity_type', ['login', 'on_call', 'idle'])
-                        ->distinct('user_id')
-                        ->pluck('user_id')
-                        ->toArray();
+                        ->orderBy('created_at', 'desc')
+                        ->get()
+                        ->unique('user_id');
 
-                    $breakAgentIds = \App\Models\UserActivity::whereIn('user_id', $agentIds)
-                        ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
-                        ->where('activity_type', 'break_start')
-                        ->distinct('user_id')
-                        ->pluck('user_id')
-                        ->toArray();
+                    $activeCount = 0;
+                    $breakCount = 0;
 
-                    $totalAgents = count(array_unique(array_merge($activeAgentIds, $breakAgentIds)));
-                    $active = count($activeAgentIds);
-                    $onBreak = count($breakAgentIds);
+                    foreach ($latestActivities as $activity) {
+                        if ($activity->activity_type === 'break_start') {
+                            $breakCount++;
+                        } elseif (in_array($activity->activity_type, ['login', 'on_call', 'idle', 'break_end'])) {
+                            $activeCount++;
+                        }
+                    }
+
+                    $totalAgents = $latestActivities->count();
+                    $active = $activeCount;
+                    $onBreak = $breakCount;
                 }
 
                 return [
@@ -769,11 +793,52 @@ class DashboardController extends Controller
                     'revenue' => (float) $teamRevenue,
                 ];
             })->values();
+
+            // Calculate UNIQUE global summary across ALL agents (not just those with supervisors)
+            $allAgents = User::role('agent')->get(['id', 'status']);
+            $allAgentIds = $allAgents->pluck('id')->toArray();
+
+            $globalActive = 0;
+            $globalBreak = 0;
+
+            if ($period === 'live') {
+                $globalActive = $allAgents->filter(function ($agent) {
+                    $status = strtolower((string) ($agent->status ?? ''));
+                    return in_array($status, ['active', 'on call', 'idle'], true);
+                })->count();
+                $globalBreak = $allAgents->filter(function ($agent) {
+                    return strtolower((string) ($agent->status ?? '')) === 'break';
+                })->count();
+            } else {
+                $globalLatestActivities = \App\Models\UserActivity::whereIn('user_id', $allAgentIds)
+                    ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->unique('user_id');
+
+                foreach ($globalLatestActivities as $activity) {
+                    if ($activity->activity_type === 'break_start') {
+                        $globalBreak++;
+                    } elseif (in_array($activity->activity_type, ['login', 'on_call', 'idle', 'break_end'])) {
+                        $globalActive++;
+                    }
+                }
+            }
+
+            return [
+                'supervisors' => $supervisorSummary,
+                'summary' => [
+                    'total_supervisors' => $supervisors->count(),
+                    'total_active' => $globalActive,
+                    'total_break' => $globalBreak
+                ]
+            ];
         });
 
         return response()->json([
             'success' => true,
-            'data' => $data
+            'data' => $data['supervisors'],
+            'summary' => $data['summary']
         ]);
     }
 

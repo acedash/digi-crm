@@ -45,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Payment Authorizations
     Route::post('/payment-authorizations', [PaymentAuthController::class, 'store']);
+    Route::get('/payment-authorizations/{id}/preview-email', [PaymentAuthController::class, 'previewEmail']);
     Route::post('/payment-authorizations/{id}/send-email', [PaymentAuthController::class, 'sendEmail']);
     Route::get('/bookings/{booking}/consent-proof', [PaymentAuthController::class, 'proofByBooking']);
     Route::post('/payment-authorizations/{token}/refresh', [PaymentAuthController::class, 'refreshSnapshot']);
@@ -56,7 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/bookings/{booking}', [BookingController::class, 'update']);
     Route::delete('/bookings/{booking}', [BookingController::class, 'destroy']);
     Route::patch('/bookings/{booking}/reassign', [BookingController::class, 'reassign']);
+    Route::get('/bookings/{booking}/preview-template-email', [BookingController::class, 'previewTemplateEmail']);
     Route::post('/bookings/{booking}/send-template-email', [BookingController::class, 'sendTemplateEmail']);
+    Route::post('/bookings/{booking}/restore', [BookingController::class, 'restore']);
 
     Route::get('/admin/settings/mail-templates', [SettingsController::class, 'listMailTemplates']);
     Route::put('/admin/settings/mail-templates', [SettingsController::class, 'updateMailTemplates']);

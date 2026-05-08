@@ -18,7 +18,7 @@ class BookingRequest extends FormRequest
         $isStatusOnly = $this->input('update_mode') === 'status_only';
         $isRequestingCard = $this->boolean('request_card_collection');
 
-        return [
+        $rules = [
             'client_id' => 'nullable|exists:clients,id',
             'agent_id' => 'nullable|exists:users,id',
             'update_mode' => 'nullable|string|in:standard,service_change,status_only',
@@ -98,6 +98,12 @@ class BookingRequest extends FormRequest
             'change_charge_cards_to_sync.*.cvv' => 'nullable|string|min:3|max:4',
             'change_charge_cards_to_sync.*.currency' => 'nullable|string|size:3',
         ];
+
+        if (!$isDraft && !$isStatusOnly && !$isRequestingCard) {
+            $rules['payment_cards'] = 'required|array|min:1';
+        }
+
+        return $rules;
     }
 
     public function attributes(): array

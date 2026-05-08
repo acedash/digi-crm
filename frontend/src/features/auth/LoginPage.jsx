@@ -22,6 +22,7 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
   const user = useAuthStore((state) => state.user);
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
@@ -89,7 +90,7 @@ const LoginPage = () => {
           flex: '1', 
           display: 'flex',
           flexDirection: 'column',
-          padding: '40px 80px'
+          padding: '80px 80px'
         }}>
           {/* Branding */}
           <div style={{ 
@@ -108,7 +109,7 @@ const LoginPage = () => {
             <div>
               <h2 style={{ 
                 color: 'white', 
-                fontSize: '24px', 
+                fontSize: '20px', 
                 fontWeight: 800, 
                 margin: 0, 
                 letterSpacing: '-0.5px'
@@ -123,7 +124,7 @@ const LoginPage = () => {
           </div>
 
           {/* Marketing Text */}
-          <div style={{ marginTop: '100px' }}>
+          <div style={{ marginTop: '160px' }}>
             <h1 style={{ 
               fontSize: '44px', 
               fontWeight: 800, 
@@ -243,7 +244,54 @@ const LoginPage = () => {
                   />
                   Remember this device
                 </label>
-                <span style={{ fontSize: '13px', color: '#0d9488', fontWeight: 600, cursor: 'pointer' }}>Forgot password?</span>
+                <div style={{ position: 'relative' }}>
+                  <AnimatePresence>
+                    {showTooltip && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                        style={{
+                          position: 'absolute',
+                          bottom: '100%',
+                          right: 0,
+                          marginBottom: '12px',
+                          background: '#1e293b',
+                          color: 'white',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          width: '180px',
+                          textAlign: 'center',
+                          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                          zIndex: 10,
+                          pointerEvents: 'none'
+                        }}
+                      >
+                        Please contact your administrator to reset your password.
+                        {/* Tooltip Arrow */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          right: '20px',
+                          width: '0',
+                          height: '0',
+                          borderLeft: '6px solid transparent',
+                          borderRight: '6px solid transparent',
+                          borderTop: '6px solid #1e293b'
+                        }} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <span 
+                    onMouseEnter={() => setShowTooltip(true)}
+                    onMouseLeave={() => setShowTooltip(false)}
+                    style={{ fontSize: '13px', color: '#0d9488', fontWeight: 600, cursor: 'help' }}
+                  >
+                    Forgot password?
+                  </span>
+                </div>
               </div>
 
               {/* Submit Button */}

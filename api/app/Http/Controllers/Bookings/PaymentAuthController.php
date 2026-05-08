@@ -206,6 +206,16 @@ class PaymentAuthController extends Controller
         }
     }
 
+    public function previewEmail(int $id)
+    {
+        try {
+            $preview = $this->paymentAuthService->previewAuthEmail($id);
+            return $this->successResponse($preview, 'Authorization email preview generated');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
+        }
+    }
+
     public function sendEmail(int $id)
     {
         try {

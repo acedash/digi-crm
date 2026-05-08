@@ -133,7 +133,7 @@ const AdminDashboard = () => {
   const statCards = [
     {
       title: 'Total Staff Members',
-      subtitle: `${stats.staff?.active || 0} active right now`,
+      subtitle: `${stats.staff?.active || 0} active, ${stats.staff?.on_break || 0} on break`,
       value: stats.staff?.total || 0,
       growth: stats.staff?.growth,
       icon: Users,
@@ -199,26 +199,26 @@ const AdminDashboard = () => {
     startTour([
       {
         target: '#dashboard-title',
-        title: 'Welcome Back!',
-        content: 'This is your business command center. Monitor overall health and team activity at a glance.',
+        title: 'Welcome to Your Dashboard 👋',
+        content: 'Get a snapshot of your business in real time. View performance, track team activity, and make faster decisions.',
         position: 'bottom'
       },
       {
         target: '#sidebar-bookings',
         title: 'Manage Bookings',
-        content: 'Everything starts here. View, create, and manage all your client reservations.',
+        content: 'Create, view, and manage all client bookings in one place. Track status, update details, and stay organized.',
         position: 'right'
       },
       {
         target: '#stat-cards',
-        title: 'Key Metrics',
-        content: 'Track your total revenue, pending PNRs, and agent performance in real-time.',
+        title: 'Revenue Insights',
+        content: 'View how your revenue is performing across daily, weekly, monthly, and total metrics.',
         position: 'bottom'
       },
       {
         target: '#admin-monitoring',
         title: 'Team Activity',
-        content: 'See exactly what your agents are working on and their current status.',
+        content: 'Keep track of agent actions, availability, and ongoing tasks.',
         position: 'top'
       }
     ]);
@@ -336,14 +336,15 @@ const AdminDashboard = () => {
             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Global Revenue Trends (1 Year)</h3>
             <div style={{ height: '300px', width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <LineChart data={stats.revenue_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={stats.revenue_trends} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.3} />
                   <XAxis 
                     dataKey="name" 
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 11, fill: 'var(--text-muted)', fontWeight: 600 }} 
-                    dy={10} 
+                    dy={10}
+                    padding={{ left: 20, right: 20 }} 
                   />
                   <YAxis 
                     axisLine={false} 
@@ -384,9 +385,16 @@ const AdminDashboard = () => {
             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Pending vs Confirmed Booking</h3>
             <div style={{ height: '300px', width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: 'var(--text-muted)' }} 
+                    dy={10}
+                    padding={{ left: 20, right: 20 }}
+                  />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
@@ -404,7 +412,7 @@ const AdminDashboard = () => {
 
         {stats.booking_status_distribution && stats.booking_status_distribution.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Booking Statuses</h3>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Overview</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Current period distribution</p>
             <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -563,7 +571,11 @@ const AdminDashboard = () => {
       </div>
 
       <div id="admin-monitoring">
-        <AdminMonitoringTable />
+        <AdminMonitoringTable 
+          period={period} 
+          startDate={customStart} 
+          endDate={customEnd} 
+        />
       </div>
     </div>
   );

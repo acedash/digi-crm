@@ -21,6 +21,7 @@ import HotelSection from './components/HotelSection';
 import CarSection from './components/CarSection';
 import CruiseSection from './components/CruiseSection';
 import BookingFooter from './components/BookingFooter';
+import EmailPreviewModal from './components/EmailPreviewModal';
 
 const createEmptyFlightSegment = () => ({
   airline: '',
@@ -222,6 +223,13 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
   // Reassignment Dropdown
   const [availableAgents, setAvailableAgents] = useState([]);
   const [selectedAgentId, setSelectedAgentId] = useState(user?.id);
+  const [emailPreview, setEmailPreview] = useState({
+    open: false,
+    title: '',
+    previewData: null,
+    onConfirm: null,
+    isLoading: false
+  });
 
   useEffect(() => {
     if (activeRole === 'admin' || activeRole === 'supervisor') {
@@ -847,7 +855,6 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
         if (!newClient.last_name) missingPrimary.push("Last Name");
         if (!newClient.email) missingPrimary.push("Email");
         if (!newClient.phone) missingPrimary.push("Phone");
-        if (!newClient.date_of_birth) missingPrimary.push("Date of Birth");
 
         if (missingPrimary.length > 0) {
           return setToast({ message: `Missing fields: ${missingPrimary.join(', ')}`, type: 'error' });
@@ -1023,7 +1030,11 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     const grandTotal = calculateTotal();
     const totalAllocated = paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
 
-    if (!isChangeWorkflow && statusToSubmit !== 'Draft' && totalAllocated > 0) {
+    if (!isChangeWorkflow && statusToSubmit !== 'Draft' && !requestCardOnSave) {
+      if (totalAllocated === 0) {
+          return setToast({ message: "No Card Details", type: 'error' });
+      }
+
       if (Math.abs(totalAllocated - grandTotal) > 0.01) return setToast({ message: "The total amount assigned to your payment cards must equal the booking's Grand Total.", type: 'error' });
 
       for (let i = 0; i < paymentCards.length; i++) {
@@ -1136,15 +1147,32 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
 
         if (workflowTemplate === 'flight_change' && changeTracking.recorded_flight_change) {
           try {
-            await bookingService.sendTemplateEmail(bookingId, 'flight_change');
-            onSuccess({
-              message: 'Flight change saved and email sent successfully.',
-              type: 'success',
+            const previewRes = await bookingService.previewTemplateEmail(bookingId, 'flight_change');
+            setEmailPreview({
+              open: true,
+              title: 'Preview Flight Change Email',
+              previewData: previewRes.data.data,
+              confirmLabel: 'Send Notification Now',
+              onConfirm: async () => {
+                try {
+                  setEmailPreview(prev => ({ ...prev, isLoading: true }));
+                  await bookingService.sendTemplateEmail(bookingId, 'flight_change');
+                  onSuccess({
+                    message: 'Flight change saved and email sent successfully.',
+                    type: 'success',
+                  });
+                  setEmailPreview({ open: false });
+                } catch (err) {
+                  setToast({ message: err?.response?.data?.message || 'Failed to send email', type: 'error' });
+                } finally {
+                  setEmailPreview(prev => ({ ...prev, isLoading: false }));
+                }
+              }
             });
             return;
           } catch (error) {
             setToast({
-              message: error?.response?.data?.message || 'Booking saved, but the flight change email failed to send.',
+              message: error?.response?.data?.message || 'Booking saved, but failed to generate email preview.',
               type: 'error'
             });
             return;
@@ -1299,53 +1327,20 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
             });
           }}
         />
-        {isChangeWorkflow ? (
-          <Card style={{ padding: 0 }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '8px', background: 'rgba(6, 182, 138, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#06B68A', fontWeight: 900 }}>
-                  2
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)' }}>Original Payment Cards</div>
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Reference only</div>
-            </div>
-            <div style={{ padding: '24px' }}>
-              <div style={{ marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                This is the original approved allocation for the booking. We keep it read-only here. Any extra charge for the tracked change should be split below in <strong style={{ color: 'var(--text-main)' }}>Change Charge Allocation</strong>.
-              </div>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {paymentCards.map((card, index) => (
-                  <div key={`${card.number}-${index}`} style={{ padding: '16px', borderRadius: '14px', background: 'var(--bg-app)', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>{card.holder_name || 'Card Holder'}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{formatCardLabel(card.number)}</div>
-                        {card.exp ? (
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Expiry: {card.exp}</div>
-                        ) : null}
-                        {card.remarks ? (
-                          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.6 }}>{card.remarks}</div>
-                        ) : null}
-                      </div>
-                      <div style={{ fontSize: '18px', fontWeight: 900, color: '#06B68A' }}>
-                        {card.currency || 'USD'} {(parseFloat(card.amount) || 0).toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-        ) : (
-          <PaymentSection 
-            paymentCards={paymentCards} 
-            setPaymentCards={setPaymentCards} 
-            grandTotal={calculateTotal()} 
-            requestCardOnSave={requestCardOnSave}
-            setRequestCardOnSave={setRequestCardOnSave}
-          />
-        )}
+        <PaymentSection 
+          paymentCards={paymentCards} 
+          setPaymentCards={setPaymentCards} 
+          grandTotal={isChangeWorkflow ? paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0).toFixed(2) : calculateTotal()} 
+          requestCardOnSave={requestCardOnSave}
+          setRequestCardOnSave={setRequestCardOnSave}
+          title={isChangeWorkflow ? "2. Original Payment Cards" : "2. Payment Cards"}
+          description={isChangeWorkflow ? (
+            <span>
+              This is the original approved allocation for the booking. You can now edit these details if needed. 
+              Any extra charge for the tracked change should be split below in <strong style={{ color: 'var(--text-main)' }}>Change Charge Allocation</strong>.
+            </span>
+          ) : null}
+        />
         <FlightSection 
           flight={flight} 
           setFlight={setFlight} 
@@ -1406,23 +1401,27 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                         <Input
                           label="Holder Name"
                           value={card.holder_name || ''}
+                          autoComplete="off"
                           onChange={(e) => updateChangeChargeCard(index, 'holder_name', e.target.value)}
                         />
                         <Input
                           label="Card Number"
                           value={card.number || ''}
+                          autoComplete="off"
                           onChange={(e) => updateChangeChargeCard(index, 'number', e.target.value)}
                         />
                         <Input
                           label="Expiry"
                           placeholder="MM/YY"
                           value={card.exp || ''}
+                          autoComplete="off"
                           onChange={(e) => updateChangeChargeCard(index, 'exp', e.target.value)}
                         />
                         <Input
                           label="CVV"
                           type="password"
                           value={card.cvv || ''}
+                          autoComplete="new-password"
                           onChange={(e) => updateChangeChargeCard(index, 'cvv', e.target.value)}
                         />
                         <Input
@@ -1572,6 +1571,16 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
           </div>
         </Modal>
       )}
+      
+      <EmailPreviewModal
+        open={emailPreview.open}
+        title={emailPreview.title}
+        previewData={emailPreview.previewData}
+        isLoading={emailPreview.isLoading}
+        onClose={() => setEmailPreview({ open: false })}
+        onConfirm={emailPreview.onConfirm}
+        confirmLabel={emailPreview.confirmLabel}
+      />
     </div>
   );
 };

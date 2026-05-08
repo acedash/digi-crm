@@ -12,6 +12,18 @@ class AuthorizationMailer
     {
     }
 
+    public function render(PaymentAuth $authorization): array
+    {
+        $approvalUrl = rtrim(config('app.frontend_url'), '/') . '/authorize/' . $authorization->token;
+        $mailable = new AuthorizationEmail($authorization, $approvalUrl, isPreview: true);
+        
+        return [
+            'subject' => $mailable->envelope()->subject,
+            'body' => $mailable->render(),
+            'to' => $authorization->client?->email,
+        ];
+    }
+
     public function send(PaymentAuth $authorization): void
     {
         if (!$authorization->client?->email) {

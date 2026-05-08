@@ -23,6 +23,7 @@ import {
   Send,
   Loader2,
   ShieldCheck,
+  PhoneCall,
 } from 'lucide-react';
 import bookingService from './bookingService';
 import paymentAuthService from './paymentAuthService';
@@ -30,6 +31,7 @@ import { BACKEND_BASE_URL } from '../../services/api';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Toast from '../../components/ui/Toast';
+import CallLogModal from './components/CallLogModal';
 
 const BookingDetailsPage = () => {
   const { id } = useParams();
@@ -44,6 +46,7 @@ const BookingDetailsPage = () => {
 
   const [sendingEmail, setSendingEmail] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showCallLog, setShowCallLog] = useState(false);
 
   const fetchBooking = useCallback(async () => {
     if (isFetchingRef.current) return;
@@ -176,6 +179,9 @@ const BookingDetailsPage = () => {
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <Button variant="outline" icon={ShieldCheck} onClick={() => navigate(`${basePath}/bookings/${booking.id}/consent-proof`)}>
             Consent Proof
+          </Button>
+          <Button variant="outline" icon={PhoneCall} onClick={() => setShowCallLog(true)}>
+            Log Call
           </Button>
           <Button variant="primary" onClick={() => navigate(`${basePath}/bookings/${booking.id}/edit`)}>
             Edit Booking
@@ -563,6 +569,15 @@ const BookingDetailsPage = () => {
       </div>
 
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />
+
+      {showCallLog && (
+        <CallLogModal 
+          client={booking.client} 
+          booking={booking}
+          onClose={() => setShowCallLog(false)}
+          onSuccess={() => setToast({ message: 'Call logged successfully!', type: 'success' })}
+        />
+      )}
     </div>
   );
 };

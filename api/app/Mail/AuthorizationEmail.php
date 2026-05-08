@@ -24,7 +24,8 @@ class AuthorizationEmail extends Mailable
 
     public function __construct(
         public PaymentAuth $authorization,
-        public string $approvalUrl
+        public string $approvalUrl,
+        public bool $isPreview = false
     ) {
         $this->withSymfonyMessage(function (Email $message) {
             foreach ($this->inlineImages as $contentId => $path) {
@@ -327,6 +328,10 @@ class AuthorizationEmail extends Mailable
             $absolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($normalizedPath);
 
             if (is_file($absolutePath)) {
+                if ($this->isPreview) {
+                    return $resolvedUrl;
+                }
+
                 $normalizedContentId = str_contains($contentId, '@')
                     ? $contentId
                     : $contentId . '@travelcrm.local';

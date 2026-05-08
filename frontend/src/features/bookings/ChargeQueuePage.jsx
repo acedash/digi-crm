@@ -192,9 +192,9 @@ const ChargeQueuePage = () => {
   const openMarkCharged = (record) => {
     setSelectedRecord(record);
     setRevealedCards({});
-    setCollectionReference('');
-    setCollectionNotes('');
-    setChargeStatus('Charged/Captured');
+    setCollectionReference(record.collection_reference || '');
+    setCollectionNotes(record.collection_notes || '');
+    setChargeStatus(record.charge_status || 'Charged/Captured');
   };
 
   const revealCard = (recordId, card, index) => {
@@ -237,7 +237,7 @@ const ChargeQueuePage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: '32px', fontWeight: 800, letterSpacing: '-1px', marginBottom: '8px' }}>
-            Charge Queue
+            Charge <span style={{ color: '#10b981' }}>Queue</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
             Manage approved payments pending charge or already collected.
@@ -482,8 +482,18 @@ const ChargeQueuePage = () => {
                       </Button>
                     )}
                     {record.collected_at ? (
-                      <div style={{ alignSelf: 'center', fontSize: '12px', color: '#16a34a', fontWeight: 700, background: 'rgba(22, 163, 74, 0.1)', padding: '6px 12px', borderRadius: '8px' }}>
-                        Processed
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div style={{ alignSelf: 'center', fontSize: '11px', color: '#16a34a', fontWeight: 700, background: 'rgba(22, 163, 74, 0.1)', padding: '6px 12px', borderRadius: '8px', textTransform: 'uppercase' }}>
+                          Processed
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openMarkCharged(record)}
+                          style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '8px' }}
+                        >
+                          Edit Status
+                        </Button>
                       </div>
                     ) : (
                       <Button
@@ -545,7 +555,9 @@ const ChargeQueuePage = () => {
           }}
         >
           <div style={{ width: '100%', maxWidth: '520px', background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '10px' }}>Mark Authorization as Charged</h3>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '10px' }}>
+              {selectedRecord.collected_at ? 'Edit Charge Status' : 'Mark Authorization as Charged'}
+            </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px' }}>
               Record the collection details for {selectedRecord.bookings?.[0]?.booking_reference || `authorization #${selectedRecord.id}`}.
             </p>
@@ -674,7 +686,7 @@ const ChargeQueuePage = () => {
                 onClick={submitMarkCharged}
                 isLoading={submittingId === selectedRecord.id}
               >
-                Confirm Charged
+                {selectedRecord.collected_at ? 'Update Status' : 'Confirm Charged'}
               </Button>
             </div>
           </div>

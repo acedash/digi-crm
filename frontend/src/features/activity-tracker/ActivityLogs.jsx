@@ -132,7 +132,9 @@ const ActivityLogs = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
           <div>
             <h1 style={{ fontSize: '30px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.8px' }}>
-              {managerTitle}
+              {isAdmin ? (
+                <>Activity <span style={{ color: '#10b981' }}>Center</span></>
+              ) : managerTitle}
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
               {managerSubtitle}

@@ -275,8 +275,9 @@ const ClientList = ({ isEmbedded = false }) => {
             style={{ marginBottom: 0 }}
           />
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-            <div style={{ width: '160px' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px 12px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', paddingRight: '4px' }}>Date:</span>
+            <div style={{ width: '150px' }}>
               <Input 
                 type="date"
                 icon={CalendarIcon}
@@ -286,8 +287,8 @@ const ClientList = ({ isEmbedded = false }) => {
                 inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
               />
             </div>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
-            <div style={{ width: '160px' }}>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 2px' }}>-</span>
+            <div style={{ width: '150px' }}>
               <Input 
                 type="date"
                 icon={CalendarIcon}
@@ -389,17 +390,17 @@ const ClientList = ({ isEmbedded = false }) => {
               className="glass-panel"
               style={{ borderRadius: 'var(--radius)', overflow: 'hidden', overflowX: 'auto' }}
             >
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Client Details</th>
-                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Contact</th>
-                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Category</th>
-                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Date</th>
-                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Amount</th>
-                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Travelers</th>
-                    <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Created By</th>
-                    <th style={{ padding: '20px 24px', textAlign: 'right' }}></th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '20%' }}>Client Details</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '18%' }}>Contact</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '10%' }}>Category</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '8%' }}>Date</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '9%' }}>Amount</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '9%' }}>Travelers</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '10%' }}>Created By</th>
+                    <th style={{ padding: '16px 20px 16px 12px', textAlign: 'right', width: '16%' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -417,59 +418,59 @@ const ClientList = ({ isEmbedded = false }) => {
                       onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-input)'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
-                      <td style={{ padding: '20px 24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <td style={{ padding: '16px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{ 
-                            width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.05)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))'
+                            width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))', flexShrink: 0
                           }}>
-                            <UserIcon size={20} />
+                            <UserIcon size={16} />
                           </div>
-                          <div>
-                            <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '14px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                            <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {client.first_name} {client.last_name}
                             </p>
-                            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                               ID: C-{String(client.id).padStart(4, '0')}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '20px 24px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-main)' }}>
-                            <Phone size={13} style={{ color: 'var(--text-muted)' }} />
+                      <td style={{ padding: '16px 12px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <Phone size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                             {client.phone || '--'}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-main)' }}>
-                            <Mail size={13} style={{ color: 'var(--text-muted)' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <Mail size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                             {client.email}
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '20px 24px' }}>
+                      <td style={{ padding: '16px 12px' }}>
                         {renderCategoryDetails(client)}
                       </td>
-                      <td style={{ padding: '20px 24px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                      <td style={{ padding: '16px 12px', fontSize: '12px', color: 'var(--text-muted)' }}>
                         {client.latestBooking ? new Date(client.latestBooking.created_at).toLocaleDateString() : 'N/A'}
                       </td>
-                      <td style={{ padding: '20px 24px' }}>
-                        <div style={{ fontWeight: 700, color: '#06B68A', fontSize: '14px' }}>
-                          ${Number(client.bookings_sum_total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <td style={{ padding: '16px 12px' }}>
+                        <div style={{ fontWeight: 700, color: '#06B68A', fontSize: '13px' }}>
+                          ${Number(client.bookings_sum_total_amount || 0).toLocaleString()}
                         </div>
                       </td>
-                      <td style={{ padding: '20px 24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Users size={14} style={{ color: 'var(--text-muted)' }}/>
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{client.passengers_count || 0}</span>
+                      <td style={{ padding: '16px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Users size={12} style={{ color: 'var(--text-muted)' }}/>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>{client.passengers_count || 0}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '20px 24px', whiteSpace: 'nowrap', minWidth: '140px' }}>
-                        <div style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 600 }}>
+                      <td style={{ padding: '16px 12px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {client.creator?.name || client.agent?.name || '---'}
                         </div>
                       </td>
-                      <td style={{ padding: '20px 24px', textAlign: 'right' }}>
+                      <td style={{ padding: '16px 20px 16px 12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                           <Button variant="glass" size="sm" icon={Edit} onClick={() => handleEditClient(client)} style={{ padding: '6px' }} />
                           <Button variant="ghost" size="sm" icon={Trash2} onClick={() => handleDeleteClient(client)} style={{ color: '#f87171', padding: '6px' }} />

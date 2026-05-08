@@ -16,6 +16,7 @@ import {
   ArrowRightLeft,
   Pencil,
   Trash2,
+  Undo,
   Check,
   CheckCircle2,
   Copy,
@@ -155,11 +156,13 @@ const BookingRow = ({
   onMarkPending,
   onEdit,
   onDelete,
+  onRestore,
   totalCollected = 0,
 }) => {
   const [copied, setCopied] = React.useState(false);
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [showHistory, setShowHistory] = React.useState(false);
+  const isDeleted = Boolean(booking.deleted_at);
 
   const handleCopyId = (e) => {
     e.stopPropagation();
@@ -421,124 +424,145 @@ const BookingRow = ({
               justifyContent: 'flex-start',
             }}
           >
-            <ActionChip
-              icon={Mail}
-              label={isSendingApproval ? '...' : approvalActionLabel}
-              onClick={() => onSendApproval(booking)}
-              tone="primary"
-              title="Email payment approval link"
-              disabled={isSendingApproval}
-            />
-            <ActionChip
-              icon={Pencil}
-              label="Modify"
-              onClick={() => onEdit(booking)}
-              tone="info"
-              title="Edit or modify this booking"
-            />
-            {['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'].includes(booking.status) && (
-              <ActionChip
-                icon={RefreshCw}
-                label={isSendingFlightChange ? '...' : 'Flight Change'}
-                onClick={() => onSendFlightChange(booking)}
-                tone="primary"
-                title="Send flight change notification"
-                disabled={isSendingFlightChange}
-              />
-            )}
-            <ActionChip
-              icon={CreditCard}
-              label={isSendingFutureCredit ? '...' : 'Future Credit'}
-              onClick={() => onSendFutureCredit(booking)}
-              tone="warning"
-              title="Cancel with future credit"
-              disabled={isSendingFutureCredit}
-            />
-            <ActionChip
-              icon={XCircle}
-              label={isSendingRefund ? '...' : 'Refund'}
-              onClick={() => onSendRefund(booking)}
-              tone="danger"
-              title="Cancel with refund"
-              disabled={isSendingRefund}
-            />
-            {booking.status === 'Approved' && (
-              <ActionChip
-                icon={RefreshCw}
-                label="Process"
-                onClick={() => onMarkPending(booking.id)}
-                tone="primary"
-                title="Move to Work Pending status"
-              />
-            )}
-            {(booking.status === 'Work Pending' || booking.status === 'Approved') && (
-              <ActionChip
-                icon={CheckCircle2}
-                label="Complete"
-                onClick={() => onMarkCompleted(booking.id)}
-                tone="success"
-                title="Mark as fully completed"
-              />
-            )}
-            <ActionChip
-              icon={ShieldCheck}
-              label="Proof"
-              onClick={() => onOpenProof(booking.id)}
-              tone="info"
-              title="Open consent proof"
-            />
-            <ActionChip
-              icon={Eye}
-              label="View"
-              onClick={() => onView(booking.id)}
-              tone="info"
-              title="Open full details"
-            />
-            <ActionChip
-              icon={PhoneCall}
-              label="Call"
-              onClick={() => onCall(booking.id)}
-              tone="success"
-              title="Create call log"
-            />
-            {canReassign ? (
-              <ActionChip
-                icon={ArrowRightLeft}
-                label="Reassign"
-                onClick={() => onReassign(booking)}
-                tone="warning"
-                title="Transfer booking"
-              />
-            ) : null}
-
-            <ActionChip
-              icon={Trash2}
-              label="Delete"
-              onClick={() => onDelete(booking.id)}
-              tone="danger"
-              title="Delete permanently"
-            />
-
-            {(booking.payment_authorizations || booking.paymentAuthorizations || [])
-              .filter(a => (a.authorization_type === 'card_collection' || a.metadata?.authorization_type === 'card_collection') && String(a.status).toLowerCase() === 'pending')
-              .map(auth => (
-                <React.Fragment key={auth.id}>
+            {isDeleted ? (
+              <>
+                <ActionChip
+                  icon={Undo}
+                  label="Restore"
+                  onClick={() => onRestore(booking.id)}
+                  tone="success"
+                  title="Restore this booking"
+                />
+                <ActionChip
+                  icon={Eye}
+                  label="View"
+                  onClick={() => onView(booking.id)}
+                  tone="info"
+                  title="Open full details"
+                />
+              </>
+            ) : (
+              <>
+                <ActionChip
+                  icon={Mail}
+                  label={isSendingApproval ? '...' : approvalActionLabel}
+                  onClick={() => onSendApproval(booking)}
+                  tone="primary"
+                  title="Email payment approval link"
+                  disabled={isSendingApproval}
+                />
+                <ActionChip
+                  icon={Pencil}
+                  label="Modify"
+                  onClick={() => onEdit(booking)}
+                  tone="info"
+                  title="Edit or modify this booking"
+                />
+                {['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'].includes(booking.status) && (
                   <ActionChip
-                    icon={copiedLink ? Check : ShieldCheck}
-                    label={copiedLink ? 'Copied' : 'Copy Link'}
-                    onClick={() => handleCopyLink(auth.token)}
-                    tone={copiedLink ? 'success' : 'warning'}
-                    title="Copy secure card collection link"
-                  />
-                  <ActionChip
-                    icon={Mail}
-                    label="Email Link"
-                    onClick={() => onSendApproval(booking)}
+                    icon={RefreshCw}
+                    label={isSendingFlightChange ? '...' : 'Flight Change'}
+                    onClick={() => onSendFlightChange(booking)}
                     tone="primary"
-                    title="Send card collection email to client"
+                    title="Send flight change notification"
+                    disabled={isSendingFlightChange}
                   />
-                </React.Fragment>
-              ))}
+                )}
+                <ActionChip
+                  icon={CreditCard}
+                  label={isSendingFutureCredit ? '...' : 'Future Credit'}
+                  onClick={() => onSendFutureCredit(booking)}
+                  tone="warning"
+                  title="Cancel with future credit"
+                  disabled={isSendingFutureCredit}
+                />
+                <ActionChip
+                  icon={XCircle}
+                  label={isSendingRefund ? '...' : 'Refund'}
+                  onClick={() => onSendRefund(booking)}
+                  tone="danger"
+                  title="Cancel with refund"
+                  disabled={isSendingRefund}
+                />
+                {booking.status === 'Approved' && (
+                  <ActionChip
+                    icon={RefreshCw}
+                    label="Process"
+                    onClick={() => onMarkPending(booking.id)}
+                    tone="primary"
+                    title="Move to Work Pending status"
+                  />
+                )}
+                {(booking.status === 'Work Pending' || booking.status === 'Approved') && (
+                  <ActionChip
+                    icon={CheckCircle2}
+                    label="Complete"
+                    onClick={() => onMarkCompleted(booking.id)}
+                    tone="success"
+                    title="Mark as fully completed"
+                  />
+                )}
+                <ActionChip
+                  icon={ShieldCheck}
+                  label="Proof"
+                  onClick={() => onOpenProof(booking.id)}
+                  tone="info"
+                  title="Open consent proof"
+                />
+                <ActionChip
+                  icon={Eye}
+                  label="View"
+                  onClick={() => onView(booking.id)}
+                  tone="info"
+                  title="Open full details"
+                />
+                <ActionChip
+                  icon={PhoneCall}
+                  label="Call"
+                  onClick={() => onCall(booking)}
+                  tone="success"
+                  title="Create call log"
+                />
+                {canReassign ? (
+                  <ActionChip
+                    icon={ArrowRightLeft}
+                    label="Reassign"
+                    onClick={() => onReassign(booking)}
+                    tone="warning"
+                    title="Transfer booking"
+                  />
+                ) : null}
+
+                <ActionChip
+                  icon={Trash2}
+                  label="Delete"
+                  onClick={() => onDelete(booking.id)}
+                  tone="danger"
+                  title="Delete permanently"
+                />
+
+                {(booking.payment_authorizations || booking.paymentAuthorizations || [])
+                  .filter(a => (a.authorization_type === 'card_collection' || a.metadata?.authorization_type === 'card_collection') && String(a.status).toLowerCase() === 'pending')
+                  .map(auth => (
+                    <React.Fragment key={auth.id}>
+                      <ActionChip
+                        icon={copiedLink ? Check : ShieldCheck}
+                        label={copiedLink ? 'Copied' : 'Copy Link'}
+                        onClick={() => handleCopyLink(auth.token)}
+                        tone={copiedLink ? 'success' : 'warning'}
+                        title="Copy secure card collection link"
+                      />
+                      <ActionChip
+                        icon={Mail}
+                        label="Email Link"
+                        onClick={() => onSendApproval(booking)}
+                        tone="primary"
+                        title="Send card collection email to client"
+                      />
+                    </React.Fragment>
+                  ))}
+              </>
+            )}
           </div>
         </div>
 

@@ -60,6 +60,17 @@ class PaymentAuthService
 
             $currency = $isCardCollection ? 'USD' : ($bookings->first()->currency ?? 'USD');
 
+            if ($authorizationType === 'initial') {
+                $hasCards = $bookings->contains(function ($booking) {
+                    $details = $booking->details_json ?? [];
+                    return !empty($details['payment_cards']);
+                });
+                
+                if (!$hasCards) {
+                    throw new \RuntimeException('No Card Details');
+                }
+            }
+
             if (!$isCardCollection && $totalAmount <= 0) {
                 throw new \RuntimeException('Authorization amount must be greater than zero.');
             }
@@ -251,12 +262,9 @@ class PaymentAuthService
             throw new \RuntimeException('Only approved authorizations can be marked as charged.');
         }
 
-        if ($auth->collected_at) {
-            throw new \RuntimeException('This authorization has already been marked as charged.');
-        }
 
         $auth->update([
-            'collected_at' => now(),
+            'collected_at' => $auth->collected_at ?? now(),
             'collected_by' => auth()->id(),
             'charge_status' => $data['charge_status'],
             'collection_notes' => $data['collection_notes'] ?? null,
@@ -634,6 +642,16 @@ class PaymentAuthService
         $auth->save();
 
         return $auth;
+    }
+
+    public function previewAuthEmail(int $id): array
+    {
+        $auth = $this->repository->findById($id);
+        if (!$auth) {
+            throw new \RuntimeException('Authorization not found.');
+        }
+
+        return $this->authorizationMailer->render($auth);
     }
 
     public function sendAuthEmail(int $id): void

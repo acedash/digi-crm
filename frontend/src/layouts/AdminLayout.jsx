@@ -227,24 +227,56 @@ const AdminLayout = () => {
           zIndex: 50,
         }}
       >
-        <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
+        <div style={{ 
+          marginBottom: '40px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px',
+          padding: '0 4px',
+          position: 'relative'
+        }}>
           <div style={{ 
-            width: '80px', 
-            height: '80px', 
+            width: '48px', 
+            height: '48px', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            flexShrink: 0
           }}>
             <img 
               src="/digi-logo.jpeg" 
-              alt="Digi CRM" 
+              alt="DC" 
               style={{ 
-                height: '64px', 
-                width: 'auto',
-                display: 'block',
-                borderRadius: '16px'
+                height: '100%', 
+                width: '100%',
+                objectFit: 'cover'
               }} 
             />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span style={{ 
+              fontSize: '18px', 
+              fontWeight: 800, 
+              color: 'var(--text-main)', 
+              letterSpacing: '-0.5px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              Digi <span style={{ color: 'hsl(var(--primary))' }}>CRM</span>
+            </span>
+            <span style={{ 
+              fontSize: '10px', 
+              fontWeight: 600, 
+              color: 'var(--text-muted)', 
+              textTransform: 'uppercase', 
+              letterSpacing: '0.5px',
+              whiteSpace: 'nowrap'
+            }}>
+              Travel Solution
+            </span>
           </div>
           {isMobile && (
             <button 
@@ -412,7 +444,7 @@ const AdminLayout = () => {
         <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '24px 20px' : '40px' }}>
           <div
             style={{
-              maxWidth: '1200px',
+              maxWidth: (location.pathname.includes('/clients') || location.pathname.includes('/bookings')) ? '100%' : '1400px',
               margin: '0 auto',
               position: 'relative',
               filter: shieldActive ? 'blur(25px) grayscale(100%)' : 'none',

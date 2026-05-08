@@ -275,11 +275,12 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
                         <div style={{ 
                           display: 'inline-flex', alignItems: 'center', gap: '6px',
                           background: style.bg, color: style.color, 
-                          padding: '4px 12px', borderRadius: '100px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase',
-                          border: `1px solid ${style.color}30`
+                          padding: '4px 10px', borderRadius: '6px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.3px', textTransform: 'uppercase',
+                          border: `1px solid ${style.color}25`,
+                          whiteSpace: 'nowrap'
                         }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: style.dot, boxShadow: `0 0 5px ${style.dot}` }} />
-                          {agent.status?.toLowerCase() === 'offline' ? 'Not Logged In' : agent.status}
+                          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: style.dot, boxShadow: `0 0 4px ${style.dot}` }} />
+                          {agent.status?.toLowerCase() === 'offline' ? 'Offline' : agent.status}
                         </div>
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--text-main)' }}>
@@ -306,13 +307,19 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
                           {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(agent.daily_revenue) || 0)}
                         </div>
                       </td>
-                      <td style={{ padding: '16px 24px', fontWeight: 600, color: agent.break_time !== '--' ? '#facc15' : 'var(--text-muted)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '6px' }}>
-                            <Coffee size={14} style={{ color: agent.break_time !== '--' ? '#facc15' : 'var(--text-muted)' }} />
+                      <td style={{ padding: '16px 24px', fontWeight: 600 }}>
+                        {agent.break_time !== '--' ? (
+                          <div style={{ 
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            background: 'rgba(245, 158, 11, 0.08)', color: '#f59e0b',
+                            padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700
+                          }}>
+                            <Coffee size={12} />
+                            {agent.break_time}
                           </div>
-                          {agent.break_time}
-                        </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>--</span>
+                        )}
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 700, color: 'var(--text-main)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

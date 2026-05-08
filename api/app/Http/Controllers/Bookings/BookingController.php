@@ -80,6 +80,16 @@ class BookingController extends Controller
         }
     }
 
+    public function restore($id)
+    {
+        try {
+            $this->bookingService->restore($id);
+            return $this->successResponse(null, 'Booking restored successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage());
+        }
+    }
+
     public function reassign(Request $request, Booking $booking)
     {
         $request->validate([
@@ -89,6 +99,20 @@ class BookingController extends Controller
         try {
             $booking = $this->bookingService->reassign($booking, $request->agent_id, $request->handoff_remark);
             return $this->successResponse($booking, 'Booking reassigned successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage());
+        }
+    }
+
+    public function previewTemplateEmail(Request $request, $id)
+    {
+        $request->validate([
+            'template_key' => 'required|string|in:flight_change,cancellation_future_credit,cancellation_refund',
+        ]);
+
+        try {
+            $preview = $this->bookingService->previewTemplateEmail($id, $request->template_key);
+            return $this->successResponse($preview, 'Booking email preview generated');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage());
         }

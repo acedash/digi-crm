@@ -139,7 +139,7 @@ const AttendanceReport = ({ onClose }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
-                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left', minWidth: '200px', position: 'sticky', left: 0, background: 'var(--bg-input)', zIndex: 10 }}>Employee</th>
+                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left', minWidth: '250px', position: 'sticky', left: 0, background: 'var(--bg-input)', zIndex: 10, borderRight: '1px solid var(--border-color)' }}>Employee</th>
                 {data && Array.from({ length: data.days_in_month }, (_, i) => (
                   <th key={i+1} style={{ padding: '12px 8px', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'center', minWidth: '45px' }}>
                     {i+1}
@@ -162,12 +162,12 @@ const AttendanceReport = ({ onClose }) => {
                 let monthlyTotal = 0;
                 return (
                   <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                    <td style={{ padding: '12px 24px', fontWeight: 700, color: 'var(--text-main)', position: 'sticky', left: 0, background: 'var(--bg-card)', zIndex: 5 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(6, 182, 138, 0.1)', color: '#06B68A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }}>
+                    <td style={{ padding: '12px 24px', fontWeight: 700, color: 'var(--text-main)', position: 'sticky', left: 0, background: 'var(--bg-card)', zIndex: 5, minWidth: '250px', borderRight: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(6, 182, 138, 0.1)', color: '#06B68A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }}>
                           {agent.name.charAt(0)}
                         </div>
-                        {agent.name}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{agent.name}</span>
                       </div>
                     </td>
                     {Array.from({ length: data.days_in_month }, (_, i) => {

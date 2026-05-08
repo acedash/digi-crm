@@ -154,7 +154,7 @@ const PassengerSection = ({
           <Input label="Last Name" required value={newClient.last_name || ''} onChange={e => setNewClient({...newClient, last_name: e.target.value})} />
           <Input label="Email" required value={newClient.email || ''} onChange={e => setNewClient({...newClient, email: e.target.value})} />
           <Input label="Phone" required type="tel" inputMode="tel" value={newClient.phone || ''} onChange={e => handlePhoneChange(e, 'phone')} />
-          <Input label="Date of Birth" required type="date" value={newClient.date_of_birth || ''} onChange={e => setNewClient({...newClient, date_of_birth: e.target.value})} />
+          <Input label="Date of Birth" type="date" value={newClient.date_of_birth || ''} onChange={e => setNewClient({...newClient, date_of_birth: e.target.value})} />
           <Input label="Alternate Email" value={newClient.alternate_email || ''} onChange={e => setNewClient({...newClient, alternate_email: e.target.value})} />
           <Input label="Alternate Phone" type="tel" inputMode="tel" value={newClient.alternate_phone || ''} onChange={e => handlePhoneChange(e, 'alternate_phone')} />
           <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>

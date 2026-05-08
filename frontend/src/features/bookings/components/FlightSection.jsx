@@ -4,6 +4,7 @@ import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import SectionHeader from './SectionHeader';
+import { AIRLINE_OPTIONS } from '../../../utils/bookingConstants';
 
 const tripTypeOptions = [
   { value: 'one_way', label: 'One Way' },
@@ -85,7 +86,7 @@ const FlightSection = ({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    {flight.trip_type === 'round_trip' 
+                    {flight.trip_type === 'round_trip'
                       ? (index === 0 ? 'Departure Flight' : (index === 1 ? 'Return Flight' : `Flight Details ${index + 1}`))
                       : (flight.trip_type === 'one_way' && index === 0 ? 'Flight Details' : `Flight Details ${index + 1}`)
                     }
@@ -102,12 +103,20 @@ const FlightSection = ({
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <Input
-                    label="Airline"
-                    placeholder="e.g. Emirates"
-                    value={segment.airline || ''}
-                    onChange={(e) => updateFlightSegment(index, 'airline', e.target.value)}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>Airline</label>
+                    <input 
+                      type="text"
+                      list="airline-options"
+                      placeholder="e.g. Emirates"
+                      value={segment.airline || ''}
+                      onChange={(e) => updateFlightSegment(index, 'airline', e.target.value)}
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
+                    />
+                    <datalist id="airline-options">
+                      {AIRLINE_OPTIONS.map(opt => <option key={opt} value={opt} />)}
+                    </datalist>
+                  </div>
                   <Input
                     label="Flight Number"
                     placeholder="e.g. EK203"

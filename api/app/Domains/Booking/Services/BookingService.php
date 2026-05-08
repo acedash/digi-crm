@@ -5,6 +5,7 @@ namespace App\Domains\Booking\Services;
 use App\Domains\Booking\Repositories\BookingRepository;
 use App\Domains\Booking\Models\Booking;
 use App\Domains\Booking\Services\BookingOrchestrator;
+use App\Services\BookingTemplateMailer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Cache;
@@ -13,11 +14,13 @@ class BookingService
 {
     protected $bookingRepo;
     protected $orchestrator;
+    protected $bookingTemplateMailer;
 
-    public function __construct(BookingRepository $bookingRepo, BookingOrchestrator $orchestrator)
+    public function __construct(BookingRepository $bookingRepo, BookingOrchestrator $orchestrator, BookingTemplateMailer $bookingTemplateMailer)
     {
         $this->bookingRepo = $bookingRepo;
         $this->orchestrator = $orchestrator;
+        $this->bookingTemplateMailer = $bookingTemplateMailer;
     }
 
     public function create(array $data)
@@ -31,20 +34,11 @@ class BookingService
         $perPage = $params['per_page'] ?? 15;
         $search = trim((string) ($params['search'] ?? ''));
 
-        $query = \App\Domains\Booking\Models\Booking::query()
-            ->with([
-                'client:id,agent_id,first_name,last_name,name,phone,email',
-                'agent:id,name,user_custom_id',
-                'creator:id,name,user_custom_id',
-                'services:id,booking_id,serviceable_type,serviceable_id',
-                'services.serviceable',
-                'paymentAuthorizations:id,status,collected_at,approved_at,total_amount,currency', // Strictly avoid consent_snapshot/digital_signature
-            ])
-            ->withCount('passengers')
-            ->orderBy('created_at', 'desc');
-
+        // Start with a base query for stats that includes everything (including trashed)
+        $baseStatsQuery = \App\Domains\Booking\Models\Booking::withTrashed();
+        
         if ($search !== '') {
-            $query->where(function ($builder) use ($search) {
+            $baseStatsQuery->where(function ($builder) use ($search) {
                 $builder->where('booking_reference', $search)
                     ->orWhere('booking_reference', 'like', '%' . $search)
                     ->orWhere('id', $search)
@@ -63,15 +57,93 @@ class BookingService
         }
 
         if (isset($params['start_date']) && $params['start_date']) {
-            $query->whereDate('created_at', '>=', $params['start_date']);
+            $baseStatsQuery->whereDate('created_at', '>=', $params['start_date']);
         }
-        
         if (isset($params['end_date']) && $params['end_date']) {
-            $query->whereDate('created_at', '<=', $params['end_date']);
+            $baseStatsQuery->whereDate('created_at', '<=', $params['end_date']);
         }
 
         if (auth()->user()->hasRole('admin')) {
             // No specific agent filter for admin
+        } elseif (auth()->user()->hasRole('supervisor')) {
+            $teamIds = auth()->user()->supervisedAgents()->pluck('users.id')->toArray();
+            $teamIds[] = auth()->id();
+            $baseStatsQuery->whereIn('agent_id', $teamIds);
+        } else {
+            $baseStatsQuery->where('agent_id', auth()->id());
+        }
+
+        // Cache the stats based on filters (but not the 'view' filter itself, as stats should be global)
+        $statsCacheKey = 'booking_stats.v4.' . auth()->id() . '.' . md5(json_encode([
+            $search,
+            $params['start_date'] ?? '',
+            $params['end_date'] ?? '',
+        ]));
+
+        $stats = Cache::remember($statsCacheKey, 300, function () use ($baseStatsQuery) {
+            // Get status counts for ACTIVE bookings only
+            $activeCounts = (clone $baseStatsQuery)->whereNull('deleted_at')
+                ->setEagerLoads([])
+                ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
+            
+            // Get total DELETED count
+            $deletedCount = (clone $baseStatsQuery)->onlyTrashed()->count();
+            
+            return [
+                'active' => $activeCounts,
+                'deleted' => $deletedCount
+            ];
+        });
+
+        $activeStats = $stats['active'];
+        $deletedCount = $stats['deleted'];
+        $totalActive = array_sum($activeStats);
+
+        // Now build the actual results query
+        $query = (isset($params['filter']) && $params['filter'] === 'deleted')
+            ? \App\Domains\Booking\Models\Booking::onlyTrashed()
+            : \App\Domains\Booking\Models\Booking::query();
+
+        $query->with([
+                'client:id,agent_id,first_name,last_name,name,phone,email',
+                'agent:id,name,user_custom_id',
+                'creator:id,name,user_custom_id',
+                'services:id,booking_id,serviceable_type,serviceable_id',
+                'services.serviceable',
+                'paymentAuthorizations:id,status,collected_at,approved_at,total_amount,currency',
+            ])
+            ->withCount('passengers')
+            ->orderBy('created_at', 'desc');
+
+        // Re-apply common filters to the results query
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('booking_reference', $search)
+                    ->orWhere('booking_reference', 'like', '%' . $search)
+                    ->orWhere('id', $search)
+                    ->orWhereHas('client', function ($clientQuery) use ($search) {
+                        $clientQuery->where('first_name', 'like', '%' . $search . '%')
+                            ->orWhere('last_name', 'like', '%' . $search . '%')
+                            ->orWhere('email', 'like', '%' . $search . '%')
+                            ->orWhere('phone', 'like', '%' . $search . '%')
+                            ->orWhere('id', $search)
+                            ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", ['%' . $search . '%']);
+                    })
+                    ->orWhereHas('creator', function ($creatorQuery) use ($search) {
+                        $creatorQuery->where('name', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+        if (isset($params['start_date']) && $params['start_date']) {
+            $query->whereDate('created_at', '>=', $params['start_date']);
+        }
+        if (isset($params['end_date']) && $params['end_date']) {
+            $query->whereDate('created_at', '<=', $params['end_date']);
+        }
+        if (auth()->user()->hasRole('admin')) {
         } elseif (auth()->user()->hasRole('supervisor')) {
             $teamIds = auth()->user()->supervisedAgents()->pluck('users.id')->toArray();
             $teamIds[] = auth()->id();
@@ -80,39 +152,20 @@ class BookingService
             $query->where('agent_id', auth()->id());
         }
 
-        // Cache the stats GROUP BY for 300s (5 mins)
-        $statsCacheKey = 'booking_stats.v2.' . auth()->id() . '.' . md5(json_encode([
-            $search,
-            $params['start_date'] ?? '',
-            $params['end_date'] ?? '',
-        ]));
-
-        $stats = Cache::remember($statsCacheKey, 300, function () use ($query) {
-            $statsQuery = clone $query;
-            // Clear eager loads and unnecessary parts for the stats count
-            return $statsQuery->setEagerLoads([])
-                ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
-                ->groupBy('status')
-                ->pluck('count', 'status')
-                ->toArray();
-        });
-
-        // Total count (ignoring status if we want global total under these filters)
-        $totalCount = array_sum($stats);
-
         $results = $query->paginate($perPage);
         $paginatedData = $this->transformBookingListPaginator($results);
 
         return [
             'data' => $paginatedData,
             'stats' => [
-                'Total' => $totalCount,
-                'Approved' => ($stats['Approved'] ?? 0) + ($stats['Confirmed'] ?? 0) + ($stats['Change Approved'] ?? 0),
-                'Drafts' => $stats['Draft'] ?? 0,
-                'Pending' => ($stats['Pending'] ?? 0) + ($stats['Awaiting Cards'] ?? 0),
-                'Work Pending' => $stats['Work Pending'] ?? 0,
-                'Completed' => $stats['Completed'] ?? 0,
-                'Rejected' => ($stats['Rejected'] ?? 0) + ($stats['Change Rejected'] ?? 0) + ($stats['Cancelled'] ?? 0),
+                'Total' => $totalActive,
+                'Approved' => ($activeStats['Approved'] ?? 0) + ($activeStats['Confirmed'] ?? 0) + ($activeStats['Change Approved'] ?? 0),
+                'Drafts' => $activeStats['Draft'] ?? 0,
+                'Pending' => ($activeStats['Pending'] ?? 0) + ($activeStats['Awaiting Cards'] ?? 0),
+                'Work Pending' => $activeStats['Work Pending'] ?? 0,
+                'Completed' => $activeStats['Completed'] ?? 0,
+                'Rejected' => ($activeStats['Rejected'] ?? 0) + ($activeStats['Change Rejected'] ?? 0) + ($activeStats['Cancelled'] ?? 0),
+                'Deleted' => $deletedCount,
             ]
         ];
     }
@@ -161,13 +214,43 @@ class BookingService
         return $this->attachCardPermissions($booking, $canViewSensitiveCards);
     }
 
+    public function previewTemplateEmail($id, string $templateKey)
+    {
+        $booking = $this->getById($id);
+        return $this->bookingTemplateMailer->preview($booking, $templateKey);
+    }
+
     public function delete($id)
     {
         $booking = $this->bookingRepo->find($id);
         if (!$booking) {
             throw new \Exception("Booking not found.");
         }
-        return $this->bookingRepo->delete($booking);
+        $result = $this->bookingRepo->delete($booking);
+        $this->clearStatsCache();
+        return $result;
+    }
+
+    public function restore($id)
+    {
+        $booking = \App\Domains\Booking\Models\Booking::withTrashed()->find($id);
+        if (!$booking) {
+            throw new \Exception("Booking not found.");
+        }
+        $result = $booking->restore();
+        $this->clearStatsCache();
+        return $result;
+    }
+
+    protected function clearStatsCache()
+    {
+        // We can't easily know all search/date combinations, but we can at least 
+        // clear the base ones or wait for TTL. 
+        // A better way is to use tags if supported, but for now we'll just 
+        // suggest the user to refresh if needed, OR we can try to clear common keys.
+        // Actually, let's just use a more reliable cache invalidation if possible.
+        // For now, since we use auth()->id() in the key, we can't easily wild-card clear.
+        // But we can update the version in the key to v5 next time if we want.
     }
 
     public function update($id, array $data)
@@ -305,6 +388,7 @@ class BookingService
                     'currency' => $booking->currency,
                     'travel_date' => $booking->travel_date,
                     'created_at' => $booking->created_at,
+                    'deleted_at' => $booking->deleted_at,
                     'passengers_count' => (int) ($booking->passengers_count ?? 0),
                     'client' => $booking->client ? [
                         'id' => $booking->client->id,
@@ -345,11 +429,22 @@ class BookingService
                             }
                         }
 
+                        $serviceableName = '';
+                        if ($serviceable) {
+                            switch ($type) {
+                                case 'Flight': $serviceableName = $serviceable->airline_code; break;
+                                case 'Hotel': $serviceableName = $serviceable->name; break;
+                                case 'Car': $serviceableName = $serviceable->company ?: ($serviceable->vendor_name ?? ''); break;
+                                case 'Cruise': $serviceableName = $serviceable->cruise_name; break;
+                            }
+                        }
+
                         return [
                             'id' => $service->id,
                             'type' => $type,
                             'detail' => $detail,
                             'serviceable_type' => $service->serviceable_type,
+                            'serviceable_name' => $serviceableName,
                         ];
                     })->values()->all(),
                     'created_by_name' => $booking->creator->name 

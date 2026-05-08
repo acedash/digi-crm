@@ -24,7 +24,9 @@ import {
   FileJson,
   CreditCard,
   ClipboardList,
-  HelpCircle
+  HelpCircle,
+  Trash2,
+  Undo
 } from 'lucide-react';
 import { useWalkthroughStore } from '../../store/walkthroughStore';
 import Card from '../../components/ui/Card';
@@ -41,6 +43,7 @@ import api, { BACKEND_BASE_URL } from '../../services/api';
 import { exportToExcel, exportToPDF, exportToJSON } from './utils/bookingExport';
 import ExportDropdown from '../../components/ui/ExportDropdown';
 import { getStatusLabel, statusIcons } from './bookingUtils';
+import EmailPreviewModal from './components/EmailPreviewModal';
 
 const BookingList = ({ onCreate, onEdit }) => {
   const { user } = useAuthStore();
@@ -75,6 +78,13 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [sendingTemplateAction, setSendingTemplateAction] = useState(null);
   const [statusModal, setStatusModal] = useState({ open: false, bookingId: null, targetStatus: '' });
   const [statusRemark, setStatusRemark] = useState('');
+  const [emailPreview, setEmailPreview] = useState({
+    open: false,
+    title: '',
+    previewData: null,
+    onConfirm: null,
+    isLoading: false
+  });
   const isFetchingRef = React.useRef(false);
   const [pagination, setPagination] = useState({
     current_page: 1,
@@ -106,7 +116,9 @@ const BookingList = ({ onCreate, onEdit }) => {
       booking.client?.phone?.includes(searchTerm) ||
       booking.id.toString().includes(searchTerm);
       
-    const matchesFilter = filterType === 'all' || booking.status?.toLowerCase() === (filterType || '').toLowerCase();
+    const matchesFilter = filterType === 'all' || 
+                          filterType === 'deleted' || 
+                          booking.status?.toLowerCase() === (filterType || '').toLowerCase();
     
     return matchesSearch && matchesFilter;
   });
@@ -136,7 +148,8 @@ const BookingList = ({ onCreate, onEdit }) => {
         per_page: pagination.per_page,
         search: debouncedSearchTerm,
         start_date: startDate,
-        end_date: endDate
+        end_date: endDate,
+        filter: filterType === 'deleted' ? 'deleted' : undefined
       });
       const result = response.data.data;
       
@@ -160,7 +173,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [pagination.per_page, debouncedSearchTerm, startDate, endDate]);
+  }, [pagination.per_page, debouncedSearchTerm, startDate, endDate, filterType]);
 
   // Re-fetch when page changes
   useEffect(() => {
@@ -175,7 +188,7 @@ const BookingList = ({ onCreate, onEdit }) => {
     if (pagination.current_page === 1) {
       fetchBookings(1);
     }
-  }, [startDate, endDate, debouncedSearchTerm]);
+  }, [startDate, endDate, debouncedSearchTerm, filterType]);
 
 
 
@@ -243,46 +256,86 @@ const BookingList = ({ onCreate, onEdit }) => {
 
     const email = booking.client?.email || 'no email provided';
     
-    setConfirmModal({
-      open: true,
-      title: 'Send Payment Link',
-      message: `Are you sure you want to send the secure link for ${booking.booking_reference} to ${clientName} (${email})?`,
-      confirmLabel: 'Send Request',
-      tone: 'primary',
-      onConfirm: async () => {
-        try {
-          setConfirmModal(prev => ({ ...prev, isLoading: true }));
-          setSendingApprovalId(booking.id);
-          
-          // Check for existing pending card collection link
-          const pendingCollection = (booking.payment_authorizations || booking.paymentAuthorizations || [])
-            .find(a => a.authorization_type === 'card_collection' && String(a.status).toLowerCase() === 'pending');
+    try {
+      setLoading(true);
+      // We need to either fetch the preview of an existing auth OR a preview of what a new one would look like.
+      // For simplicity, let's look for a pending one first.
+      const pendingCollection = (booking.payment_authorizations || booking.paymentAuthorizations || [])
+        .find(a => a.authorization_type === 'card_collection' && String(a.status).toLowerCase() === 'pending');
 
-          if (pendingCollection) {
-            await paymentAuthService.sendEmail(pendingCollection.id);
-            setToast({ message: `Collection link emailed to ${booking.client?.email || 'client'}`, type: 'success' });
-          } else {
-            await paymentAuthService.create({
-              client_id: booking.client_id,
-              booking_ids: [booking.id],
-            });
-            setToast({ message: `Approval email sent to ${booking.client?.email || 'client'}`, type: 'success' });
-          }
-          
-          setConfirmModal({ open: false });
-        } catch (error) {
-          setConfirmModal({ open: false });
-          setToast({
-            message: error?.response?.data?.message || 'Failed to send approval email',
-            type: 'error',
-          });
-        } finally {
-          setSendingApprovalId(null);
-          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+      let previewResponse;
+      if (pendingCollection) {
+        previewResponse = await paymentAuthService.previewEmail(pendingCollection.id);
+      } else {
+        // If no pending, we'd normally create one first. 
+        // But for previewing "Resend Approval", we usually have one.
+        // Let's create a temporary one or just show the user they need to create it if it's the first time.
+        // Actually, let's keep the existing logic: if it exists, preview and send. If not, create and send (maybe preview the creation?)
+        // The user specifically asked for "Resend Approval" which implies it exists.
+        const latestAuth = (booking.payment_authorizations || booking.paymentAuthorizations || [])
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        
+        if (latestAuth) {
+          previewResponse = await paymentAuthService.previewEmail(latestAuth.id);
         }
       }
-    });
-  }, [sendingApprovalId]);
+
+      if (previewResponse) {
+        setEmailPreview({
+          open: true,
+          title: 'Preview Payment Link',
+          previewData: previewResponse.data.data,
+          confirmLabel: 'Send Link Now',
+          onConfirm: async () => {
+            try {
+              setEmailPreview(prev => ({ ...prev, isLoading: true }));
+              if (pendingCollection) {
+                await paymentAuthService.sendEmail(pendingCollection.id);
+              } else {
+                const latestAuth = (booking.payment_authorizations || booking.paymentAuthorizations || [])
+                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                await paymentAuthService.sendEmail(latestAuth.id);
+              }
+              setToast({ message: 'Approval email sent successfully', type: 'success' });
+              setEmailPreview({ open: false });
+            } catch (err) {
+              setToast({ message: err?.response?.data?.message || 'Failed to send email', type: 'error' });
+            } finally {
+              setEmailPreview(prev => ({ ...prev, isLoading: false }));
+            }
+          }
+        });
+      } else {
+        // Fallback for first time send if no auth exists yet
+        setConfirmModal({
+          open: true,
+          title: 'Generate & Send Payment Link',
+          message: `No payment link exists for this booking yet. Generate a new secure link for ${booking.booking_reference} and send to ${clientName} (${email})?`,
+          confirmLabel: 'Generate & Send',
+          onConfirm: async () => {
+            try {
+              setConfirmModal(prev => ({ ...prev, isLoading: true }));
+              await paymentAuthService.create({
+                client_id: booking.client_id,
+                booking_ids: [booking.id],
+              });
+              setToast({ message: 'Approval email generated and sent', type: 'success' });
+              setConfirmModal({ open: false });
+              fetchBookings(pagination.current_page);
+            } catch (err) {
+              setToast({ message: err?.response?.data?.message || 'Failed to generate link', type: 'error' });
+            } finally {
+              setConfirmModal(prev => ({ ...prev, isLoading: false }));
+            }
+          }
+        });
+      }
+    } catch (error) {
+      setToast({ message: 'Failed to generate email preview', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination.current_page, fetchBookings]);
 
   const templateActionMeta = React.useMemo(() => ({
     flight_change: {
@@ -330,33 +383,35 @@ const BookingList = ({ onCreate, onEdit }) => {
 
     const email = booking.client?.email || 'no email provided';
     
-    setConfirmModal({
-      open: true,
-      title: action.label,
-      message: `${action.confirm} for ${booking.booking_reference} to ${clientName} (${email})?`,
-      confirmLabel: 'Send Email',
-      tone: 'primary',
-      onConfirm: async () => {
-        try {
-          setConfirmModal(prev => ({ ...prev, isLoading: true }));
-          setSendingTemplateAction(actionId);
-          await bookingService.sendTemplateEmail(booking.id, templateKey);
-          setToast({ message: action.success, type: 'success' });
-          setConfirmModal({ open: false });
-          fetchBookings(pagination.current_page);
-        } catch (error) {
-          setConfirmModal({ open: false });
-          setToast({
-            message: error?.response?.data?.message || `Failed to send ${action.label.toLowerCase()} email`,
-            type: 'error',
-          });
-        } finally {
-          setSendingTemplateAction(null);
-          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+    try {
+      setLoading(true);
+      const previewResponse = await bookingService.previewTemplateEmail(booking.id, templateKey);
+      
+      setEmailPreview({
+        open: true,
+        title: `Preview ${action.label} Email`,
+        previewData: previewResponse.data.data,
+        confirmLabel: 'Send Email Now',
+        onConfirm: async () => {
+          try {
+            setEmailPreview(prev => ({ ...prev, isLoading: true }));
+            await bookingService.sendTemplateEmail(booking.id, templateKey);
+            setToast({ message: action.success, type: 'success' });
+            setEmailPreview({ open: false });
+            fetchBookings(pagination.current_page);
+          } catch (err) {
+            setToast({ message: err?.response?.data?.message || 'Failed to send email', type: 'error' });
+          } finally {
+            setEmailPreview(prev => ({ ...prev, isLoading: false }));
+          }
         }
-      }
-    });
-  }, [basePath, navigate, sendingTemplateAction, templateActionMeta, pagination.current_page, fetchBookings]);
+      });
+    } catch (error) {
+      setToast({ message: 'Failed to generate email preview', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [templateActionMeta, pagination.current_page, fetchBookings]);
 
   const handleEditBooking = useCallback((booking) => {
     const postApprovalStatuses = ['Approved', 'Confirmed', 'Awaiting Change Approval', 'Change Approved', 'Change Rejected'];
@@ -422,10 +477,12 @@ const BookingList = ({ onCreate, onEdit }) => {
     return 'Send Approval';
   };
 
-  const getStatusStyle = (status) => {
-    const config = statusIcons[status] || statusIcons['Pending'];
-    const Icon = typeof config.icon === 'string' ? XCircle : config.icon;
-    const color = config.color || (typeof config.icon === 'string' ? config.icon : '#64748b');
+  const getStatusStyle = (status, booking = {}) => {
+    const isDeleted = Boolean(booking?.deleted_at);
+    const lookupStatus = isDeleted ? 'Deleted' : status;
+    const config = statusIcons[lookupStatus] || statusIcons['Pending'];
+    const Icon = typeof config.icon === 'function' ? config.icon : XCircle;
+    const color = config.color || '#64748b';
     
     return (
       <div style={{ 
@@ -444,7 +501,7 @@ const BookingList = ({ onCreate, onEdit }) => {
         boxShadow: `0 4px 12px ${config.shadow}`
       }}>
         <Icon size={12} strokeWidth={3} />
-        {getStatusLabel(status)}
+        {getStatusLabel(status, booking.deleted_at)}
       </div>
     );
   };
@@ -507,6 +564,17 @@ const BookingList = ({ onCreate, onEdit }) => {
   const handleTriggerMarkCompleted = useCallback((bookingId) => setStatusModal({ open: true, bookingId, targetStatus: 'Completed' }), []);
   const handleTriggerMarkPending = useCallback((bookingId) => setStatusModal({ open: true, bookingId, targetStatus: 'Work Pending' }), []);
   const handleTriggerReassign = useCallback((booking) => handleReassignClick(booking), [handleReassignClick]);
+
+  const handleRestoreBooking = useCallback(async (id) => {
+    try {
+      await bookingService.restoreBooking(id);
+      setToast({ message: 'Booking restored successfully', type: 'success' });
+      fetchBookings(pagination.current_page);
+    } catch (error) {
+      console.error('Failed to restore booking:', error);
+      setToast({ message: error.response?.data?.message || 'Failed to restore booking', type: 'error' });
+    }
+  }, [pagination.current_page, fetchBookings]);
 
   const renderStatusModal = () => {
     if (!statusModal.open) return null;
@@ -710,6 +778,13 @@ const BookingList = ({ onCreate, onEdit }) => {
             icon: XCircle,
             color: '#ef4444',
             bg: 'rgba(239, 68, 68, 0.1)'
+          },
+          {
+            label: 'Deleted Bookings',
+            value: stats.Deleted,
+            icon: Trash2,
+            color: '#94a3b8',
+            bg: 'rgba(148, 163, 184, 0.1)'
           }
         ].map((stat, i) => (
           <Card key={i} style={{ padding: '20px' }}>
@@ -790,25 +865,30 @@ const BookingList = ({ onCreate, onEdit }) => {
           
         {/* Row 2: Status Chips */}
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Awaiting Cards', 'Work Pending', 'Completed', 'Cancelled'].map(status => (
+          {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Awaiting Cards', 'Work Pending', 'Completed', 'Cancelled', 'deleted'].map(status => (
             <button 
               key={status}
-              onClick={() => setFilterType(status)}
+              onClick={() => {
+                setFilterType(status);
+                setPagination(prev => ({ ...prev, current_page: 1 }));
+              }}
               style={{ 
                 padding: '6px 14px', 
                 borderRadius: '100px', 
                 background: filterType === status ? 'hsl(var(--primary))' : 'var(--bg-card)', 
                 color: filterType === status ? 'white' : 'var(--text-muted)',
-                border: '1px solid var(--border-color)',
+                border: filterType === status ? 'none' : '1px solid var(--border-color)',
                 fontSize: '12px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'all 0.2s',
                 whiteSpace: 'nowrap',
-                flexShrink: 0
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              {status === 'all' ? 'All' : getStatusLabel(status)}
+              {status === 'deleted' && <Trash2 size={12} />}
+              {status === 'all' ? 'All Bookings' : status === 'deleted' ? 'Trash / Deleted' : status}
             </button>
           ))}
         </div>
@@ -857,7 +937,7 @@ const BookingList = ({ onCreate, onEdit }) => {
             );
 
             // Determine Override Status
-            let customStatusBadge = getStatusStyle(booking.status);
+            let customStatusBadge = getStatusStyle(booking.status, booking);
             let customStatusColor = statusColor;
             
             // Priority: Life-cycle statuses (Approved, Completed, Cancelled, Work Pending) should not be overridden by card collection indicator
@@ -915,6 +995,7 @@ const BookingList = ({ onCreate, onEdit }) => {
                 onMarkPending={handleTriggerMarkPending}
                 onEdit={handleEditBooking}
                 onDelete={handleDelete}
+                onRestore={handleRestoreBooking}
               />
             );
           })}
@@ -993,6 +1074,7 @@ const BookingList = ({ onCreate, onEdit }) => {
         {showCallLog && (
           <CallLogModal 
             client={selectedBookingForCall?.client} 
+            booking={selectedBookingForCall}
             onClose={() => setShowCallLog(false)}
             onSuccess={() => setToast({ message: 'Call logged successfully!', type: 'success' })}
           />
@@ -1019,6 +1101,16 @@ const BookingList = ({ onCreate, onEdit }) => {
         confirmLabel={confirmModal.confirmLabel}
         tone={confirmModal.tone}
         isLoading={confirmModal.isLoading}
+      />
+
+      <EmailPreviewModal
+        open={emailPreview.open}
+        title={emailPreview.title}
+        previewData={emailPreview.previewData}
+        isLoading={emailPreview.isLoading}
+        onClose={() => setEmailPreview({ open: false })}
+        onConfirm={emailPreview.onConfirm}
+        confirmLabel={emailPreview.confirmLabel}
       />
     </div>
   );

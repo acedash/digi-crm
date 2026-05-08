@@ -53,12 +53,22 @@ const CallLoggingPage = () => {
 
   const fetchClients = useCallback(async () => {
     try {
-      const response = await clientService.getClients();
-      const raw = response.data?.data;
-      // Handle both paginated { data: [...] } and plain array responses
-      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+      const response = await clientService.getClients({ per_page: 100 });
+      const resData = response.data?.data;
+      
+      let list = [];
+      if (Array.isArray(resData)) {
+        list = resData;
+      } else if (resData?.data?.data && Array.isArray(resData.data.data)) {
+        // Nested: { data: { data: [...] } }
+        list = resData.data.data;
+      } else if (resData?.data && Array.isArray(resData.data)) {
+        // Standard Pagination or simple wrapper: { data: [...] }
+        list = resData.data;
+      }
+      
       setClients(list);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Failed to fetch clients:', e); }
   }, []);
 
   useEffect(() => {
@@ -131,11 +141,11 @@ const CallLoggingPage = () => {
         Phone: log.contact_phone || log.client?.phone || '',
         Email: log.contact_email || log.client?.email || '',
         Types: (log.call_type || []).join(', '),
-        'Category Details': typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k,v]) => `${k}: ${v}`).join(' | ') : log.airline_inquiry,
+        'Category Details': typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k, v]) => `${k}: ${v}`).join(' | ') : log.airline_inquiry,
         Outcome: log.customer_outcome,
         Notes: log.notes
       }));
-      
+
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Call Logs");
@@ -157,7 +167,7 @@ const CallLoggingPage = () => {
       doc.setFontSize(11);
       doc.setTextColor(100);
       doc.text(`Scope: ${scopeFilter.toUpperCase()} | Generated: ${new Date().toLocaleString()}`, 14, 30);
-      
+
       const tableRows = logs.map(log => [
         new Date(log.created_at).toLocaleDateString(),
         log.client ? `${log.client.first_name} ${log.client.last_name}` : (log.contact_name || 'Unknown'),
@@ -208,7 +218,7 @@ const CallLoggingPage = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: '32px', fontWeight: 800 }}>Call <span className="premium-gradient-text">Logging</span></h1>
-          
+
           <ExportDropdown
             isExporting={exporting}
             options={[
@@ -245,13 +255,13 @@ const CallLoggingPage = () => {
             </button>
           ))}
         </div>
-        
+
         <Card title="Recent Activity" icon={History}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {logs.length > 0 ? logs.map((log, i) => (
-              <div key={i} style={{ 
-                padding: '16px', 
-                background: 'var(--bg-input)', 
+              <div key={i} style={{
+                padding: '16px',
+                background: 'var(--bg-input)',
                 borderRadius: '16px',
                 border: '1px solid var(--border-color)',
                 display: 'flex',
@@ -259,7 +269,7 @@ const CallLoggingPage = () => {
                 flexDirection: 'column'
               }}>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                  <div style={{ 
+                  <div style={{
                     width: '36px', height: '36px', borderRadius: '12px', flexShrink: 0,
                     background: log.call_type?.includes('Inbound') ? 'rgba(34, 197, 94, 0.1)' : 'rgba(6, 182, 138, 0.1)',
                     color: log.call_type?.includes('Inbound') ? '#22c55e' : '#06B68A',
@@ -281,16 +291,16 @@ const CallLoggingPage = () => {
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', margin: '8px 0' }}>
                       {(Array.isArray(log.call_type) ? log.call_type : [log.call_type]).map(t => (
-                        <span key={t} style={{ 
-                          fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', 
-                          background: t === 'Flight' ? 'rgba(6, 182, 138, 0.1)' : 
-                                      t === 'Hotel' ? 'rgba(139, 92, 246, 0.1)' : 
-                                      t === 'Cruise' ? 'rgba(236, 72, 153, 0.1)' :
-                                      t === 'Car Rental' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(148, 163, 184, 0.1)',
-                          color: t === 'Flight' ? '#06B68A' : 
-                                 t === 'Hotel' ? '#8b5cf6' : 
-                                 t === 'Cruise' ? '#ec4899' :
-                                 t === 'Car Rental' ? '#f59e0b' : 'var(--text-muted)',
+                        <span key={t} style={{
+                          fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px',
+                          background: t === 'Flight' ? 'rgba(6, 182, 138, 0.1)' :
+                            t === 'Hotel' ? 'rgba(139, 92, 246, 0.1)' :
+                              t === 'Cruise' ? 'rgba(236, 72, 153, 0.1)' :
+                                t === 'Car Rental' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                          color: t === 'Flight' ? '#06B68A' :
+                            t === 'Hotel' ? '#8b5cf6' :
+                              t === 'Cruise' ? '#ec4899' :
+                                t === 'Car Rental' ? '#f59e0b' : 'var(--text-muted)',
                           border: `1px solid currentColor`, textTransform: 'uppercase'
                         }}>
                           {t}
@@ -348,8 +358,8 @@ const CallLoggingPage = () => {
 
                     {/* Callback Action Bar */}
                     {log.callback_required && (
-                      <div style={{ 
-                        marginTop: '12px', padding: '10px', borderRadius: '12px', 
+                      <div style={{
+                        marginTop: '12px', padding: '10px', borderRadius: '12px',
                         background: 'rgba(239, 68, 68, 0.05)', border: '1px dashed rgba(239, 68, 68, 0.3)',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                       }}>
@@ -357,14 +367,14 @@ const CallLoggingPage = () => {
                           <span style={{ fontSize: '10px', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '6px', fontWeight: 900 }}>CALLBACK</span>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <div style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444' }}>
-                               {log.contact_phone || log.client?.phone || 'No phone'}
+                              {log.contact_phone || log.client?.phone || 'No phone'}
                             </div>
                             <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                               Scheduled: {log.callback_datetime ? new Date(log.callback_datetime).toLocaleString() : 'Not set'}
+                              Scheduled: {log.callback_datetime ? new Date(log.callback_datetime).toLocaleString() : 'Not set'}
                             </div>
                           </div>
                         </div>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             const num = log.contact_phone || log.client?.phone;
@@ -374,7 +384,7 @@ const CallLoggingPage = () => {
                             }
                           }}
                           style={{
-                            padding: '6px 12px', borderRadius: '8px', background: 'white', color: '#1e293b', 
+                            padding: '6px 12px', borderRadius: '8px', background: 'white', color: '#1e293b',
                             border: '1px solid #e2e8f0', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
                             display: 'flex', alignItems: 'center', gap: '4px'
                           }}
@@ -434,17 +444,17 @@ const CallLoggingPage = () => {
             </div>
 
             {formData.log_scope === 'booking' ? (
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Client</label>
-              <select 
-                value={formData.client_id}
-                onChange={(e) => setFormData({...formData, client_id: e.target.value})}
-                style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
-              >
-                <option value="">Select Client (Optional)</option>
-                {Array.isArray(clients) && clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-              </select>
-            </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Client</label>
+                <select
+                  value={formData.client_id}
+                  onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                  style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
+                >
+                  <option value="">Select Client (Optional)</option>
+                  {Array.isArray(clients) && clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                </select>
+              </div>
             ) : (
               <>
                 <Input
@@ -478,14 +488,14 @@ const CallLoggingPage = () => {
               {callTypes.map(t => {
                 const isSelected = formData.call_type.includes(t);
                 return (
-                  <button 
+                  <button
                     key={t}
                     type="button"
                     onClick={() => {
-                        const newTypes = isSelected 
-                          ? formData.call_type.filter(x => x !== t)
-                          : [...formData.call_type, t];
-                        setFormData({ ...formData, call_type: newTypes.length > 0 ? newTypes : ['General Details'] });
+                      const newTypes = isSelected
+                        ? formData.call_type.filter(x => x !== t)
+                        : [...formData.call_type, t];
+                      setFormData({ ...formData, call_type: newTypes.length > 0 ? newTypes : ['General Details'] });
                     }}
                     style={{
                       padding: '8px 12px', borderRadius: '10px', border: '1px solid',
@@ -506,7 +516,7 @@ const CallLoggingPage = () => {
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, marginBottom: '6px', color: 'hsl(var(--primary))', textTransform: 'uppercase' }}>{t} Name</label>
                 <input 
                   type="text"
-                  placeholder={`Details for ${t.toLowerCase()}...`}
+                  placeholder={`Select or type ${t.toLowerCase()} name...`}
                   value={formData.airline_inquiry[t] || ''}
                   onChange={(e) => setFormData({
                     ...formData,
@@ -519,24 +529,24 @@ const CallLoggingPage = () => {
 
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Outcome</label>
-              <select 
+              <select
                 value={formData.customer_outcome}
-                onChange={(e) => setFormData({...formData, customer_outcome: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, customer_outcome: e.target.value })}
                 style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
               >
                 {outcomes.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
 
-            <textarea 
-              placeholder="Detailed notes..." 
+            <textarea
+              placeholder="Detailed notes..."
               value={formData.notes}
-              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               style={{ width: '100%', height: '100px', padding: '16px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none', resize: 'none' }}
             />
 
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={formData.callback_required} onChange={(e) => setFormData({...formData, callback_required: e.target.checked})} />
+              <input type="checkbox" checked={formData.callback_required} onChange={(e) => setFormData({ ...formData, callback_required: e.target.checked })} />
               <span style={{ fontSize: '14px', fontWeight: 600 }}>Follow-up required</span>
             </label>
 

@@ -14,6 +14,18 @@ class BookingTemplateMailer
     ) {
     }
 
+    public function preview(Booking $booking, string $templateKey): array
+    {
+        $template = $this->systemSettingService->getMailTemplate($templateKey);
+        $context = $this->mailContextBuilder->buildBookingTemplateContext($booking, $template);
+
+        return [
+            'subject' => $context['subject'] ?? 'No Subject',
+            'body' => $context['body_html'] ?? $context['body'] ?? '',
+            'to' => $booking->client?->email,
+        ];
+    }
+
     public function send(Booking $booking, string $templateKey): array
     {
         $template = $this->systemSettingService->getMailTemplate($templateKey);

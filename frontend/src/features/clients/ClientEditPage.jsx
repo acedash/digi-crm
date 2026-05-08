@@ -30,7 +30,7 @@ const ClientEditPage = () => {
     }, [basePath, id, navigate]);
 
     const handleSuccess = () => {
-        navigate(`${basePath}/clients/${id}`);
+        navigate(`${basePath}/clients`);
     };
 
     if (loading) {
@@ -59,7 +59,7 @@ const ClientEditPage = () => {
         >
             <div style={{ marginBottom: '24px' }}>
                 <button 
-                    onClick={() => navigate(`${basePath}/clients/${id}`)}
+                    onClick={() => navigate(`${basePath}/clients`)}
                     style={{ 
                         color: 'var(--text-muted)', 
                         background: 'none', border: 'none', 
@@ -67,14 +67,14 @@ const ClientEditPage = () => {
                         fontSize: '14px'
                     }}
                 >
-                    <ArrowLeft size={16} /> Back to Client Profile
+                    <ArrowLeft size={16} /> Back to Client List
                 </button>
             </div>
             
             <ClientForm 
                 client={client} 
                 isFullPage={true}
-                onClose={() => navigate(`${basePath}/clients/${id}`)}
+                onClose={() => navigate(`${basePath}/clients`)}
                 onSuccess={handleSuccess}
             />
         </motion.div>

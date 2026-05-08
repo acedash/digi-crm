@@ -133,7 +133,7 @@ const AgentMonitorPage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
             <Activity size={32} style={{ color: '#06B68A' }} />
             <h1 style={{ fontSize: '32px', fontWeight: 800, margin: 0 }}>
-              <span className="premium-gradient-text">Team Activity Monitor</span>
+              <span style={{ color: 'var(--text-main)' }}>Team</span> <span className="premium-gradient-text">Activity Monitor</span>
             </h1>
             {loading && <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--text-muted)' }}/>}
           </div>

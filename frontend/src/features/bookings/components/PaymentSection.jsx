@@ -31,7 +31,9 @@ const PaymentSection = ({
   setPaymentCards, 
   grandTotal, 
   requestCardOnSave,
-  setRequestCardOnSave
+  setRequestCardOnSave,
+  title = "2. Payment Cards",
+  description = null
 }) => {
   const totalAllocated = paymentCards.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
   
@@ -59,8 +61,13 @@ const PaymentSection = ({
 
   return (
     <Card style={{ padding: 0 }}>
-      <SectionHeader icon={CreditCard} title="2. Payment Cards" isActive={true} />
+      <SectionHeader icon={CreditCard} title={title} isActive={true} />
       <div style={{ padding: '24px' }}>
+        {description && (
+          <div style={{ marginBottom: '24px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+            {description}
+          </div>
+        )}
         
         {/* Workflow Toggle */}
         <div style={{ marginBottom: '24px', display: 'flex', background: 'var(--bg-app)', padding: '6px', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
@@ -141,6 +148,7 @@ const PaymentSection = ({
                     label="Card Holder" required
                     placeholder="Full name as on card"
                     value={card.holder_name || ''} 
+                    autoComplete="off"
                     onChange={e => updatePaymentCard(index, 'holder_name', e.target.value)} 
                     style={{ marginBottom: 0 }}
                   />
@@ -148,6 +156,7 @@ const PaymentSection = ({
                     label="Card Number" required
                     placeholder="XXXX XXXX XXXX XXXX"
                     value={card.number || ''} 
+                    autoComplete="off"
                     onChange={e => updatePaymentCard(index, 'number', e.target.value)} 
                     style={{ marginBottom: 0 }}
                   />
@@ -163,6 +172,7 @@ const PaymentSection = ({
                     label="Expiry" required
                     placeholder="MM/YY"
                     value={card.exp || ''} 
+                    autoComplete="off"
                     onChange={e => updatePaymentCard(index, 'exp', e.target.value)} 
                     style={{ marginBottom: 0 }}
                   />
@@ -171,6 +181,7 @@ const PaymentSection = ({
                     type="password"
                     placeholder="***"
                     value={card.cvv || ''} 
+                    autoComplete="new-password"
                     onChange={e => updatePaymentCard(index, 'cvv', e.target.value)} 
                     style={{ marginBottom: 0 }}
                   />
