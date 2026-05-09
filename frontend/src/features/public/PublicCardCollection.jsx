@@ -165,10 +165,11 @@ const PublicCardCollection = () => {
   }
 
   return (
-    <div style={{ 
+    <div className="dark" style={{ 
       minHeight: '100vh', backgroundColor: '#020617', color: '#e2e8f0', 
       fontFamily: "'Outfit', sans-serif", position: 'relative', overflowX: 'hidden'
     }}>
+
       {/* Background Decor */}
       <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
         <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', backgroundColor: 'rgba(16, 185, 129, 0.05)', borderRadius: '50%', filter: 'blur(120px)' }}></div>
@@ -238,7 +239,33 @@ const PublicCardCollection = () => {
 
                     <div style={{ marginTop: '8px' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}><Globe size={14} /> Billing Address</label>
-                        <textarea style={{ width: '100%', backgroundColor: 'rgba(2, 6, 23, 0.4)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '16px', color: 'white', fontSize: '13px', minHeight: '80px', outline: 'none', transition: 'border-color 0.2s' }} placeholder="Registered billing address..." value={card.billing_address} onChange={(e) => handleInputChange(index, 'billing_address', e.target.value)} onFocus={(e) => e.target.style.borderColor = 'rgba(16, 185, 129, 0.4)'} onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)'} />
+                        <textarea 
+                          style={{ 
+                            width: '100%', 
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)', 
+                            border: '1px solid rgba(255, 255, 255, 0.1)', 
+                            borderRadius: '16px', 
+                            padding: '16px', 
+                            color: '#f8fafc', 
+                            fontSize: '13px', 
+                            minHeight: '100px', 
+                            outline: 'none', 
+                            transition: 'all 0.2s',
+                            lineHeight: '1.6'
+                          }} 
+                          placeholder="Please enter the registered billing address for this card..." 
+                          value={card.billing_address} 
+                          onChange={(e) => handleInputChange(index, 'billing_address', e.target.value)} 
+                          onFocus={(e) => {
+                            e.target.style.borderColor = '#10b981';
+                            e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
+                          }} 
+                          onBlur={(e) => {
+                            e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                          }} 
+                        />
+
                     </div>
                 </div>
             </div>

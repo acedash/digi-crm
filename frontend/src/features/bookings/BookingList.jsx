@@ -245,8 +245,9 @@ const BookingList = ({ onCreate, onEdit }) => {
     }
   }, [reassignModal.bookingId, selectedReassignAgent, handoffRemark, pagination.current_page, fetchBookings]);
 
-  const handleSendApproval = useCallback(async (booking) => {
+  const handleSendApproval = useCallback(async (booking, immediate = false) => {
     if (sendingApprovalId === booking.id || isFetchingRef.current) return;
+
 
     const clientName =
       booking.client?.name ||
@@ -257,7 +258,9 @@ const BookingList = ({ onCreate, onEdit }) => {
     const email = booking.client?.email || 'no email provided';
     
     try {
+      setSendingApprovalId(booking.id);
       setLoading(true);
+
       
       // 1. Find if an authorization already exists
       const pendingCollection = (booking.payment_authorizations || booking.paymentAuthorizations || [])
@@ -286,8 +289,22 @@ const BookingList = ({ onCreate, onEdit }) => {
         }
       }
 
-      // 3. Fetch the preview for the target authorization
+      // 3. Send immediately or show preview
+      if (immediate) {
+        try {
+          await paymentAuthService.sendEmail(targetAuthId);
+          setToast({ message: 'Approval email sent successfully', type: 'success' });
+          fetchBookings(pagination.current_page);
+          return;
+        } catch (err) {
+          setToast({ message: err?.response?.data?.message || 'Failed to send email. Check SMTP settings.', type: 'error' });
+          return;
+        }
+      }
+
+      // Fetch the preview for the target authorization
       const previewResponse = await paymentAuthService.previewEmail(targetAuthId);
+
 
       if (previewResponse) {
         setEmailPreview({
@@ -295,6 +312,17 @@ const BookingList = ({ onCreate, onEdit }) => {
           title: 'Preview Payment Link',
           previewData: previewResponse.data.data,
           confirmLabel: 'Send Link Now',
+          copyLabel: 'Copy Payment Link',
+          onCopy: () => {
+            const token = previewResponse.data.data.token || booking.payment_authorizations?.find(a => a.id === targetAuthId)?.token;
+            if (token) {
+              const link = `${window.location.origin}/authorize/${token}`;
+              navigator.clipboard.writeText(link);
+              setToast({ message: 'Payment link copied to clipboard', type: 'success' });
+            } else {
+              setToast({ message: 'Could not find token for link', type: 'error' });
+            }
+          },
           onConfirm: async () => {
             try {
               setEmailPreview(prev => ({ ...prev, isLoading: true }));
@@ -310,12 +338,15 @@ const BookingList = ({ onCreate, onEdit }) => {
           }
         });
       }
+
     } catch (error) {
       console.error('Email preview error:', error);
       setToast({ message: 'Failed to generate email preview', type: 'error' });
     } finally {
       setLoading(false);
+      setSendingApprovalId(null);
     }
+
   }, [pagination.current_page, fetchBookings]);
 
 
@@ -1093,7 +1124,10 @@ const BookingList = ({ onCreate, onEdit }) => {
         onClose={() => setEmailPreview({ open: false })}
         onConfirm={emailPreview.onConfirm}
         confirmLabel={emailPreview.confirmLabel}
+        onCopy={emailPreview.onCopy}
+        copyLabel={emailPreview.copyLabel}
       />
+
     </div>
   );
 };

@@ -235,7 +235,28 @@ const BookingRow = ({
               }}>
                 <ClipboardList size={12} /> #{booking.id}
               </span>
+              
+              {!booking.has_cards && (
+                <span style={{
+                  marginLeft: '8px',
+                  fontSize: '10px',
+                  fontWeight: 900,
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#ef4444',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.02em',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <CreditCard size={10} /> No Card Details
+                </span>
+              )}
             </div>
+
             
             <div 
               onClick={handleCopyId}
@@ -443,14 +464,53 @@ const BookingRow = ({
               </>
             ) : (
               <>
-                <ActionChip
-                  icon={Mail}
-                  label={isSendingApproval ? '...' : approvalActionLabel}
-                  onClick={() => onSendApproval(booking)}
-                  tone="primary"
-                  title="Email payment approval link"
-                  disabled={isSendingApproval}
-                />
+                {(() => {
+                  const pendingAuth = (booking.payment_authorizations || booking.paymentAuthorizations || [])
+                    .find(a => String(a.status).toLowerCase() === 'pending');
+                  
+                  if (!pendingAuth || !pendingAuth.token) {
+                    return (
+                      <ActionChip
+                        icon={Mail}
+                        label={isSendingApproval ? '...' : approvalActionLabel}
+                        onClick={() => onSendApproval(booking)}
+                        tone="primary"
+                        title="Email payment approval link"
+                        disabled={isSendingApproval}
+                      />
+                    );
+                  }
+                  
+                  const isCardCollection = pendingAuth.authorization_type === 'card_collection' || pendingAuth.metadata?.authorization_type === 'card_collection';
+                  const prefix = isCardCollection ? 'card-collection' : 'authorize';
+                  const shareLink = `${window.location.origin}/${prefix}/${pendingAuth.token}`;
+
+                  return (
+                    <>
+                      <ActionChip
+                        icon={copiedLink ? Check : Copy}
+                        label={copiedLink ? 'Copied' : 'Copy Link'}
+                        onClick={() => {
+                          navigator.clipboard.writeText(shareLink);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }}
+                        tone={copiedLink ? 'success' : 'warning'}
+                        title={isCardCollection ? "Copy secure card collection link" : "Copy secure payment link"}
+                      />
+                      <ActionChip
+                        icon={Mail}
+                        label={isSendingApproval ? '...' : "Email Link to Client"}
+                        onClick={() => onSendApproval(booking, true)}
+                        tone="primary"
+                        title={isCardCollection ? "Send card collection link via email" : "Send payment link via email"}
+                        disabled={isSendingApproval}
+                      />
+                    </>
+                  );
+                })()}
+
+
                 <ActionChip
                   icon={Pencil}
                   label="Modify"
@@ -541,26 +601,15 @@ const BookingRow = ({
                   title="Delete permanently"
                 />
 
-                {(booking.payment_authorizations || booking.paymentAuthorizations || [])
-                  .filter(a => (a.authorization_type === 'card_collection' || a.metadata?.authorization_type === 'card_collection') && String(a.status).toLowerCase() === 'pending')
-                  .map(auth => (
-                    <React.Fragment key={auth.id}>
-                      <ActionChip
-                        icon={copiedLink ? Check : ShieldCheck}
-                        label={copiedLink ? 'Copied' : 'Copy Link'}
-                        onClick={() => handleCopyLink(auth.token)}
-                        tone={copiedLink ? 'success' : 'warning'}
-                        title="Copy secure card collection link"
-                      />
-                      <ActionChip
-                        icon={Mail}
-                        label="Email Link"
-                        onClick={() => onSendApproval(booking)}
-                        tone="primary"
-                        title="Send card collection email to client"
-                      />
-                    </React.Fragment>
-                  ))}
+                {!booking.has_cards && !(booking.payment_authorizations || booking.paymentAuthorizations || []).some(a => String(a.status).toLowerCase() === 'pending') && (
+                  <ActionChip
+                    icon={ShieldCheck}
+                    label="Collect Cards"
+                    onClick={() => onSendApproval(booking)}
+                    tone="warning"
+                    title="Generate card collection link for client"
+                  />
+                )}
               </>
             )}
           </div>

@@ -286,9 +286,11 @@ class SystemSettingService
         Config::set('mail.mailers.smtp.port', (int) $settings['port']);
         Config::set('mail.mailers.smtp.username', $settings['username']);
         Config::set('mail.mailers.smtp.password', $settings['password']);
+        Config::set('mail.mailers.smtp.encryption', $settings['encryption'] ?? 'tls');
         Config::set('mail.mailers.smtp.scheme', $scheme);
-        Config::set('mail.mailers.smtp.timeout', 10);
+        Config::set('mail.mailers.smtp.timeout', 30);
         Config::set('mail.mailers.smtp.local_domain', parse_url((string) (config('app.url') ?: 'http://localhost'), PHP_URL_HOST) ?: 'localhost');
+
         Config::set('mail.from.address', $settings['from_address']);
         Config::set('mail.from.name', $settings['from_name']);
     }

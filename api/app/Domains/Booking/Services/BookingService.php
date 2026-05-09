@@ -113,7 +113,9 @@ class BookingService
                 'creator:id,name,user_custom_id',
                 'services:id,booking_id,serviceable_type,serviceable_id',
                 'services.serviceable',
-                'paymentAuthorizations:id,status,collected_at,approved_at,total_amount,currency',
+                'paymentAuthorizations:id,token,status,metadata,collected_at,approved_at,total_amount,currency',
+
+
             ])
             ->withCount('passengers')
             ->orderBy('created_at', 'desc');
@@ -464,7 +466,9 @@ class BookingService
                     'was_reassigned' => $history->isNotEmpty(),
                     'reassignment_history' => $history->take(-3)->all(), // Only send last 3 entries to save space
                     'payment_authorizations' => $booking->paymentAuthorizations,
+                    'has_cards' => !empty($details['payment_cards']),
                     // REMOVED 'details_json' => $details from the response to save massive bandwidth (20MB -> 100KB)
+
                 ];
             })
         );

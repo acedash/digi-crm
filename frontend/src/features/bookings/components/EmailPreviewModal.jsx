@@ -1,16 +1,18 @@
-import React from 'react';
-import { Mail, X, Send, AlertCircle } from 'lucide-react';
+import { Mail, X, Send, AlertCircle, Copy } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 
 const EmailPreviewModal = ({ 
   open, 
   onClose, 
   onConfirm, 
+  onCopy,
   title = 'Email Preview', 
   previewData, 
   isLoading,
-  confirmLabel = 'Send Email'
+  confirmLabel = 'Send Email',
+  copyLabel = 'Copy Link'
 }) => {
+
   if (!open) return null;
 
   return (
@@ -123,11 +125,24 @@ const EmailPreviewModal = ({
           <Button variant="ghost" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
+          {onCopy && (
+            <Button 
+              variant="outline" 
+              onClick={onCopy} 
+              disabled={isLoading || !previewData}
+              style={{ padding: '10px 24px', borderColor: 'var(--brand-primary)', color: 'var(--brand-primary)' }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Copy size={16} /> {copyLabel}
+              </span>
+            </Button>
+          )}
           <Button 
             onClick={onConfirm} 
             disabled={isLoading || !previewData}
             style={{ padding: '10px 24px' }}
           >
+
             {isLoading ? 'Sending...' : (
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Send size={16} /> {confirmLabel}
