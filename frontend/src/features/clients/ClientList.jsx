@@ -452,8 +452,11 @@ const ClientList = ({ isEmbedded = false }) => {
                         {renderCategoryDetails(client)}
                       </td>
                       <td style={{ padding: '16px 12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {client.latestBooking ? new Date(client.latestBooking.created_at).toLocaleDateString() : 'N/A'}
+                        {client.latestBooking 
+                          ? new Date(client.latestBooking.created_at).toLocaleDateString() 
+                          : new Date(client.created_at).toLocaleDateString()}
                       </td>
+
                       <td style={{ padding: '16px 12px' }}>
                         <div style={{ fontWeight: 700, color: '#06B68A', fontSize: '13px' }}>
                           ${Number(client.bookings_sum_total_amount || 0).toLocaleString()}

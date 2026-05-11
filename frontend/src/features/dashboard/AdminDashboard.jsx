@@ -412,7 +412,8 @@ const AdminDashboard = () => {
 
         {stats.booking_status_distribution && stats.booking_status_distribution.length > 0 && (
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Overview</h3>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Booking Overview</h3>
+
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Current period distribution</p>
             <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>

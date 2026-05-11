@@ -108,21 +108,27 @@ button {
   color-scheme: dark;
 }
 
-/* Force dark theme for browser autofill */
-input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active {
+/* Force theme-aware styling for browser autofill */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
     -webkit-box-shadow: 0 0 0 50px #1e293b inset !important;
     -webkit-text-fill-color: #f8fafc !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     transition: background-color 5000s ease-in-out 0s;
 }
 
-
-.dark input:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0 50px rgba(30, 41, 59, 1) inset !important;
+.light input:-webkit-autofill,
+.light input:-webkit-autofill:hover, 
+.light input:-webkit-autofill:focus, 
+.light input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 50px #ffffff inset !important;
+    -webkit-text-fill-color: #1e293b !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    transition: background-color 5000s ease-in-out 0s;
 }
+
 
 /* Force consistent borders for all inputs in dark mode */
 .dark .crm-input {

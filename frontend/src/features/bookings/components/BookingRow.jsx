@@ -500,12 +500,13 @@ const BookingRow = ({
                       />
                       <ActionChip
                         icon={Mail}
-                        label={isSendingApproval ? '...' : "Email Link to Client"}
+                        label={isSendingApproval ? '...' : (isCardCollection ? "Email Card Link" : approvalActionLabel)}
                         onClick={() => onSendApproval(booking, true)}
                         tone="primary"
                         title={isCardCollection ? "Send card collection link via email" : "Send payment link via email"}
                         disabled={isSendingApproval}
                       />
+
                     </>
                   );
                 })()}

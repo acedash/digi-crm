@@ -50,7 +50,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div style={{ 
+    <div className="light" style={{ 
       minHeight: '100vh', 
       display: 'flex', 
       background: '#fff',
@@ -90,8 +90,9 @@ const LoginPage = () => {
           flex: '1', 
           display: 'flex',
           flexDirection: 'column',
-          padding: '80px 80px'
+          padding: '50px 80px'
         }}>
+
           {/* Branding */}
           <div style={{ 
             display: 'flex', 
