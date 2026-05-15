@@ -82,7 +82,7 @@ const SupervisorDashboard = () => {
 
       const [agentsRes, statsRes] = await Promise.all([
         userService.getMyAgents(),
-        dashboardService.getStats(period, start, end)
+        dashboardService.getStats(period, start, end, 'supervisor')
       ]);
       setAgents(agentsRes.data.data || agentsRes.data);
       setStats(statsRes.data.data);
@@ -181,10 +181,11 @@ const SupervisorDashboard = () => {
 
   const periods = [
     { id: 'all', label: 'All Time' },
-    { id: 'daily', label: 'Today' },
+    { id: 'daily', label: 'Daily' },
+    { id: 'yesterday', label: 'Yesterday' },
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
-    { id: 'custom', label: 'Custom' },
+    { id: 'custom', label: 'Custom Date' },
   ];
 
   const renderFilterBar = () => (
@@ -274,17 +275,17 @@ const SupervisorDashboard = () => {
           <h1 style={{ 
             fontSize: '32px', 
             fontWeight: 800, 
-            letterSpacing: '-1px',
-            marginBottom: '12px',
+            letterSpacing: '-1.5px',
+            marginBottom: '8px',
             display: 'flex',
             alignItems: 'center',
             gap: '12px'
           }}>
-            Team <span className="premium-gradient-text">Console</span>
+            Supervisor <span className="premium-gradient-text">Dashboard</span>
             <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '20px', color: 'var(--text-muted)', letterSpacing: '0' }}>Real-time</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '16px', lineHeight: '1.5' }}>
-            Monitor agent performance, track bookings, and oversee overall team operations in real time.
+          <p style={{ color: 'var(--text-muted)', fontSize: '15px', fontWeight: 500 }}>
+            Overview of team performance and operations.
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -301,70 +302,99 @@ const SupervisorDashboard = () => {
 
       {/* Top row of summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
-        <Card title="Team Bookings" icon={ClipboardList}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline' }}>
-              <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.period_bookings || 0}</span>
-              <Trend value={stats?.bookings_growth} />
-            </div>
-            <div style={{ 
-              fontSize: '10px', 
-              color: '#06B68A', 
-              fontWeight: 800, 
-              background: 'rgba(6, 182, 138, 0.1)', 
-              padding: '2px 8px', 
-              borderRadius: '6px',
-              textTransform: 'uppercase'
-            }}>{period}</div>
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>Total team bookings in the selected period</div>
-        </Card>
-
-        <Card title="Revenue Generated" icon={CircleDollarSign}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline' }}>
-              <span style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
-                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.daily_revenue || 0)}
-              </span>
-              <Trend value={stats?.revenue_growth} />
-            </div>
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>Total revenue for {period === 'daily' ? 'today' : 'selected period'}</div>
-        </Card>
-
-        <Card title="Team Conversion" icon={Award}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '32px', fontWeight: 800, color: 'hsl(var(--primary))' }}>
-              {stats?.period_bookings && stats?.total_inquiries 
-                ? ((stats.period_bookings / stats.total_inquiries) * 100).toFixed(1) 
-                : '0'}%
+        <Card title="Net Revenue" icon={CircleDollarSign} subtitle={`Net for ${period}`}>
+          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.daily_revenue || 0)}
             </span>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>GOAL: 15%</div>
-            </div>
+            <Trend value={stats?.revenue_growth} />
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Booking to Inquiry conversion ratio</div>
         </Card>
 
-        <Card title="Top Performers" icon={Users}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-            {topAgents.length > 0 ? topAgents.map((agent, idx) => (
-              <div key={agent.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>
-                  {idx + 1}. {agent.name.split(' ')[0]}
-                </span>
-                <span style={{ fontWeight: 800, color: '#06B68A' }}>${(agent.revenue || 0).toLocaleString()}</span>
-              </div>
-            )) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No performance data</span>}
+        <Card title="Collected" icon={CheckCircle2} subtitle={`Total charged in ${period}`}>
+          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: '#059669' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.charged || 0)}
+            </span>
           </div>
+        </Card>
+
+        <Card title="Refunded" icon={ArrowRightLeft} subtitle={`Total refunded in ${period}`}>
+          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: '#3b82f6' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.refunded || 0)}
+            </span>
+          </div>
+        </Card>
+
+        <Card title="Chargeback" icon={ShieldAlert} subtitle={`Total chargebacks in ${period}`}>
+          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: '#ef4444' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.chargeback || 0)}
+            </span>
+          </div>
+        </Card>
+
+        <Card title="Bookings" icon={ClipboardList} subtitle={`${stats?.period_bookings || 0} created this ${period}`}>
+          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.period_bookings || 0}</span>
+            <Trend value={stats?.bookings_growth} />
+          </div>
+        </Card>
+
+        <Card title="Team Conversion" icon={Award} subtitle="Booking to Inquiry ratio">
+          <span style={{ fontSize: '28px', fontWeight: 800, color: 'hsl(var(--primary))' }}>
+            {stats?.period_bookings && stats?.total_inquiries 
+              ? ((stats.period_bookings / stats.total_inquiries) * 100).toFixed(1) 
+              : '0'}%
+          </span>
         </Card>
       </div>
+
+      {/* Revenue Breakdown with Tabs */}
+      <Card style={{ padding: '32px', borderRadius: '24px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CircleDollarSign size={20} color="hsl(var(--primary))" /> Team Revenue Breakdown
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Granular financial visibility for selected period</p>
+          </div>
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Net Revenue</p>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#06B68A' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats?.daily_revenue || 0)}
+            </h4>
+          </div>
+          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Collected</p>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#059669' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats?.revenue?.charged || 0)}
+            </h4>
+          </div>
+          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Refunded</p>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats?.revenue?.refunded || 0)}
+            </h4>
+          </div>
+          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Chargeback</p>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#ef4444' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats?.revenue?.chargeback || 0)}
+            </h4>
+          </div>
+        </div>
+      </Card>
 
 
 
       {/* Visual Activity Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-        <Card title="Monthly Revenue & Trends" subtitle="Team performance over the last 6 months" icon={TrendingUp}>
+        <Card title="Revenue Trend" subtitle="Team performance over the last 6 months" icon={TrendingUp}>
           <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={revenueData}>
@@ -387,7 +417,7 @@ const SupervisorDashboard = () => {
           </div>
         </Card>
 
-        <Card title="Booking Status" subtitle="Team distribution" icon={CheckCircle2}>
+        <Card title="Booking Overview" subtitle="Current period distribution" icon={CheckCircle2}>
           <div style={{ height: '300px', width: '100%', marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>
@@ -420,7 +450,7 @@ const SupervisorDashboard = () => {
         </Card>
 
         {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
-          <Card title="Pending vs Confirmed" subtitle="Last 6 months closing trend" icon={TrendingUp}>
+          <Card title="Pending vs Confirmed Booking" subtitle="Last 6 months closing trend" icon={TrendingUp}>
             <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>

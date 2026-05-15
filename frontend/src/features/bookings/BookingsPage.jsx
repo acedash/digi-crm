@@ -23,8 +23,10 @@ const BookingsPage = () => {
   };
 
   const handleSuccess = (flash) => {
-    navigate(`${basePath}/bookings`, { state: { flash } });
+    navigate(location.state?.returnTo || `${basePath}/bookings`, { state: { flash }, replace: true });
   };
+
+
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
@@ -45,7 +47,7 @@ const BookingsPage = () => {
                 key={editingId || 'new'}
                 bookingId={editingId} 
                 onSuccess={handleSuccess} 
-                onCancel={() => navigate(`${basePath}/bookings`)} 
+                onCancel={() => navigate(location.state?.returnTo || `${basePath}/bookings`, { replace: true })} 
               />
             </div>
           </div>

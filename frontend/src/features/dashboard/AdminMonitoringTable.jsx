@@ -8,7 +8,7 @@ import html2canvas from 'html2canvas';
 import ExportDropdown from '../../components/ui/ExportDropdown';
 import { FileText, FileSpreadsheet } from 'lucide-react';
 
-const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) => {
+const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate, onViewReport }) => {
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
@@ -160,8 +160,8 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
 
   const handleExportCSV = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
-      + "Supervisor,Login Time,Total Agents,Active,On Break,Revenue\n"
-      + supervisors.map(s => `${s.supervisor_name},${s.login_time},${s.total_agents},${s.active_agents},${s.on_break},${s.revenue || 0}`).join("\n");
+      + "Supervisor,Total Agents,Active,On Break,Revenue\n"
+      + supervisors.map(s => `${s.supervisor_name},${s.total_agents},${s.active_agents},${s.on_break},${s.revenue || 0}`).join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
     link.setAttribute("download", `monitoring_${period}_${new Date().getTime()}.csv`);
@@ -183,10 +183,11 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
         gap: '20px'
       }}>
         <div style={{ minWidth: '200px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+          <h3 id="admin-monitoring-title" style={{ fontSize: '18px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
             <ShieldCheck size={20} style={{ color: '#8b5cf6' }} />
             Admin Monitoring
           </h3>
+
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
             {period === 'live' ? 'Real-time overview of current activity.' : `Summary of activity for the selected ${period} period.`}
           </p>
@@ -224,11 +225,11 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
           <thead>
             <tr style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)' }}>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Supervisor</th>
-              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Login Time</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Agents</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>On Break</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Team Revenue</th>
+              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -254,12 +255,6 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
                         {sup.supervisor_name.charAt(0)}
                       </div>
                       {sup.supervisor_name}
-                    </td>
-                    <td style={{ padding: '16px 24px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Clock size={14} style={{ color: 'var(--text-muted)', opacity: 0.7 }} /> 
-                        {sup.login_time || '--'}
-                      </div>
                     </td>
                     <td style={{ padding: '16px 24px', fontWeight: 600 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
@@ -287,6 +282,20 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate }) =
                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(sup.revenue || 0)}
                       </div>
                     </td>
+                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                        <button 
+                          onClick={() => onViewReport && onViewReport(sup.id, period, startDate, endDate)}
+                          style={{ 
+                            background: 'rgba(6, 182, 138, 0.1)', color: '#06B68A', border: '1px solid rgba(6, 182, 138, 0.2)',
+                            padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                            display: 'inline-flex', alignItems: 'center', gap: '6px'
+                          }}
+                          className="hover:bg-[rgba(6,182,138,0.2)] transition-all"
+                        >
+                          <Activity size={12} />
+                          REPORT
+                        </button>
+                     </td>
                   </motion.tr>
                 ))
               )}

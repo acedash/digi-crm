@@ -20,6 +20,14 @@ class CallLogController extends Controller
             $query->where('log_scope', $request->scope);
         }
 
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
         if (Auth::user()->hasRole('agent')) {
             $query->where(function ($q) {
                 $q->where('agent_id', '=', Auth::id());

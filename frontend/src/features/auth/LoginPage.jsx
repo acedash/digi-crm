@@ -43,8 +43,10 @@ const LoginPage = () => {
       localStorage.setItem('token', data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError('Identity authentication failed. Please check your credentials.');
+      const message = err.response?.data?.message || 'Authentication failed. Please check your credentials.';
+      setError(message);
     } finally {
+
       setLoading(false);
     }
   };
@@ -177,7 +179,35 @@ const LoginPage = () => {
               <p style={{ color: '#64748b', fontSize: '15px', fontWeight: 500 }}>Use the credentials shared by your admin</p>
             </div>
 
+            {/* Error Message */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: 'auto', marginBottom: 20 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  style={{ 
+                    overflow: 'hidden',
+                    background: '#fef2f2',
+                    border: '1px solid #fee2e2',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    color: '#991b1b',
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}
+                >
+                  <div style={{ flexShrink: 0, width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
               {/* Identity Field */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Identity</label>

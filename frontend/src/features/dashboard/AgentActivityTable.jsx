@@ -44,17 +44,6 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
     { id: 'custom', label: 'Custom' }
   ];
 
-  const getStatusColor = (status) => {
-    switch(status?.toLowerCase()) {
-      case 'active': return { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', dot: '#22c55e' };
-      case 'on call': return { bg: 'rgba(6, 182, 138, 0.1)', color: '#06B68A', dot: '#06B68A' };
-      case 'break': return { bg: 'rgba(234, 179, 8, 0.1)', color: '#eab308', dot: '#eab308' };
-      case 'week off': return { bg: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', dot: '#8b5cf6' };
-      case 'offline':
-      case 'not logged in': return { bg: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', dot: '#94a3b8' };
-      default: return { bg: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', dot: '#94a3b8' };
-    }
-  };
 
   const handleExportPDF = async () => {
     const content = tableRef.current;
@@ -164,8 +153,8 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
 
   const handleExportCSV = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
-      + "Agent,Login Time,Status,Calls Picked,Bookings Created,Revenue,Break Time\n"
-      + agents.map(a => `${a.agent_name},${a.login_time},${a.status},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time}`).join("\n");
+      + "Agent,Calls Picked,Bookings Created,Revenue,Break Time,Total Hours\n"
+      + agents.map(a => `${a.agent_name},${a.calls_picked},${a.bookings_created},${a.daily_revenue || 0},${a.break_time},${a.total_login_time}`).join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
     link.setAttribute("download", `team_activity_${period}_${new Date().getTime()}.csv`);
@@ -227,8 +216,6 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
           <thead>
             <tr style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)' }}>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Agent</th>
-              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Login Time</th>
-              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calls Picked</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bookings Created</th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -249,7 +236,6 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
                 </tr>
               ) : (
                 agents.map((agent, idx) => {
-                  const style = getStatusColor(agent.status);
                   return (
                     <MotionTr 
                       key={agent.id || `agent-${idx}`} 
@@ -264,24 +250,6 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
                           {agent.agent_name.charAt(0)}
                         </div>
                         {agent.agent_name}
-                      </td>
-                      <td style={{ padding: '16px 24px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-muted)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Clock size={14} style={{ color: 'var(--text-muted)', opacity: 0.7 }} /> 
-                          {agent.login_time}
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px 24px' }}>
-                        <div style={{ 
-                          display: 'inline-flex', alignItems: 'center', gap: '6px',
-                          background: style.bg, color: style.color, 
-                          padding: '4px 10px', borderRadius: '6px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.3px', textTransform: 'uppercase',
-                          border: `1px solid ${style.color}25`,
-                          whiteSpace: 'nowrap'
-                        }}>
-                          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: style.dot, boxShadow: `0 0 4px ${style.dot}` }} />
-                          {agent.status?.toLowerCase() === 'offline' ? 'Offline' : agent.status}
-                        </div>
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--text-main)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

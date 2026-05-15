@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, Briefcase, Download, MoreHorizontal, FileText, Table, Phone, Mail, FileJson } from 'lucide-react';
+import { 
+  PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, 
+  Briefcase, Download, MoreHorizontal, FileText, Table, Phone, Mail, FileJson,
+  Calendar as CalendarIcon, Filter, RefreshCw
+} from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -18,6 +22,11 @@ const CallLoggingPage = () => {
   const [clients, setClients] = useState([]);
   const [toast, setToast] = useState(null);
   const [scopeFilter, setScopeFilter] = useState('all');
+  
+  const [globalPeriod, setGlobalPeriod] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   const [formData, setFormData] = useState({
     log_scope: 'general',
     client_id: '',
@@ -43,13 +52,46 @@ const CallLoggingPage = () => {
 
   const fetchLogs = useCallback(async () => {
     try {
-      const response = await callLogService.getCallLogs(1, scopeFilter);
+      const response = await callLogService.getCallLogs(1, scopeFilter, startDate, endDate);
       const raw = response.data?.data;
-      // Handle both paginated { data: [...] } and plain array responses
       const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
       setLogs(list);
     } catch (e) { console.error(e); }
-  }, [scopeFilter]);
+  }, [scopeFilter, startDate, endDate]);
+
+  const handleQuickFilter = (type) => {
+    setGlobalPeriod(type);
+    const today = new Date().toISOString().split('T')[0];
+    
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+    const weeklyDate = new Date();
+    weeklyDate.setDate(weeklyDate.getDate() - 7);
+    const lastWeek = weeklyDate.toISOString().split('T')[0];
+
+    const monthlyDate = new Date();
+    monthlyDate.setMonth(monthlyDate.getMonth() - 1);
+    const lastMonth = monthlyDate.toISOString().split('T')[0];
+
+    if (type === 'daily') {
+      setStartDate(today);
+      setEndDate(today);
+    } else if (type === 'yesterday') {
+      setStartDate(yesterday);
+      setEndDate(yesterday);
+    } else if (type === 'weekly') {
+      setStartDate(lastWeek);
+      setEndDate(today);
+    } else if (type === 'monthly') {
+      setStartDate(lastMonth);
+      setEndDate(today);
+    } else if (type === 'all') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
 
   const fetchClients = useCallback(async () => {
     try {
@@ -113,7 +155,7 @@ const CallLoggingPage = () => {
   const handleExportCsv = async () => {
     try {
       setExporting(true);
-      const response = await callLogService.exportCallLogs(scopeFilter);
+      const response = await callLogService.exportCallLogs(scopeFilter, startDate, endDate);
       const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -155,7 +197,7 @@ const CallLoggingPage = () => {
       console.error(e);
       setToast({ message: 'Failed to export Excel', type: 'error' });
     } finally {
-      setShowExportOptions(false);
+      // Done
     }
   };
 
@@ -191,7 +233,7 @@ const CallLoggingPage = () => {
       console.error(e);
       setToast({ message: 'Failed to export PDF', type: 'error' });
     } finally {
-      setShowExportOptions(false);
+      // Done
     }
   };
   const handleExportJson = () => {
@@ -209,7 +251,7 @@ const CallLoggingPage = () => {
       console.error(e);
       setToast({ message: 'Failed to export JSON', type: 'error' });
     } finally {
-      setShowExportOptions(false);
+      // Done
     }
   };
 
@@ -230,31 +272,105 @@ const CallLoggingPage = () => {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {[
-            { value: 'all', label: 'All Calls' },
-            { value: 'booking', label: 'Booking Calls' },
-            { value: 'general', label: 'Marketing Calls' },
-          ].map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setScopeFilter(option.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '999px',
-                border: '1px solid var(--border-color)',
-                background: scopeFilter === option.value ? 'hsl(var(--primary))' : 'var(--bg-card)',
-                color: scopeFilter === option.value ? 'white' : 'var(--text-main)',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <Card style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'hsla(var(--primary), 0.1)', color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Filter size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)' }}>Activity Filters</h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>Select call category and timeframe</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              {[
+                { value: 'all', label: 'All Calls' },
+                { value: 'booking', label: 'Booking' },
+                { value: 'general', label: 'Marketing' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setScopeFilter(option.value)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: scopeFilter === option.value ? 'var(--bg-card)' : 'transparent',
+                    color: scopeFilter === option.value ? 'var(--text-main)' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: scopeFilter === option.value ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              {[
+                { id: 'all', label: 'All Time' },
+                { id: 'daily', label: 'Daily' },
+                { id: 'yesterday', label: 'Yesterday' },
+                { id: 'weekly', label: 'Weekly' },
+                { id: 'monthly', label: 'Monthly' },
+                { id: 'custom', label: 'Custom Date' },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleQuickFilter(p.id)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: globalPeriod === p.id ? 'var(--bg-card)' : 'transparent',
+                    color: globalPeriod === p.id ? 'var(--text-main)' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: globalPeriod === p.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {globalPeriod === 'custom' && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                <div style={{ width: '150px' }}>
+                  <Input 
+                    type="date" 
+                    icon={CalendarIcon}
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    style={{ marginBottom: 0 }}
+                    inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+                  />
+                </div>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
+                <div style={{ width: '150px' }}>
+                  <Input 
+                    type="date" 
+                    icon={CalendarIcon}
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    style={{ marginBottom: 0 }}
+                    inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
 
         <Card title="Recent Activity" icon={History}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

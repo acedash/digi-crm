@@ -1,10 +1,11 @@
 import api from '../../services/api';
 
 const dashboardService = {
-    getStats: (period = 'monthly', startDate = null, endDate = null) => {
+    getStats: (period = 'monthly', startDate = null, endDate = null, mode = null) => {
         let url = `/dashboard/stats?period=${period}`;
         if (startDate) url += `&start_date=${startDate}`;
         if (endDate) url += `&end_date=${endDate}`;
+        if (mode) url += `&mode=${mode}`;
         return api.get(url);
     },
     getAgentMonitor: (period = 'live', startDate = null, endDate = null) => {

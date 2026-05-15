@@ -58,6 +58,8 @@ const BookingList = ({ onCreate, onEdit }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [chargeStatus, setChargeStatus] = useState('');
+
   const [showCallLog, setShowCallLog] = useState(false);
   const [selectedBookingForCall, setSelectedBookingForCall] = useState(null);
   const [reassignModal, setReassignModal] = useState({ open: false, bookingId: null, currentAgentId: null });
@@ -116,11 +118,13 @@ const BookingList = ({ onCreate, onEdit }) => {
       booking.client?.phone?.includes(searchTerm) ||
       booking.id.toString().includes(searchTerm);
       
-    const matchesFilter = filterType === 'all' || 
-                          filterType === 'deleted' || 
-                          booking.status?.toLowerCase() === (filterType || '').toLowerCase();
+    const matchesFilter = (filterType === 'all' || 
+                           filterType === 'deleted' || 
+                           booking.status?.toLowerCase() === (filterType || '').toLowerCase()) &&
+                          (!chargeStatus || booking.payment_authorizations?.some(a => a.charge_status === chargeStatus));
     
     return matchesSearch && matchesFilter;
+
   });
 
   const exportHandlers = {
@@ -149,8 +153,10 @@ const BookingList = ({ onCreate, onEdit }) => {
         search: debouncedSearchTerm,
         start_date: startDate,
         end_date: endDate,
-        filter: filterType === 'deleted' ? 'deleted' : undefined
+        filter: filterType === 'deleted' ? 'deleted' : undefined,
+        charge_status: chargeStatus
       });
+
       const result = response.data.data;
       
       if (result && result.data) {
@@ -173,7 +179,8 @@ const BookingList = ({ onCreate, onEdit }) => {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [pagination.per_page, debouncedSearchTerm, startDate, endDate, filterType]);
+  }, [pagination.per_page, debouncedSearchTerm, startDate, endDate, filterType, chargeStatus]);
+
 
   // Re-fetch when page changes
   useEffect(() => {
@@ -877,42 +884,85 @@ const BookingList = ({ onCreate, onEdit }) => {
         </div>
           
         {/* Row 2: Status Chips */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Awaiting Cards', 'Work Pending', 'Completed', 'Cancelled', 'deleted'].map(status => (
-            <button 
-              key={status}
-              onClick={() => {
-                setFilterType(status);
-                setPagination(prev => ({ ...prev, current_page: 1 }));
-              }}
-              style={{ 
-                padding: '6px 14px', 
-                borderRadius: '100px', 
-                background: filterType === status ? 'hsl(var(--primary))' : 'var(--bg-card)', 
-                color: filterType === status ? 'white' : 'var(--text-muted)',
-                border: filterType === status ? 'none' : '1px solid var(--border-color)',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              {status === 'deleted' && <Trash2 size={12} />}
-              {status === 'all' ? 'All Bookings' : status === 'deleted' ? 'Trash / Deleted' : status}
-            </button>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', paddingRight: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Booking:</span>
+            {['all', 'Draft', 'Pending', 'Awaiting Approval', 'Approved', 'Awaiting Cards', 'Work Pending', 'Completed', 'Cancelled', 'deleted'].map(status => (
+              <button 
+                key={status}
+                onClick={() => {
+                  setFilterType(status);
+                  setPagination(prev => ({ ...prev, current_page: 1 }));
+                }}
+                style={{ 
+                  padding: '6px 14px', 
+                  borderRadius: '100px', 
+                  background: filterType === status ? 'hsl(var(--primary))' : 'var(--bg-card)', 
+                  color: filterType === status ? 'white' : 'var(--text-muted)',
+                  border: filterType === status ? 'none' : '1px solid var(--border-color)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {status === 'deleted' && <Trash2 size={12} />}
+                {status === 'all' ? 'All Bookings' : status === 'deleted' ? 'Trash / Deleted' : status}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', paddingRight: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Charge:</span>
+            {[
+              { id: '', label: 'Any Status' },
+              { id: 'Charged/Captured', label: 'Charged/Captured' },
+              { id: 'Pending', label: 'Pending' },
+              { id: 'Decline', label: 'Decline' },
+              { id: 'Chargeback', label: 'Chargeback' },
+              { id: 'Refunded', label: 'Refunded' }
+            ].map(status => (
+              <button 
+                key={status.id}
+                onClick={() => {
+                  setChargeStatus(status.id);
+                  setPagination(prev => ({ ...prev, current_page: 1 }));
+                }}
+                style={{ 
+                  padding: '6px 14px', 
+                  borderRadius: '100px', 
+                  background: chargeStatus === status.id ? 'hsl(var(--primary))' : 'var(--bg-card)', 
+                  color: chargeStatus === status.id ? 'white' : 'var(--text-muted)',
+                  border: chargeStatus === status.id ? 'none' : '1px solid var(--border-color)',
+
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {status.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
 
       <div style={{ display: 'grid', gap: '8px' }}>
         <div style={{ overflowX: 'auto' }}>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '20% 18% 13% 13% 36%',
+              gridTemplateColumns: '20% 18% 13% 18% 31%',
               gap: '8px',
               padding: '0 12px 10px',
               fontSize: '10px',
@@ -950,15 +1000,36 @@ const BookingList = ({ onCreate, onEdit }) => {
             );
 
             // Determine Override Status
-            let customStatusBadge = getStatusStyle(booking.status, booking);
+            let bookingStatusBadge = getStatusStyle(booking.status, booking);
+            let chargeStatusBadge = null;
             let customStatusColor = statusColor;
             
             // Priority: Life-cycle statuses (Approved, Completed, Cancelled, Work Pending) should not be overridden by card collection indicator
             const isAdvancedStatus = ['Approved', 'Completed', 'Cancelled', 'Rejected', 'Work Pending', 'Awaiting Approval'].includes(booking.status);
 
+            // Find the most recent authorization with a charge status
+            const latestAuth = [...authorizations].sort((a, b) => b.id - a.id).find(a => a.charge_status);
+
+            if (latestAuth) {
+               const style = getStatusStyle(latestAuth.charge_status, booking);
+               const chargeDate = latestAuth.updated_at || latestAuth.collected_at;
+               const dateLabel = chargeDate ? ` on ${new Date(chargeDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : '';
+               
+               chargeStatusBadge = (
+                 <div style={{ 
+                   display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', 
+                   borderRadius: '100px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
+                   background: style.props.style.background, color: style.props.style.color, border: style.props.style.border
+                 }}>
+                   {style.props.children[0]} {/* Icon */}
+                   {latestAuth.charge_status}{dateLabel}
+                 </div>
+               );
+            } 
+            
             if (!isAdvancedStatus && cards.length > 0) {
               customStatusColor = '#059669'; // Success Green
-              customStatusBadge = (
+              bookingStatusBadge = (
                 <div style={{ 
                   display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', 
                   borderRadius: '100px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
@@ -969,7 +1040,7 @@ const BookingList = ({ onCreate, onEdit }) => {
               );
             } else if (!isAdvancedStatus && hasPendingLink) {
               customStatusColor = '#f59e0b'; // Warning Orange
-              customStatusBadge = (
+              bookingStatusBadge = (
                 <div style={{ 
                   display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', 
                   borderRadius: '100px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
@@ -979,6 +1050,15 @@ const BookingList = ({ onCreate, onEdit }) => {
                 </div>
               );
             }
+
+            const customStatusBadge = (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                {bookingStatusBadge}
+                {chargeStatusBadge}
+              </div>
+            );
+
+
 
             return (
               <BookingRow

@@ -153,6 +153,7 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
                 <input 
                   type="text"
                   placeholder={`Select or type ${type.toLowerCase()} name...`}
+                  list={type === 'Flight' ? 'airline-list' : (type === 'Hotel' ? 'hotel-list' : (type === 'Cruise' ? 'cruise-list' : (type === 'Car Rental' ? 'car-list' : undefined)))}
                   value={formData.airline_inquiry[type] || ''}
                   onChange={(e) => setFormData({ 
                     ...formData, 
@@ -164,6 +165,56 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
                     color: 'var(--text-main)', outline: 'none'
                   }}
                 />
+                {type === 'Flight' && (
+                  <datalist id="airline-list">
+                    {[
+                      'American Airlines', 'Air France', 'KLM', 'United Airlines', 'Delta Airlines',
+                      'Alaska Airlines', 'Hawaiian Airlines', 'JetBlue Airways', 'Southwest Airlines',
+                      'Frontier Airlines', 'Spirit Airlines', 'Allegiant Air', 'Lufthansa', 'Latam',
+                      'Copa Airlines', 'Volaris', 'Viva Aerobus', 'Avelo air', 'Breeze Airways',
+                      'Sky Airline', 'Sun Countries Airlines', 'Air Canada', 'West Jet Airways',
+                      'Flair Airlines', 'British Airways', 'Iberia', 'All Nippon Airlines', 'Ryan Air',
+                      'Avianca', 'Air Europa', 'Aeromexico', 'clic Air', 'Jetsmart', 'Plus Ultra',
+                      'Tap Portugal', 'Emirates', 'Etihad Airways', 'Qatar Airways', 'Royal Jordanian',
+                      'Royal Air Maroc', 'Saudi Airlines', 'Turkish Airline', 'Expedia', 'Booking.com',
+                      'Priceline', 'Edreams', 'Despegar Travel Agency', 'Others'
+                    ].map(airline => (
+                      <option key={airline} value={airline} />
+                    ))}
+                  </datalist>
+                )}
+                {type === 'Hotel' && (
+                  <datalist id="hotel-list">
+                    {[
+                      'Expedia', 'Booking.com', 'Priceline', 'Edreams', 'Hotels.com', 'Others'
+                    ].map(hotel => (
+                      <option key={hotel} value={hotel} />
+                    ))}
+                  </datalist>
+                )}
+                {type === 'Cruise' && (
+                  <datalist id="cruise-list">
+                    {[
+                      'Royal Caribbean', 'Carnival Cruises', 'Norwegian', 'MSC Cruises', 
+                      'Virgin Voyages', 'Disney Cruises', 'Holland America', 'Princess Cruises', 
+                      'Celebrity Cruises', 'Others'
+                    ].map(cruise => (
+                      <option key={cruise} value={cruise} />
+                    ))}
+                  </datalist>
+                )}
+                {type === 'Car Rental' && (
+                  <datalist id="car-list">
+                    {[
+                      'Alamo Rent A Car', 'Avis', 'Budget', 'Carwiz', 'Dollar Rent A Car', 
+                      'Drive Rental Cars', 'Economy Rent a Car', 'Enterprise', 'Europcar Car Rental', 
+                      'Fox', 'Hertz', 'National Car Rental', 'Nextcar', 'Payless', 'Sixt', 
+                      'Thrifty Car Rental', 'Others'
+                    ].map(car => (
+                      <option key={car} value={car} />
+                    ))}
+                  </datalist>
+                )}
               </motion.div>
             ))}
 

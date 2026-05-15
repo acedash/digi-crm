@@ -38,31 +38,18 @@ class ClientRepository extends BaseRepository
     public function getList(array $filters = [], ?\App\Models\User $user = null, int $perPage = 15): LengthAwarePaginator
     {
         $query = $this->model->query()
-            ->select([
-                'id',
-                'agent_id',
-                'created_by',
-                'first_name',
-                'last_name',
-                'name',
-                'email',
-                'alternate_email',
-                'phone',
-                'alternate_phone',
-                'type',
-                'is_active',
-                'created_at',
-            ])
             ->with([
                 'creator:id,name',
                 'agent:id,name',
-                'latestBooking' => function($q) {
-                    $q->select(['bookings.id', 'bookings.client_id', 'bookings.agent_id', 'bookings.booking_reference', 'bookings.status', 'bookings.total_amount', 'bookings.currency', 'bookings.created_at']);
-                },
-                'latestBooking.services:id,booking_id,serviceable_type,serviceable_id',
+                'latestBooking',
+                'latestBooking.services.serviceable',
+                'latestBooking.paymentAuthorizations',
             ])
+
+
             ->withSum('bookings', 'total_amount')
             ->withCount(['passengers', 'bookings']);
+
 
         // 1. Role-based scoping (Index Friendly)
         if ($user?->hasRole('agent')) {
@@ -145,6 +132,14 @@ class ClientRepository extends BaseRepository
             $query->where('created_at', '<=', \Illuminate\Support\Carbon::parse($filters['end_date'])->endOfDay());
         }
 
+        // 8. Charge Status Filtering
+        if (!empty($filters['charge_status'])) {
+            $status = $filters['charge_status'];
+            $query->whereHas('bookings.paymentAuthorizations', function($q) use ($status) {
+                $q->where('charge_status', $status);
+            });
+        }
+
         return $query->latest('created_at')->paginate($perPage);
     }
 
@@ -165,7 +160,9 @@ class ClientRepository extends BaseRepository
                           ->with([
                               'services:id,booking_id,serviceable_type,serviceable_id',
                               'services.serviceable',
+                              'paymentAuthorizations',
                           ]);
+
                 },
                 'callLogs' => function ($query) {
                     $query->select(['id', 'client_id', 'agent_id', 'call_type', 'customer_outcome', 'notes', 'callback_required', 'callback_datetime', 'created_at'])

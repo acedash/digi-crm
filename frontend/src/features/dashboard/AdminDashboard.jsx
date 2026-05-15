@@ -183,6 +183,30 @@ const AdminDashboard = () => {
       color: '#06B68A',
       onClick: () => navigate('/admin/charge-queue')
     },
+    {
+      title: 'Collected Amount',
+      subtitle: `Total charged in ${period}`,
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue?.charged?.period_total) || 0),
+      growth: stats.revenue?.charged?.growth,
+      icon: CircleDollarSign,
+      color: '#059669',
+    },
+    {
+      title: 'Refunded Amount',
+      subtitle: `Total refunded in ${period}`,
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue?.refunded?.period_total) || 0),
+      growth: stats.revenue?.refunded?.growth,
+      icon: RefreshCw,
+      color: '#3b82f6',
+    },
+    {
+      title: 'Chargeback Amount',
+      subtitle: `Total chargebacks in ${period}`,
+      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue?.chargeback?.period_total) || 0),
+      growth: stats.revenue?.chargeback?.growth,
+      icon: Shield,
+      color: '#ef4444',
+    },
   ];
 
   const periods = [
@@ -216,11 +240,12 @@ const AdminDashboard = () => {
         position: 'bottom'
       },
       {
-        target: '#admin-monitoring',
+        target: '#admin-monitoring-title',
         title: 'Team Activity',
         content: 'Keep track of agent actions, availability, and ongoing tasks.',
-        position: 'top'
+        position: 'bottom'
       }
+
     ]);
   };
 
@@ -330,13 +355,14 @@ const AdminDashboard = () => {
       </div>
 
 
-      <div id="revenue-charts" className="responsive-grid">
+      <div id="revenue-charts" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+        {/* Row 1: Global Revenue Trends - Full Width */}
         {stats.revenue_trends && stats.revenue_trends.length > 0 && (
-          <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Global Revenue Trends (1 Year)</h3>
-            <div style={{ height: '300px', width: '100%' }}>
+          <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '360px', display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Revenue Trend</h3>
+            <div style={{ flex: 1, width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <LineChart data={stats.revenue_trends} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+                <LineChart data={stats.revenue_trends} margin={{ top: 10, right: 40, left: 40, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.3} />
                   <XAxis 
                     dataKey="name" 
@@ -344,8 +370,9 @@ const AdminDashboard = () => {
                     tickLine={false} 
                     tick={{ fontSize: 11, fill: 'var(--text-muted)', fontWeight: 600 }} 
                     dy={10}
-                    padding={{ left: 20, right: 20 }} 
+                    padding={{ left: 60, right: 60 }} 
                   />
+
                   <YAxis 
                     axisLine={false} 
                     tickLine={false} 
@@ -380,82 +407,94 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
-          <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Pending vs Confirmed Booking</h3>
-            <div style={{ height: '300px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 12, fill: 'var(--text-muted)' }} 
-                    dy={10}
-                    padding={{ left: 20, right: 20 }}
-                  />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
-                    itemStyle={{ fontWeight: 700 }}
-                    cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                  />
-                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
-                  <Bar dataKey="Confirmed" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="Pending" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
+        {/* Row 2: Booking Trends and Overview - Two Columns */}
+        <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))' }}>
+          {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
+            <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '380px', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px' }}>Pending vs Confirmed Booking</h3>
+              <div style={{ flex: 1, width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 12, fill: 'var(--text-muted)' }} 
+                      dy={10}
+                      padding={{ left: 20, right: 20 }}
+                    />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
+                      itemStyle={{ fontWeight: 700 }}
+                      cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                    />
+                    <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
+                    <Bar dataKey="Confirmed" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="Pending" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {stats.booking_status_distribution && stats.booking_status_distribution.length > 0 && (
-          <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Booking Overview</h3>
-
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Current period distribution</p>
-            <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <PieChart>
-                  <Pie
-                    data={stats.booking_status_distribution}
-                    cx="50%"
-                    cy="40%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {stats.booking_status_distribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
-                    itemStyle={{ color: 'var(--text-main)', fontWeight: 700 }}
-                  />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    align="center"
-                    iconType="circle"
-                    iconSize={10}
-                    wrapperStyle={{ 
-                      paddingTop: '20px',
-                      fontSize: '12px'
-                    }}
-                    formatter={(value, entry) => (
-                      <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginLeft: '4px', whiteSpace: 'nowrap' }}>
-                        {value} ({entry.payload.value})
-                      </span>
-                    )}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+          {stats.booking_status_distribution && stats.booking_status_distribution.length > 0 && (
+            <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px', height: '380px', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Booking Overview</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Current period distribution</p>
+              <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <PieChart>
+                    <Pie
+                      data={stats.booking_status_distribution}
+                      cx="35%"
+                      cy="50%"
+                      innerRadius={65}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {stats.booking_status_distribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                        borderRadius: '16px', 
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+                      }}
+                      itemStyle={{ color: 'white', fontWeight: 700 }}
+                    />
+                    <Legend 
+                      layout="vertical"
+                      verticalAlign="middle" 
+                      align="right"
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ 
+                        fontSize: '11px',
+                        paddingLeft: '30px',
+                        lineHeight: '26px',
+                        maxWidth: '45%'
+                      }}
+                      formatter={(value, entry) => (
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginLeft: '6px' }}>
+                          {value} ({entry.payload.value})
+                        </span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+
 
       <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>

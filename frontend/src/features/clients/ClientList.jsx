@@ -23,6 +23,8 @@ import clientService from './clientService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import { getStatusStyle } from '../../utils/statusStyles';
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -45,10 +47,11 @@ const ClientList = ({ isEmbedded = false }) => {
     phone: '',
     email: ''
   });
+  const [globalPeriod, setGlobalPeriod] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [filterType, setFilterType] = useState('all');
   const [stats, setStats] = useState({ total: 0, today: 0, yesterday: 0 });
+
   const isFetchingRef = React.useRef(false);
 
 
@@ -75,6 +78,7 @@ const ClientList = ({ isEmbedded = false }) => {
       };
       const response = await clientService.getClients(params);
       const result = response.data.data;
+
       if (result && result.data) {
         setClients(result.data.data || []);
         if (result.stats) setStats(result.stats);
@@ -95,23 +99,39 @@ const ClientList = ({ isEmbedded = false }) => {
   }, [fetchClients, startDate, endDate]);
 
   const handleQuickFilter = (type) => {
-    setFilterType(type);
+    setGlobalPeriod(type);
     const today = new Date().toISOString().split('T')[0];
+    
     const yesterdayDate = new Date();
     yesterdayDate.setDate(yesterdayDate.getDate() - 1);
     const yesterday = yesterdayDate.toISOString().split('T')[0];
 
-    if (type === 'today') {
+    const weeklyDate = new Date();
+    weeklyDate.setDate(weeklyDate.getDate() - 7);
+    const lastWeek = weeklyDate.toISOString().split('T')[0];
+
+    const monthlyDate = new Date();
+    monthlyDate.setMonth(monthlyDate.getMonth() - 1);
+    const lastMonth = monthlyDate.toISOString().split('T')[0];
+
+    if (type === 'daily') {
       setStartDate(today);
       setEndDate(today);
     } else if (type === 'yesterday') {
       setStartDate(yesterday);
       setEndDate(yesterday);
-    } else {
+    } else if (type === 'weekly') {
+      setStartDate(lastWeek);
+      setEndDate(today);
+    } else if (type === 'monthly') {
+      setStartDate(lastMonth);
+      setEndDate(today);
+    } else if (type === 'all') {
       setStartDate('');
       setEndDate('');
     }
   };
+
 
   const handleSearch = (e) => setSearch(e.target.value);
 
@@ -134,19 +154,37 @@ const ClientList = ({ isEmbedded = false }) => {
 
   const handleExportPDF = () => {
     try {
-      const doc = new jsPDF();
-      const tableColumn = ["ID", "Name", "Email", "Phone", "Travelers", "Spend", "Created By"];
-      const tableRows = clients.map(client => [
-        `C-${String(client.id).padStart(4, '0')}`,
-        `${client.first_name || ''} ${client.last_name || ''}`.trim(),
-        client.email || '--',
-        client.phone || '--',
-        client.passengers_count || 0,
-        `$${Number(client.bookings_sum_total_amount || 0).toLocaleString()}`,
-        client.creator?.name || 'Unknown'
-      ]);
+      const doc = new jsPDF('l', 'mm', 'a4'); // Use landscape for more columns
+      const tableColumn = ["ID", "Name", "Email", "Phone", "Address", "Latest Booking", "Spend"];
+      const tableRows = clients.map(client => {
+        const booking = client.latestBooking || client.latest_booking;
+        const bookingStr = booking ? `${booking.booking_reference}\n${(booking.services || []).map(s => {
+          const type = s.serviceable_type?.split('\\').pop() || 'Service';
+          const name = s.serviceable?.name || s.serviceable?.airline_code || type;
+          return `${type}: ${name}`;
+        }).join(', ')}` : 'No Bookings';
+
+        return [
+          `C-${String(client.id).padStart(4, '0')}`,
+          `${client.first_name || ''} ${client.last_name || ''}`.trim(),
+          client.email || '--',
+          client.phone || '--',
+          client.address || '--',
+          bookingStr,
+          `$${Number(client.bookings_sum_total_amount || 0).toLocaleString()}`
+        ];
+      });
       
-      autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
+      autoTable(doc, { 
+        head: [tableColumn], 
+        body: tableRows, 
+        startY: 20,
+        styles: { fontSize: 7, cellPadding: 2 },
+        columnStyles: { 
+          5: { cellWidth: 50 }, // Booking Details
+          4: { cellWidth: 40 }  // Address
+        }
+      });
       doc.text("Clients Data Export", 14, 15);
       doc.save("Clients_Export.pdf");
     } catch (err) {
@@ -155,19 +193,31 @@ const ClientList = ({ isEmbedded = false }) => {
     }
   };
 
+
+
   const handleExportExcel = () => {
-    const data = clients.map(client => ({
-      'ID': `C-${String(client.id).padStart(4, '0')}`,
-      'First Name': client.first_name,
-      'Last Name': client.last_name,
-      'Email': client.email,
-      'Phone': client.phone || '',
-      'Type': client.type || '',
-      'Travelers': client.passengers_count || 0,
-      'Lifetime Spend': Number(client.bookings_sum_total_amount || 0),
-      'Created By': client.creator?.name || 'Unknown',
-      'Created At': new Date(client.created_at).toLocaleDateString()
-    }));
+    const data = clients.map(client => {
+      const booking = client.latestBooking || client.latest_booking;
+      return {
+        'ID': `C-${String(client.id).padStart(4, '0')}`,
+        'Name': `${client.first_name || ''} ${client.last_name || ''}`.trim(),
+        'Email': client.email || '--',
+        'Phone': client.phone || '--',
+        'Type': client.type || 'Standard',
+        'Latest Booking ID': booking?.booking_reference || 'N/A',
+        'Booking Details': booking ? (booking.services || []).map(s => {
+          const type = s.serviceable_type?.split('\\').pop() || 'Service';
+          const name = s.serviceable?.name || s.serviceable?.airline_code || type;
+          const code = s.serviceable?.pnr || s.serviceable?.booking_confirmation || '';
+          return `${type}: ${name}${code ? ' (REF: ' + code + ')' : ''}`;
+        }).join(' | ') : 'No Bookings',
+        'Travelers': client.passengers_count || 0,
+        'Lifetime Spend': `$${Number(client.bookings_sum_total_amount || 0).toLocaleString()}`,
+        'Address': client.address || 'N/A',
+        'Created By': client.creator?.name || 'Admin',
+        'Registration Date': new Date(client.created_at).toLocaleDateString()
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Clients");
@@ -175,7 +225,11 @@ const ClientList = ({ isEmbedded = false }) => {
   };
 
   const handleExportJSON = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(clients, null, 2));
+    const data = clients.map(client => ({
+      ...client,
+      booking_details: client.latestBooking || client.latest_booking
+    }));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
     const dt = document.createElement('a');
     dt.setAttribute("href", dataStr);
     dt.setAttribute("download", "Clients_Export.json");
@@ -184,27 +238,76 @@ const ClientList = ({ isEmbedded = false }) => {
     document.body.removeChild(dt);
   };
 
+
   const renderCategoryDetails = (client) => {
-    if (!client.latestBooking) return <span style={{ color: 'var(--text-muted)' }}>No bookings</span>;
-    const services = Array.isArray(client.latestBooking.services) ? client.latestBooking.services : [];
-    if (services.length === 0) return <span style={{ color: 'var(--text-muted)' }}>Empty Booking</span>;
+    const booking = client.latestBooking || client.latest_booking;
+    if (!booking) return <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>No bookings</span>;
+    const services = Array.isArray(booking.services) ? booking.services : [];
+    const bookingRef = booking.booking_reference || `BK-${booking.id}`;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {services.slice(0, 2).map((srv, idx) => {
-             // Derive type from serviceable_type string — no need to load full model
-             const typeRaw = srv.serviceable_type || '';
-             const type = typeRaw.split('\\').pop() || 'Service';
-             return (
-               <div key={idx} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>
-                 <span style={{ opacity: 0.8, fontWeight: 600 }}>{type}</span>
-               </div>
-             );
-          })}
-          {services.length > 2 && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>+{services.length - 2} more services</span>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Booking ID Tag */}
+          <div style={{ 
+            fontSize: '10px', 
+            fontWeight: 800, 
+            color: 'var(--text-main)', 
+            background: 'var(--bg-input)', 
+            padding: '2px 8px', 
+            borderRadius: '4px', 
+            width: 'fit-content',
+            border: '1px solid var(--border-color)',
+            letterSpacing: '0.5px'
+          }}>
+            {bookingRef}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {services.length === 0 ? (
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Empty Booking</span>
+            ) : services.slice(0, 3).map((srv, idx) => {
+               const typeRaw = srv.serviceable_type || '';
+               const type = typeRaw.split('\\').pop() || 'Service';
+               const data = srv.serviceable || {};
+               
+               // Robust name extraction
+               let name = data.name || data.cruise_name || data.airline_code || data.operator || 'Service';
+               if (type === 'Flight' && data.flight_number) {
+                 name = `${data.airline_code}${data.flight_number}`;
+               }
+               
+               let code = data.pnr || data.booking_confirmation || '';
+
+               return (
+                 <div key={idx} style={{ 
+                   fontSize: '11px', 
+                   background: 'rgba(255,255,255,0.03)', 
+                   padding: '4px 8px', 
+                   borderRadius: '6px', 
+                   border: '1px solid var(--border-color)',
+                   display: 'flex',
+                   flexDirection: 'column',
+                   gap: '2px'
+                 }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                     <span style={{ fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                     <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{type}</span>
+                   </div>
+                   {code && (
+                     <div style={{ fontSize: '10px', color: '#06B68A', fontWeight: 700, fontFamily: 'monospace' }}>
+                       REF: {code}
+                     </div>
+                   )}
+                 </div>
+               );
+            })}
+            {services.length > 3 && <span style={{ fontSize: '10px', color: 'var(--text-muted)', paddingLeft: '4px' }}>+{services.length - 3} more services</span>}
+          </div>
         </div>
     );
   };
+
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', padding: isEmbedded ? '0' : '0' }}>
@@ -265,42 +368,109 @@ const ClientList = ({ isEmbedded = false }) => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '16px', alignItems: 'center' }}>
-          <Input 
-            placeholder="Search by name, email, phone, or ID..." 
-            icon={Search}
-            value={search}
-            onChange={handleSearch}
-            onClear={() => setSearch('')}
-            style={{ marginBottom: 0 }}
-          />
-
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px 12px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', paddingRight: '4px' }}>Date:</span>
-            <div style={{ width: '150px' }}>
-              <Input 
-                type="date"
-                icon={CalendarIcon}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{ marginBottom: 0 }}
-                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
-              />
-            </div>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 2px' }}>-</span>
-            <div style={{ width: '150px' }}>
-              <Input 
-                type="date"
-                icon={CalendarIcon}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{ marginBottom: 0 }}
-                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
-              />
-            </div>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 300px', maxWidth: '400px' }}>
+            <Input 
+              placeholder="Search by name, email, phone, or ID..." 
+              icon={Search}
+              value={search}
+              onChange={handleSearch}
+              onClear={() => setSearch('')}
+              style={{ marginBottom: 0 }}
+            />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '0 1 auto' }}>
+            <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', label: 'All Time' },
+                { id: 'daily', label: 'Daily' },
+                { id: 'yesterday', label: 'Yesterday' },
+                { id: 'weekly', label: 'Weekly' },
+                { id: 'monthly', label: 'Monthly' },
+                { id: 'custom', label: 'Custom Date' },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleQuickFilter(p.id)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: globalPeriod === p.id ? 'var(--bg-card)' : 'transparent',
+                    color: globalPeriod === p.id ? 'var(--text-main)' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: globalPeriod === p.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {globalPeriod === 'custom' && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                <div style={{ width: '150px' }}>
+                  <Input 
+                    type="date" 
+                    icon={CalendarIcon}
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    style={{ marginBottom: 0 }}
+                    inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+                  />
+                </div>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
+                <div style={{ width: '150px' }}>
+                  <Input 
+                    type="date" 
+                    icon={CalendarIcon}
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    style={{ marginBottom: 0 }}
+                    inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)', flexWrap: 'wrap', flex: '0 1 auto' }}>
+            {[
+              { id: '', label: 'All Payments' },
+              { id: 'Charged/Captured', label: 'Captured' },
+              { id: 'Refunded', label: 'Refunded' },
+              { id: 'Chargeback', label: 'Chargeback' },
+            ].map((p) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  const newFilters = { ...filters, charge_status: p.id };
+                  setFilters(newFilters);
+                  fetchClients(search, newFilters);
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: (filters.charge_status || '') === p.id ? 'var(--bg-card)' : 'transparent',
+                  color: (filters.charge_status || '') === p.id ? 'hsl(var(--primary))' : 'var(--text-muted)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: (filters.charge_status || '') === p.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
              <Button variant={showFilters ? 'primary' : 'glass'} icon={Filter} size="md" onClick={() => setShowFilters(!showFilters)}>
               {showFilters ? 'Hide Filters' : 'Filters'}
             </Button>
@@ -314,33 +484,7 @@ const ClientList = ({ isEmbedded = false }) => {
           </div>
         </div>
 
-        {/* Quick Filter Chips */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {[
-            { id: 'all', label: 'All Clients' },
-            { id: 'today', label: 'Registered Today' },
-            { id: 'yesterday', label: 'Registered Yesterday' }
-          ].map(type => (
-            <button 
-              key={type.id}
-              onClick={() => handleQuickFilter(type.id)}
-              style={{ 
-                padding: '6px 16px', 
-                borderRadius: '100px', 
-                background: filterType === type.id ? 'hsl(var(--primary))' : 'var(--bg-card)', 
-                color: filterType === type.id ? 'white' : 'var(--text-muted)',
-                border: '1px solid var(--border-color)',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {type.label}
-            </button>
-          ))}
-        </div>
+
 
         <AnimatePresence>
           {showFilters && (
@@ -393,16 +537,16 @@ const ClientList = ({ isEmbedded = false }) => {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '20%' }}>Client Details</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '18%' }}>Contact</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '10%' }}>Category</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '15%' }}>Client Details</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '22%' }}>Contact & Billing</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '22%' }}>Booking Details</th>
                     <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '8%' }}>Date</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '9%' }}>Amount</th>
+                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '9%' }}>Total Spend</th>
                     <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '9%' }}>Travelers</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '10%' }}>Created By</th>
-                    <th style={{ padding: '16px 20px 16px 12px', textAlign: 'right', width: '16%' }}></th>
+                    <th style={{ padding: '16px 20px 16px 12px', textAlign: 'right', width: '15%' }}></th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {clients?.length > 0 ? clients.map((client, idx) => (
                     <MotionTr 
@@ -437,7 +581,7 @@ const ClientList = ({ isEmbedded = false }) => {
                         </div>
                       </td>
                       <td style={{ padding: '16px 12px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             <Phone size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                             {client.phone || '--'}
@@ -446,31 +590,40 @@ const ClientList = ({ isEmbedded = false }) => {
                             <Mail size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                             {client.email}
                           </div>
+                          {client.address && (
+                            <div style={{ display: 'flex', gap: '6px', fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                               <FileText size={12} style={{ flexShrink: 0, marginTop: '2px' }} />
+                               <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                 {client.address}
+                               </span>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: '16px 12px' }}>
                         {renderCategoryDetails(client)}
                       </td>
                       <td style={{ padding: '16px 12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {client.latestBooking 
-                          ? new Date(client.latestBooking.created_at).toLocaleDateString() 
+                        {(client.latestBooking || client.latest_booking) 
+                          ? new Date((client.latestBooking || client.latest_booking).created_at).toLocaleDateString() 
                           : new Date(client.created_at).toLocaleDateString()}
                       </td>
 
                       <td style={{ padding: '16px 12px' }}>
-                        <div style={{ fontWeight: 700, color: '#06B68A', fontSize: '13px' }}>
-                          ${Number(client.bookings_sum_total_amount || 0).toLocaleString()}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ fontWeight: 800, color: '#06B68A', fontSize: '15px', letterSpacing: '-0.5px' }}>
+                            ${Number(client.bookings_sum_total_amount || 0).toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 600 }}>
+                             By: {client.creator?.name || 'Admin'}
+                          </div>
                         </div>
                       </td>
+
                       <td style={{ padding: '16px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Users size={12} style={{ color: 'var(--text-muted)' }}/>
                           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>{client.passengers_count || 0}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px 12px', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {client.creator?.name || client.agent?.name || '---'}
                         </div>
                       </td>
                       <td style={{ padding: '16px 20px 16px 12px', textAlign: 'right' }}>
@@ -488,6 +641,7 @@ const ClientList = ({ isEmbedded = false }) => {
                           </Button>
                         </div>
                       </td>
+
                     </MotionTr>
                   )) : (
                     <tr>

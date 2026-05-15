@@ -271,24 +271,48 @@ class PaymentAuthService
             throw new \RuntimeException('Charge record not found.');
         }
 
+        // Allow updates even if already collected, but must be Approved
         if ($auth->status !== 'Approved') {
-            throw new \RuntimeException('Only approved authorizations can be marked as charged.');
+            throw new \RuntimeException('This record is not in an approved state and cannot be modified.');
         }
 
+        $oldStatus = $auth->charge_status ?? 'Pending';
+        $newStatus = $data['charge_status'];
 
         $auth->update([
             'collected_at' => $auth->collected_at ?? now(),
             'collected_by' => auth()->id(),
-            'charge_status' => $data['charge_status'],
+            'charge_status' => $newStatus,
             'collection_notes' => $data['collection_notes'] ?? null,
             'collection_reference' => $data['collection_reference'] ?? null,
+            'metadata' => array_merge($auth->metadata ?? [], [
+                'charge_history' => array_merge($auth->metadata['charge_history'] ?? [], [[
+                    'from' => $oldStatus,
+                    'to' => $newStatus,
+                    'updated_at' => now()->toIso8601String(),
+                    'updated_by' => auth()->user()?->name,
+                    'notes' => $data['collection_notes'] ?? null,
+                    'reference' => $data['collection_reference'] ?? null,
+                ]])
+            ])
         ]);
+
+        // Audit Log
+        activity()
+            ->performedOn($auth)
+            ->causedBy(auth()->user())
+            ->withProperties([
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'reference' => $data['collection_reference'] ?? null
+            ])
+            ->log("Payment charge status updated from {$oldStatus} to {$newStatus}");
 
         foreach ($auth->bookings as $booking) {
             $details = $booking->details_json ?? [];
             $details['latest_collection'] = [
                 'payment_auth_id' => $auth->id,
-                'charge_status' => $data['charge_status'],
+                'charge_status' => $newStatus,
                 'authorization_type' => $auth->consent_snapshot['authorization_type']
                     ?? $auth->metadata['authorization_type']
                     ?? 'initial',
@@ -299,14 +323,22 @@ class PaymentAuthService
                 'amount' => (float) $auth->total_amount,
                 'currency' => $auth->currency,
             ];
+            
+            // Sync status to booking if applicable
+            $newBookingStatus = 'Work Pending';
+            if ($newStatus === 'Decline') $newBookingStatus = 'Payment Declined';
+            if ($newStatus === 'Refunded') $newBookingStatus = 'Refunded';
+            if ($newStatus === 'Chargeback') $newBookingStatus = 'Disputed';
+
             $booking->update([
                 'details_json' => $details,
-                'status' => 'Work Pending',
+                'status' => $newBookingStatus,
             ]);
         }
 
         return $this->repository->findByIdForCollection($paymentAuthId);
     }
+
 
     /**
      * Approve a payment authorization with consent logging.

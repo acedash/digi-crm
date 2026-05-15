@@ -210,7 +210,7 @@ const BookingRow = ({
           className="responsive-booking-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1.2fr 1.3fr 0.7fr 0.7fr 2.1fr',
+            gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1.2fr 1.3fr 0.7fr 1.0fr 1.8fr',
             alignItems: 'center',
             padding: window.innerWidth <= 768 ? '20px' : '20px 24px',
             gap: window.innerWidth <= 768 ? '16px' : '24px',

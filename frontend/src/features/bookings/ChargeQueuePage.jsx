@@ -7,6 +7,13 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Toast from '../../components/ui/Toast';
 import sensitiveAuditService from '../../services/sensitiveAuditService';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import ExportDropdown from '../../components/ui/ExportDropdown';
+import { FileSpreadsheet, FileText, FileJson } from 'lucide-react';
+
+
 
 const formatMoney = (amount, currency = 'USD') =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(amount || 0));
@@ -222,7 +229,7 @@ const ChargeQueuePage = () => {
         collection_notes: collectionNotes,
         charge_status: chargeStatus,
       });
-      setToast({ message: 'Marked as charged successfully.', type: 'success' });
+      setToast({ message: 'Marked as updated successfully.', type: 'success' });
       setSelectedRecord(null);
       await loadQueue();
     } catch (error) {
@@ -232,7 +239,58 @@ const ChargeQueuePage = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    const data = queue.map(record => ({
+      'Reference': record.bookings?.[0]?.booking_reference || `AUTH-${record.id}`,
+      'Client': record.client?.name || `${record.client?.first_name} ${record.client?.last_name}`,
+      'Type': (record.consent_snapshot?.authorization_type || record.metadata?.authorization_type || 'initial') === 'initial' ? 'Initial' : 'Change',
+      'Status': record.charge_status || 'Pending',
+      'Amount': `${record.currency} ${record.total_amount}`,
+      'Collection Ref': record.collection_reference || '--',
+      'Processed At': record.collected_at ? new Date(record.collected_at).toLocaleString() : 'N/A',
+      'Notes': record.collection_notes || '--'
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ChargeQueue");
+    XLSX.writeFile(wb, "Charge_Queue_Export.xlsx");
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const tableColumn = ["Reference", "Client", "Type", "Status", "Amount", "Processed At"];
+    const tableRows = queue.map(record => [
+      record.bookings?.[0]?.booking_reference || `AUTH-${record.id}`,
+      record.client?.name || `${record.client?.first_name} ${record.client?.last_name}`,
+      (record.consent_snapshot?.authorization_type || record.metadata?.authorization_type || 'initial') === 'initial' ? 'Initial' : 'Change',
+      record.charge_status || 'Pending',
+      `${record.currency} ${record.total_amount}`,
+      record.collected_at ? new Date(record.collected_at).toLocaleDateString() : 'N/A'
+    ]);
+    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
+    doc.text("Charge Queue Report", 14, 15);
+    doc.save("Charge_Queue_Report.pdf");
+  };
+
+  const handleExportJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(queue, null, 2));
+    const dt = document.createElement('a');
+    dt.setAttribute("href", dataStr);
+    dt.setAttribute("download", "Charge_Queue_Export.json");
+    document.body.appendChild(dt);
+    dt.click();
+    document.body.removeChild(dt);
+  };
+
+  const exportOptions = [
+    { label: 'Export as Excel', icon: FileSpreadsheet, onClick: handleExportExcel },
+    { label: 'Export as PDF', icon: FileText, onClick: handleExportPDF },
+    { label: 'Export as JSON', icon: FileJson, onClick: handleExportJSON },
+  ];
+
+
   return (
+
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
         <div>
@@ -243,9 +301,14 @@ const ChargeQueuePage = () => {
             Manage approved payments pending charge or already collected.
           </p>
         </div>
-        <Button variant="outline" icon={RefreshCw} size="sm" onClick={loadQueue}>
-          Refresh
-        </Button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <ExportDropdown options={exportOptions} />
+          <Button variant="outline" icon={RefreshCw} size="sm" onClick={loadQueue}>
+            Refresh
+          </Button>
+        </div>
+
+
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -372,7 +435,7 @@ const ChargeQueuePage = () => {
               <div 
                 style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: '1.4fr 1.2fr 1.3fr 1fr 0.9fr 2fr', 
+                  gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1.5fr) minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1.5fr)', 
                   gap: '24px', 
                   padding: '12px 0', 
                   borderBottom: '2px solid var(--border-color)',
@@ -391,6 +454,11 @@ const ChargeQueuePage = () => {
                 <div style={{ textAlign: 'right' }}>Actions</div>
               </div>
 
+
+
+
+
+
               {queue.map((record) => {
               const authType = record.consent_snapshot?.authorization_type || record.metadata?.authorization_type || 'initial';
               const booking = record.bookings?.[0];
@@ -401,111 +469,172 @@ const ChargeQueuePage = () => {
               const chargeCards = resolveChargeCards(record);
 
               return (
-                <div
-                  key={record.id}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.4fr 1.2fr 1.3fr 1fr 0.9fr 2fr',
-                    gap: '24px',
-                    padding: '24px 0',
-                    borderBottom: '1px solid var(--border-color)',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '14px' }}>
-                    {booking?.booking_reference || `Authorization #${record.id}`}
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 500 }}>
-                      {clientName}
-                    </div>
-                  </div>
-                  <div style={{ fontWeight: 700, color: authType === 'change_charge' ? '#f59e0b' : '#059669', fontSize: '13px' }}>
-                    {authType === 'change_charge' ? 'Change Charge Approval' : 'Initial Approval By Client'}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13px' }}>
-                      {record.collected_at
-                        ? new Date(record.collected_at).toLocaleString()
-                        : record.approved_at
-                          ? new Date(record.approved_at).toLocaleString()
-                          : 'Pending'}
-                    </div>
-                    {record.collected_by && record.collector?.name && (
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        by {record.collector.name}
+                  <div
+                    key={record.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1.5fr) minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1.5fr)',
+                      gap: '24px',
+
+
+
+
+                      padding: '24px 0',
+                      borderBottom: '1px solid var(--border-color)',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {booking?.booking_reference || `Authorization #${record.id}`}
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {clientName}
                       </div>
-                    )}
-                  </div>
-                  <div style={{ fontSize: '12px' }}>
-                    {record.charge_status ? (
-                      <span style={{ 
-                        padding: '4px 8px', 
-                        borderRadius: '6px', 
-                        background: record.charge_status === 'Charged/Captured' ? 'rgba(22, 163, 74, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                        color: record.charge_status === 'Charged/Captured' ? '#16a34a' : '#ef4444',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        fontSize: '10px',
-                        letterSpacing: '0.05em'
-                      }}>
-                        {record.charge_status}
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>--</span>
-                    )}
-                  </div>
-                  <div style={{ fontWeight: 800, color: '#16a34a', fontSize: '15px' }}>
-                    {formatMoney(record.total_amount, record.currency)}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', flexWrap: 'nowrap', alignItems: 'center' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {chargeCards.length} card{chargeCards.length === 1 ? '' : 's'}
                     </div>
-                    {booking?.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={ArrowRight}
-                        onClick={() => {
-                          sensitiveAuditService.logEvent({
-                            event_type: 'Sensitive Page Opened',
-                            module: 'Consent Proof',
-                            description: 'Opened booking consent proof from charge queue',
-                            details: {
-                              booking_id: booking.id,
-                              authorization_id: record.id,
-                            },
-                          }).catch(() => {});
-                          navigate(`/admin/bookings/${booking.id}/consent-proof`);
-                        }}
-                      >
-                        Proof
-                      </Button>
-                    )}
-                    {record.collected_at ? (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <div style={{ alignSelf: 'center', fontSize: '11px', color: '#16a34a', fontWeight: 700, background: 'rgba(22, 163, 74, 0.1)', padding: '6px 12px', borderRadius: '8px', textTransform: 'uppercase' }}>
-                          Processed
+
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: authType === 'initial' ? '#059669' : '#f59e0b' }}>
+                      {authType === 'initial' ? 'Initial Approval By Client' : 'Change Charge Approval'}
+                    </div>
+
+                    <div style={{ fontSize: '13px', color: 'var(--text-main)' }}>
+                      <div style={{ fontWeight: 700 }}>
+                        {record.collected_at
+                          ? new Date(record.collected_at).toLocaleString()
+                          : record.approved_at
+                            ? new Date(record.approved_at).toLocaleString()
+                            : 'Pending'}
+                      </div>
+                      {(record.collector?.name || record.approved_by_name) && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          by {record.collector?.name || record.approved_by_name}
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openMarkCharged(record)}
-                          style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '8px' }}
+                      )}
+                    </div>
+
+
+                    <div style={{ fontSize: '12px' }}>
+                      {record.charge_status ? (
+                        <span style={{ 
+                          padding: '4px 8px', 
+                          borderRadius: '6px', 
+                          background: record.charge_status === 'Charged/Captured' ? 'rgba(22, 163, 74, 0.1)' : 
+                                      record.charge_status === 'Decline' ? 'rgba(239, 68, 68, 0.1)' :
+                                      record.charge_status === 'Refunded' ? 'rgba(59, 130, 246, 0.1)' :
+                                      record.charge_status === 'Chargeback' ? 'rgba(244, 63, 94, 0.1)' : 'rgba(251, 191, 36, 0.1)',
+                          color: record.charge_status === 'Charged/Captured' ? '#16a34a' : 
+                                 record.charge_status === 'Decline' ? '#ef4444' :
+                                 record.charge_status === 'Refunded' ? '#3b82f6' :
+                                 record.charge_status === 'Chargeback' ? '#f43f5e' : '#fbbf24',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          fontSize: '10px',
+                          letterSpacing: '0.05em'
+                        }}>
+                          {record.charge_status}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>--</span>
+                      )}
+                    </div>
+
+                    <div style={{ fontWeight: 800, color: '#16a34a', fontSize: '15px' }}>
+                      {formatMoney(record.total_amount, record.currency)}
+                    </div>
+
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                      {/* Row 1: Review Group */}
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px', 
+                        padding: '3px', 
+                        background: 'rgba(255,255,255,0.03)', 
+                        borderRadius: '10px',
+                        border: '1px solid var(--border-color)',
+                        width: 'fit-content'
+                      }}>
+                        <div style={{ 
+                          padding: '0 8px', 
+                          fontSize: '9px', 
+                          fontWeight: 800, 
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          borderRight: '1px solid var(--border-color)',
+                          marginRight: '2px'
+                        }}>
+                          {chargeCards.length} {chargeCards.length === 1 ? 'Card' : 'Cards'}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            sensitiveAuditService.logEvent({
+                              event_type: 'Sensitive Page Opened',
+                              module: 'Consent Proof',
+                              description: 'Opened booking consent proof from charge queue',
+                              details: {
+                                booking_id: booking.id,
+                                authorization_id: record.id,
+                              },
+                            }).catch(() => {});
+                            navigate(`/admin/bookings/${booking.id}/consent-proof`);
+                          }}
+                          style={{ height: '26px', padding: '0 8px', fontSize: '10px', fontWeight: 700 }}
                         >
-                          Edit Status
+                          <FileText size={12} style={{ marginRight: '4px', color: 'hsl(var(--primary))' }} />
+                          Consent
                         </Button>
                       </div>
-                    ) : (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        icon={BadgeDollarSign}
-                        onClick={() => openMarkCharged(record)}
-                      >
-                        Mark Charged
-                      </Button>
-                    )}
-                  </div>
+
+                      {/* Row 2: Execution Group */}
+                      <div style={{ width: '100%', maxWidth: '140px' }}>
+                        {record.charge_status ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openMarkCharged(record)}
+                            style={{ 
+                              width: '100%',
+                              height: '34px',
+                              padding: '0 10px',
+                              fontSize: '11px', 
+                              borderRadius: '10px',
+                              borderColor: 'var(--border-color)',
+                              color: 'var(--text-main)',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <RefreshCw size={12} />
+                            Update Status
+                          </Button>
+                        ) : (
+                            <Button
+                            variant="primary"
+                            size="sm"
+                            icon={BadgeDollarSign}
+                            onClick={() => openMarkCharged(record)}
+                            style={{ 
+                              width: '100%', 
+                              height: '34px', 
+                              borderRadius: '10px',
+                              boxShadow: '0 4px 12px rgba(6, 182, 138, 0.2)',
+                              fontSize: '11px',
+                              fontWeight: 800
+                            }}
+                          >
+                            Mark Update
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+
+
                 </div>
               );
             })}
@@ -554,9 +683,9 @@ const ChargeQueuePage = () => {
             padding: '24px',
           }}
         >
-          <div style={{ width: '100%', maxWidth: '520px', background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)' }}>
+          <div style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '10px' }}>
-              {selectedRecord.collected_at ? 'Edit Charge Status' : 'Mark Authorization as Charged'}
+              {selectedRecord.collected_at ? 'Edit Charge Status' : 'Mark Authorization as Updated'}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px' }}>
               Record the collection details for {selectedRecord.bookings?.[0]?.booking_reference || `authorization #${selectedRecord.id}`}.
@@ -666,7 +795,7 @@ const ChargeQueuePage = () => {
                 placeholder="Optional notes about how the charge was processed"
                 style={{
                   width: '100%',
-                  minHeight: '120px',
+                  minHeight: '80px',
                   padding: '14px 16px',
                   borderRadius: '16px',
                   background: 'var(--bg-input)',
@@ -674,9 +803,30 @@ const ChargeQueuePage = () => {
                   color: 'var(--text-main)',
                   outline: 'none',
                   resize: 'vertical',
+                  fontSize: '14px'
                 }}
               />
             </div>
+
+            {/* Audit History Section */}
+            {selectedRecord.metadata?.charge_history?.length > 0 && (
+              <div style={{ marginTop: '20px', padding: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>Status Audit Log</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {selectedRecord.metadata.charge_history.slice().reverse().map((log, idx) => (
+                    <div key={idx} style={{ fontSize: '12px', borderLeft: '2px solid var(--border-color)', paddingLeft: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{log.from} → {log.to}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{new Date(log.updated_at).toLocaleString()}</span>
+                      </div>
+                      <div style={{ color: 'var(--text-muted)' }}>Updated by: {log.updated_by}</div>
+                      {log.notes && <div style={{ marginTop: '4px', fontStyle: 'italic', color: 'var(--text-muted)' }}>"{log.notes}"</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
               <Button variant="ghost" onClick={() => setSelectedRecord(null)}>Cancel</Button>
@@ -686,7 +836,7 @@ const ChargeQueuePage = () => {
                 onClick={submitMarkCharged}
                 isLoading={submittingId === selectedRecord.id}
               >
-                {selectedRecord.collected_at ? 'Update Status' : 'Confirm Charged'}
+                {selectedRecord.collected_at ? 'Update Status' : 'Confirm Update'}
               </Button>
             </div>
           </div>

@@ -31,6 +31,8 @@ import clientService from './clientService';
 import ClientForm from './ClientForm';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import { getStatusStyle } from '../../utils/statusStyles';
+
 
 const ClientProfile = () => {
   const { id } = useParams();
@@ -135,8 +137,9 @@ const ClientProfile = () => {
             New Booking
           </Button>
           {client.bookings?.length > 0 && (
-            <Button variant="glass" icon={Edit} onClick={() => navigate(`${basePath}/bookings/${client.bookings[0].id}/edit`)}>Edit Booking</Button>
+            <Button variant="glass" icon={Edit} onClick={() => navigate(`${basePath}/bookings/${client.bookings[0].id}/edit`, { state: { returnTo: location.pathname } })}>Edit Booking</Button>
           )}
+
           <Button variant="ghost" icon={Trash2} onClick={handleDelete} style={{ color: '#f87171' }}>Delete</Button>
         </div>
       </div>
@@ -330,67 +333,188 @@ const ClientProfile = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {client?.bookings?.length > 0 ? client.bookings.map((booking, idx) => (
-            <div 
-              key={idx} 
-              onClick={() => navigate(`${basePath}/bookings/${booking.id}`)}
-              className="hover-glow"
-              style={{ 
-                padding: '20px 24px', borderRadius: '24px', background: 'var(--bg-app)', border: '1px solid var(--border-color)',
-                display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 140px 120px', alignItems: 'center', cursor: 'pointer', transition: '0.2s'
-              }}
-            >
-              <div>
-                <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main, white)', marginBottom: '4px' }}>{booking.booking_reference}</p>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Booked: {new Date(booking.created_at).toLocaleDateString()}</p>
-              </div>
-              
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {booking.services?.map((s, i) => {
-                  const type = s.serviceable_type.split('\\').pop();
-                  const name = s.serviceable?.name || s.serviceable?.company || s.serviceable?.cruise_name || s.serviceable?.airline || type;
-                  return (
-                    <div key={i} title={name} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))' }}>
-                       {type.includes('Flight') ? <Plane size={16} /> : 
-                        type.includes('Hotel') ? <Hotel size={16} /> : 
-                        type.includes('Car') ? <Car size={16} /> : <Ship size={16} />}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ fontSize: '13px', color: 'var(--text-main, white)' }}>
-                 <Calendar size={14} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
-                 {booking.travel_date ? new Date(booking.travel_date).toLocaleDateString() : 'TBD'}
-                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Departure Date</span>
-              </div>
-
-              <div style={{ 
-                justifySelf: 'start', padding: '6px 16px', borderRadius: '20px', fontSize: '11px', fontWeight: 800,
-                background: booking.status === 'Confirmed' ? 'rgba(34,197,94,0.1)' : 'rgba(251,191,36,0.1)',
-                color: booking.status === 'Confirmed' ? '#4ade80' : '#fbbf24',
-                border: `1px solid ${booking.status === 'Confirmed' ? '#4ade8030' : '#fbbf2430'}`
-              }}>
-                {booking.status}
-              </div>
-
-              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main, white)' }}>
-                  ${parseFloat(booking.total_amount).toLocaleString()}
+          {client?.bookings?.length > 0 ? client.bookings.map((booking, idx) => {
+            const statusStyle = getStatusStyle(booking.status);
+            const StatusIcon = statusStyle.icon;
+            return (
+              <div 
+                key={idx} 
+                onClick={() => navigate(`${basePath}/bookings/${booking.id}`)}
+                className="hover-glow"
+                style={{ 
+                  padding: '24px 32px', 
+                  borderRadius: '24px', 
+                  background: 'rgba(255, 255, 255, 0.02)', 
+                  border: '1px solid var(--border-color)',
+                  display: 'grid', 
+                  gridTemplateColumns: '0.8fr 0.7fr 0.8fr 380px 120px', 
+                  gap: '24px', 
+                  alignItems: 'center', 
+                  cursor: 'pointer', 
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '10px', color: 'hsl(var(--primary))', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Reference</span>
+                    <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, var(--border-color), transparent)' }}></div>
+                  </div>
+                  <p style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main, white)', letterSpacing: '-0.5px' }}>{booking.booking_reference}</p>
+                  
+                  {/* Primary Service Detail */}
+                  {booking.services?.[0] && (
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: 'hsl(var(--primary))', marginTop: '4px' }}>
+                      {booking.services[0].serviceable?.name || booking.services[0].serviceable?.company || booking.services[0].serviceable?.cruise_name || booking.services[0].serviceable?.airline}
+                    </p>
+                  )}
+                  
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Calendar size={12} style={{ opacity: 0.6 }} />
+                    Booked on {new Date(booking.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
                 </div>
-                <Button 
-                  variant="glass" 
-                  size="sm" 
-                  icon={Edit} 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/bookings/${booking.id}/edit`);
-                  }}
-                  style={{ padding: '8px' }}
-                />
+                
+                <div>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Inclusions</p>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    {booking.services?.map((s, i) => {
+                      const type = s.serviceable_type.split('\\').pop();
+                      const name = s.serviceable?.name || s.serviceable?.company || s.serviceable?.cruise_name || s.serviceable?.airline || type;
+                      return (
+                        <div key={i} title={name} style={{ 
+                          width: '38px', height: '38px', borderRadius: '12px', 
+                          background: 'rgba(255,255,255,0.03)', display: 'flex', 
+                          alignItems: 'center', justifyContent: 'center', 
+                          color: 'hsl(var(--primary))', border: '1px solid rgba(255,255,255,0.05)',
+                          transition: '0.2s'
+                        }}>
+                           {type.includes('Flight') ? <Plane size={18} /> : 
+                            type.includes('Hotel') ? <Hotel size={18} /> : 
+                            type.includes('Car') ? <Car size={18} /> : <Ship size={18} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Departure</p>
+                  <div style={{ fontSize: '15px', color: 'var(--text-main, white)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'hsl(var(--primary))', boxShadow: '0 0 10px hsl(var(--primary))' }}></div>
+                     {booking.travel_date ? new Date(booking.travel_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'TBD'}
+                  </div>
+                   {booking.agent && (
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+
+                      Agent: <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{booking.agent.name}</span>
+                    </p>
+                  )}
+                </div>
+
+
+                <div style={{ minWidth: '380px' }}>
+
+                  {(() => {
+                    const auths = booking.paymentAuthorizations || booking.payment_authorizations || [];
+                    const latestAuth = [...auths].sort((a, b) => b.id - a.id).find(a => a.charge_status);
+                    
+                    let bookingDisplay = booking.status;
+                    if (booking.status === 'Approved') bookingDisplay = 'Approved By Client';
+                    if (booking.status === 'Confirmed') bookingDisplay = 'Pending For Charge';
+
+                    const bookingStyle = getStatusStyle(booking.status);
+                    const BookingIcon = bookingStyle.icon;
+
+                    let chargeBadge = null;
+                    if (latestAuth) {
+                      let chargeDisplay = latestAuth.charge_status;
+                      if (chargeDisplay === 'Decline') chargeDisplay = 'Declined';
+                      const chargeDate = latestAuth.updated_at || latestAuth.collected_at;
+                      const dateLabel = chargeDate ? ` on ${new Date(chargeDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : '';
+                      
+                      const chargeStyle = getStatusStyle(latestAuth.charge_status);
+                      const ChargeIcon = chargeStyle.icon;
+
+                      chargeBadge = (
+                        <div style={{ 
+                          display: 'inline-flex', alignItems: 'center', gap: '8px',
+                          padding: '6px 12px', borderRadius: '10px', fontSize: '10px', fontWeight: 800,
+                          background: chargeStyle.bg, color: chargeStyle.text, border: `1px solid ${chargeStyle.border}`,
+                          textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap', flexShrink: 0
+                        }}>
+                          <ChargeIcon size={10} strokeWidth={3} />
+                          {chargeDisplay}{dateLabel}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                        <div style={{ 
+                          display: 'inline-flex', alignItems: 'center', gap: '8px',
+                          padding: '6px 12px', borderRadius: '10px', fontSize: '10px', fontWeight: 800,
+                          background: bookingStyle.bg, color: bookingStyle.text, border: `1px solid ${bookingStyle.border}`,
+                          textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap', flexShrink: 0
+                        }}>
+                          <BookingIcon size={10} strokeWidth={3} />
+                          {bookingDisplay}
+                        </div>
+                        {chargeBadge}
+                      </div>
+                    );
+                  })()}
+
+                </div>
+
+
+
+
+                <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
+                  <div style={{ textAlign: 'right', marginRight: '8px' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1px' }}>Total Amount</p>
+                    <p style={{ fontSize: '22px', fontWeight: 900, color: 'var(--text-main, white)', letterSpacing: '-1px' }}>
+                      ${parseFloat(booking.total_amount).toLocaleString()}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Button 
+                      variant="glass" 
+                      size="sm" 
+                      icon={Eye} 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`${basePath}/bookings/${booking.id}`);
+                      }}
+                      style={{ 
+                        width: '40px', height: '40px', padding: '0', 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        borderRadius: '12px', background: 'rgba(255,255,255,0.05)'
+                      }}
+                    />
+                    <Button 
+                      variant="glass" 
+                      size="sm" 
+                      icon={Edit} 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`${basePath}/bookings/${booking.id}/edit`, { state: { returnTo: location.pathname } });
+                      }}
+                      style={{ 
+                        width: '40px', height: '40px', padding: '0', 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        borderRadius: '12px', background: 'rgba(255,255,255,0.05)'
+                      }}
+                    />
+                  </div>
+                </div>
+
               </div>
-            </div>
-          )) : (
+            );
+          }) : (
+
+
             <div style={{ textAlign: 'center', padding: '64px', opacity: 0.5 }}>
               <Briefcase size={48} style={{ margin: '0 auto 16px' }} />
               <p>No trip records found for this client.</p>

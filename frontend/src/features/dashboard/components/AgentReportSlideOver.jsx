@@ -239,14 +239,42 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
   };
 
   const periods = [
-    { id: 'daily', label: 'Day' },
-    { id: 'weekly', label: 'Week' },
-    { id: 'monthly', label: 'Month' },
     { id: 'all', label: 'All Time' },
-    { id: 'custom', label: 'Custom' }
+    { id: 'daily', label: 'Daily' },
+    { id: 'yesterday', label: 'Yesterday' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'custom', label: 'Custom Date' }
   ];
 
   if (!isOpen) return null;
+
+  const handlePeriodChange = (pId) => {
+    const today = new Date().toISOString().split('T')[0];
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
+    const weeklyDate = new Date();
+    weeklyDate.setDate(weeklyDate.getDate() - 7);
+    const lastWeek = weeklyDate.toISOString().split('T')[0];
+    const monthlyDate = new Date();
+    monthlyDate.setMonth(monthlyDate.getMonth() - 1);
+    const lastMonth = monthlyDate.toISOString().split('T')[0];
+
+    let start = '';
+    let end = '';
+
+    if (pId === 'daily') { start = today; end = today; }
+    else if (pId === 'yesterday') { start = yesterday; end = yesterday; }
+    else if (pId === 'weekly') { start = lastWeek; end = today; }
+    else if (pId === 'monthly') { start = lastMonth; end = today; }
+    else if (pId === 'all') { start = ''; end = ''; }
+    else if (pId === 'custom') { start = today; end = today; }
+
+    setReportPeriod(pId);
+    setReportStart(start);
+    setReportEnd(end);
+  };
 
   return (
     <AnimatePresence>
@@ -267,7 +295,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
           style={{ 
             position: 'relative', 
             width: '100%', 
-            maxWidth: '600px', 
+            maxWidth: '650px', 
             height: '100%', 
             background: 'var(--bg-app)', 
             borderLeft: '1px solid var(--border-color)',
@@ -278,11 +306,11 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
         >
            {/* Header */}
           <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{ 
-                    background: 'rgba(96, 165, 250, 0.1)', 
+                    background: 'rgba(6, 182, 138, 0.1)', 
                     color: '#06B68A', 
                     padding: '2px 8px', 
                     borderRadius: '6px', 
@@ -291,7 +319,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                     textTransform: 'uppercase' 
                   }}>Agent Analytics</span>
                 </div>
-                <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-1px' }}>
+                <h2 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-1px' }}>
                   {loading ? 'Crunching numbers...' : data?.agent?.name}
                 </h2>
               </div>
@@ -316,30 +344,32 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
               </div>
             </div>
 
-            {/* Filter Row inside Slideover */}
-            <div className="hide-on-print" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+            {/* Premium Filter Bar */}
+            <div className="hide-on-print" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ 
                 display: 'flex', 
-                background: 'var(--bg-app)', 
-                padding: '3px', 
-                borderRadius: '8px', 
+                gap: '4px',
+                background: 'var(--bg-input)', 
+                padding: '4px', 
+                borderRadius: '12px', 
                 border: '1px solid var(--border-color)',
-                gap: '2px'
+                width: 'fit-content'
               }}>
                 {periods.map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => setReportPeriod(p.id)}
+                    onClick={() => handlePeriodChange(p.id)}
                     style={{
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      fontSize: '10px',
-                      fontWeight: 700,
+                      padding: '6px 14px',
+                      borderRadius: '8px',
                       border: 'none',
+                      background: reportPeriod === p.id ? 'var(--bg-card)' : 'transparent',
+                      color: reportPeriod === p.id ? 'var(--text-main)' : 'var(--text-muted)',
+                      fontSize: '12px',
+                      fontWeight: 700,
                       cursor: 'pointer',
                       transition: 'all 0.2s',
-                      background: reportPeriod === p.id ? 'hsl(var(--primary))' : 'transparent',
-                      color: reportPeriod === p.id ? 'white' : 'var(--text-muted)',
+                      boxShadow: reportPeriod === p.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
                     }}
                   >
                     {p.label}
@@ -348,26 +378,36 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
               </div>
 
               {reportPeriod === 'custom' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ width: '140px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '8px', 
+                  alignItems: 'center', 
+                  background: 'var(--bg-card)', 
+                  padding: '6px', 
+                  borderRadius: '16px', 
+                  border: '1px solid var(--border-color)', 
+                  width: 'fit-content',
+                  animation: 'fadeIn 0.3s ease' 
+                }}>
+                  <div style={{ width: '150px' }}>
                     <Input 
                       type="date" 
                       icon={CalendarIcon}
                       value={reportStart || ''} 
                       onChange={(e) => setReportStart(e.target.value)}
                       style={{ marginBottom: 0 }}
-                      inputStyle={{ padding: '6px 10px', paddingLeft: '36px', fontSize: '11px', background: 'var(--bg-input)', borderRadius: '8px', minHeight: 'auto', height: '32px' }}
+                      inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
                     />
                   </div>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 2px', fontSize: '12px' }}>to</span>
-                  <div style={{ width: '140px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px', fontSize: '13px' }}>to</span>
+                  <div style={{ width: '150px' }}>
                     <Input 
                       type="date" 
                       icon={CalendarIcon}
                       value={reportEnd || ''} 
                       onChange={(e) => setReportEnd(e.target.value)}
                       style={{ marginBottom: 0 }}
-                      inputStyle={{ padding: '6px 10px', paddingLeft: '36px', fontSize: '11px', background: 'var(--bg-input)', borderRadius: '8px', minHeight: 'auto', height: '32px' }}
+                      inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
                     />
                   </div>
                 </div>

@@ -73,6 +73,13 @@ class BookingService
             $baseStatsQuery->where('agent_id', auth()->id());
         }
 
+        if (isset($params['charge_status']) && $params['charge_status']) {
+            $baseStatsQuery->whereHas('paymentAuthorizations', function($q) use ($params) {
+                $q->where('charge_status', $params['charge_status']);
+            });
+        }
+
+
         // Cache the stats based on filters (but not the 'view' filter itself, as stats should be global)
         $statsCacheKey = 'booking_stats.v4.' . auth()->id() . '.' . md5(json_encode([
             $search,
@@ -113,7 +120,8 @@ class BookingService
                 'creator:id,name,user_custom_id',
                 'services:id,booking_id,serviceable_type,serviceable_id',
                 'services.serviceable',
-                'paymentAuthorizations:id,token,status,metadata,collected_at,approved_at,total_amount,currency',
+                'paymentAuthorizations:id,token,status,charge_status,metadata,collected_at,approved_at,updated_at,total_amount,currency',
+
 
 
             ])
@@ -153,6 +161,13 @@ class BookingService
         } else {
             $query->where('agent_id', auth()->id());
         }
+
+        if (isset($params['charge_status']) && $params['charge_status']) {
+            $query->whereHas('paymentAuthorizations', function($q) use ($params) {
+                $q->where('charge_status', $params['charge_status']);
+            });
+        }
+
 
         $results = $query->paginate($perPage);
         $paginatedData = $this->transformBookingListPaginator($results);

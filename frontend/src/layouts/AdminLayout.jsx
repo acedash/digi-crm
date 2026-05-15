@@ -241,10 +241,13 @@ const AdminLayout = () => {
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
-            borderRadius: '12px',
+            borderRadius: '50%',
             overflow: 'hidden',
             flexShrink: 0
           }}>
+
+
+
             <img 
               src="/digi-logo.jpeg" 
               alt="DC" 
@@ -255,7 +258,7 @@ const AdminLayout = () => {
               }} 
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, justifyContent: 'center' }}>
             <span style={{ 
               fontSize: '18px', 
               fontWeight: 800, 
@@ -267,17 +270,8 @@ const AdminLayout = () => {
             }}>
               Digi <span style={{ color: 'hsl(var(--primary))' }}>CRM</span>
             </span>
-            <span style={{ 
-              fontSize: '10px', 
-              fontWeight: 600, 
-              color: 'var(--text-muted)', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.5px',
-              whiteSpace: 'nowrap'
-            }}>
-              Travel Solution
-            </span>
           </div>
+
           {isMobile && (
             <button 
               onClick={() => setMobileMenuOpen(false)}

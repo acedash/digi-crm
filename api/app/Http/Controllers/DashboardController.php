@@ -17,8 +17,22 @@ class DashboardController extends Controller
     public function getStats(Request $request)
     {
         $user = $request->user();
+        $mode = $request->get('mode');
         
-        // Safer role check
+        // If explicit mode requested, respect it (if allowed)
+        if ($mode === 'personal' || $mode === 'agent') {
+            return $this->getAgentStats($user);
+        }
+        
+        if ($mode === 'supervisor' || $mode === 'team') {
+            return $this->getSupervisorStats($user);
+        }
+
+        if ($mode === 'admin' && $user->hasRole('admin')) {
+            return $this->getAdminStats($request);
+        }
+
+        // Default role-based detection
         if ($user->hasRole('admin')) {
             return $this->getAdminStats($request);
         } elseif ($user->hasRole('supervisor')) {
@@ -92,17 +106,19 @@ class DashboardController extends Controller
                     break;
             }
 
-            $getTrend = function ($table, $cStart, $cEnd, $pStart, $pEnd, $valueCol = null) {
-                // Single query using CASE WHEN instead of 2 separate queries
+            $getTrend = function ($table, $cStart, $cEnd, $pStart, $pEnd, $valueCol = null, $statusCol = null, $statusVal = null) {
                 $selectRaw = $valueCol
                     ? "SUM(CASE WHEN created_at BETWEEN ? AND ? THEN {$valueCol} ELSE 0 END) as current_val,
                        SUM(CASE WHEN created_at BETWEEN ? AND ? THEN {$valueCol} ELSE 0 END) as prev_val"
                     : "SUM(CASE WHEN created_at BETWEEN ? AND ? THEN 1 ELSE 0 END) as current_val,
                        SUM(CASE WHEN created_at BETWEEN ? AND ? THEN 1 ELSE 0 END) as prev_val";
 
-                $row = DB::table($table)
-                    ->selectRaw($selectRaw, [$cStart, $cEnd, $pStart, $pEnd])
-                    ->first();
+                $query = DB::table($table);
+                if ($statusCol && $statusVal) {
+                    $query->where($statusCol, $statusVal);
+                }
+
+                $row = $query->selectRaw($selectRaw, [$cStart, $cEnd, $pStart, $pEnd])->first();
 
                 $current = $valueCol ? (float) ($row->current_val ?? 0) : (int) ($row->current_val ?? 0);
                 $previous = $valueCol ? (float) ($row->prev_val ?? 0) : (int) ($row->prev_val ?? 0);
@@ -114,11 +130,24 @@ class DashboardController extends Controller
                 return ['current' => $current, 'previous' => $previous, 'growth' => $growth];
             };
 
-            $bookingRevenueTrend = $getTrend('bookings', $currentStart, $currentEnd, $prevStart, $prevEnd, 'total_amount');
             $bookingCountTrend   = $getTrend('bookings', $currentStart, $currentEnd, $prevStart, $prevEnd, null);
             $clientTrend         = $getTrend('clients',  $currentStart, $currentEnd, $prevStart, $prevEnd, null);
             $callTrend           = $getTrend('call_logs', $currentStart, $currentEnd, $prevStart, $prevEnd, null);
             $staffTrend          = $getTrend('users',    $currentStart, $currentEnd, $prevStart, $prevEnd, null);
+            
+            // Refunded, Chargeback, Amount Charged Trends
+            $refundedTrend   = $getTrend('payment_authorizations', $currentStart, $currentEnd, $prevStart, $prevEnd, 'total_amount', 'charge_status', 'Refunded');
+            $chargebackTrend = $getTrend('payment_authorizations', $currentStart, $currentEnd, $prevStart, $prevEnd, 'total_amount', 'charge_status', 'Chargeback');
+            $chargedTrend    = $getTrend('payment_authorizations', $currentStart, $currentEnd, $prevStart, $prevEnd, 'total_amount', 'charge_status', 'Charged/Captured');
+
+            // Calculate Net Revenue Trend
+            $netCurrent = $chargedTrend['current'] - $refundedTrend['current'] - $chargebackTrend['current'];
+            $netPrevious = $chargedTrend['previous'] - $refundedTrend['previous'] - $chargebackTrend['previous'];
+            $netGrowth = $netPrevious > 0
+                ? round((($netCurrent - $netPrevious) / $netPrevious) * 100, 1)
+                : ($netCurrent > 0 ? 100.0 : 0.0);
+            
+            $netRevenueTrend = ['current' => $netCurrent, 'previous' => $netPrevious, 'growth' => $netGrowth];
 
             // Optimization: select only needed columns and eager load efficiently
             $recentBookings = Booking::query()
@@ -150,6 +179,9 @@ class DashboardController extends Controller
                     (SELECT COUNT(*) FROM bookings) as total_bookings,
                     (SELECT COUNT(*) FROM call_logs WHERE log_scope = 'booking') as total_calls,
                     (SELECT COUNT(*) FROM bookings WHERE status = 'Pending') as pending_approvals,
+                    (SELECT SUM(total_amount) FROM payment_authorizations WHERE charge_status = 'Refunded') as total_refunded_amount,
+                    (SELECT SUM(total_amount) FROM payment_authorizations WHERE charge_status = 'Chargeback') as total_chargeback_amount,
+                    (SELECT SUM(total_amount) FROM payment_authorizations WHERE charge_status = 'Charged/Captured') as total_charged_amount,
                     (SELECT COUNT(*) FROM payment_authorizations pa
                         WHERE pa.status = 'Approved' AND pa.collected_at IS NULL
                         AND EXISTS (SELECT 1 FROM booking_payment_auth bpa WHERE bpa.payment_auth_id = pa.id)
@@ -171,9 +203,10 @@ class DashboardController extends Controller
             $revenueTrendStart = now()->subMonths(12)->startOfMonth()->toDateTimeString();
             $trendStart = now()->subMonths(6)->startOfMonth()->toDateTimeString();
 
-            $revenueTrends = Booking::query()
+            $revenueTrends = PaymentAuth::query()
                 ->select(
-                    DB::raw('SUM(total_amount) as amount'),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN total_amount ELSE 0 END) - 
+                             SUM(CASE WHEN charge_status IN ('Refunded', 'Chargeback') THEN total_amount ELSE 0 END) as amount"),
                     DB::raw("$monthFormat as month_num"),
                     DB::raw("$yearFormat as year_num")
                 )
@@ -220,9 +253,29 @@ class DashboardController extends Controller
                     'growth' => $callTrend['growth']
                 ],
                 'revenue' => [
-                    'daily' => (float) PaymentAuth::whereNotNull('collected_at')->whereDate('collected_at', now()->toDateString())->sum('total_amount'),
-                    'period_total' => $bookingRevenueTrend['current'],
-                    'growth' => $bookingRevenueTrend['growth']
+                    'daily' => (float) PaymentAuth::query()
+                        ->selectRaw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN total_amount ELSE 0 END) - 
+                                     SUM(CASE WHEN charge_status IN ('Refunded', 'Chargeback') THEN total_amount ELSE 0 END) as net")
+                        ->whereNotNull('collected_at')
+                        ->whereDate('collected_at', now()->toDateString())
+                        ->value('net'),
+                    'period_total' => $netRevenueTrend['current'],
+                    'growth' => $netRevenueTrend['growth'],
+                    'charged' => [
+                        'total' => (float) $globalCounts->total_charged_amount,
+                        'period_total' => $chargedTrend['current'],
+                        'growth' => $chargedTrend['growth']
+                    ],
+                    'refunded' => [
+                        'total' => (float) $globalCounts->total_refunded_amount,
+                        'period_total' => $refundedTrend['current'],
+                        'growth' => $refundedTrend['growth']
+                    ],
+                    'chargeback' => [
+                        'total' => (float) $globalCounts->total_chargeback_amount,
+                        'period_total' => $chargebackTrend['current'],
+                        'growth' => $chargebackTrend['growth']
+                    ]
                 ],
                 'pending_approvals' => $pendingApprovals,
                 'ready_to_charge' => $readyToCharge,
@@ -405,58 +458,107 @@ class DashboardController extends Controller
                 ->distinct('clients.id')
                 ->count('clients.id');
 
+            // Team Specific Charged/Refunded/Chargeback
+            $paymentStats = PaymentAuth::query()
+                ->whereExists(function($query) use ($teamIds) {
+                    $query->select(DB::raw(1))
+                        ->from('booking_payment_auth')
+                        ->join('bookings', 'bookings.id', '=', 'booking_payment_auth.booking_id')
+                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id')
+                        ->whereIn('bookings.agent_id', $teamIds);
+                })
+                ->select(
+                    DB::raw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN total_amount ELSE 0 END) as charged"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Refunded' THEN total_amount ELSE 0 END) as refunded"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Chargeback' THEN total_amount ELSE 0 END) as chargeback")
+                )
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->first();
+
+            $netRevenue = ($paymentStats->charged ?? 0) - ($paymentStats->refunded ?? 0) - ($paymentStats->chargeback ?? 0);
+
+            $revenueTrends = PaymentAuth::query()
+                ->whereExists(function($query) use ($teamIds) {
+                    $query->select(DB::raw(1))
+                        ->from('booking_payment_auth')
+                        ->join('bookings', 'bookings.id', '=', 'booking_payment_auth.booking_id')
+                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id')
+                        ->whereIn('bookings.agent_id', $teamIds);
+                })
+                ->select(
+                    DB::raw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN total_amount ELSE 0 END) - 
+                             SUM(CASE WHEN charge_status IN ('Refunded', 'Chargeback') THEN total_amount ELSE 0 END) as amount"),
+                    DB::raw("$monthFormat as month_num"),
+                    DB::raw("$yearFormat as year_num")
+                )
+                ->where('created_at', '>=', $trendStart)
+                ->groupBy('year_num', 'month_num')
+                ->orderBy('year_num', 'asc')
+                ->orderBy('month_num', 'asc')
+                ->get()
+                ->map(function ($item) {
+                    $monthName = date("M", mktime(0, 0, 0, (int)$item->month_num, 1));
+                    return ['name' => $monthName, 'revenue' => (float)$item->amount];
+                });
+
             return [
-                'total_clients' => $totalClients,
-                'daily_revenue' => (float) ($teamKpi['total_revenue'] ?? 0),
-                'period_bookings' => (int) ($teamKpi['total_count'] ?? 0),
-                'inquiry_tags' => $inquiryTags,
-                'status_breakdown' => $statusBreakdown,
-                'revenue_trends' => $revenueTrends,
-                'booking_status_trends' => $this->getStatusTrends($teamIds, $trendStart, $monthFormat, $yearFormat),
-                'agent_performance' => $agents->map(function ($agent) use ($agentStats, $callStats, $agentInquiryDetails, $loginActivities, $tz) {
-                    $stats = $agentStats->get($agent->id);
-                    $calls = $callStats->get($agent->id);
-                    
-                    $inqDetails = $agentInquiryDetails->get($agent->id, collect())->map(function($item) {
+                    'total_clients' => $totalClients,
+                    'daily_revenue' => (float) $netRevenue,
+                    'daily_charged' => (float) ($paymentStats->charged ?? 0),
+                    'period_bookings' => (int) ($teamKpi['total_count'] ?? 0),
+                    'revenue' => [
+                        'charged' => (float) ($paymentStats->charged ?? 0),
+                        'refunded' => (float) ($paymentStats->refunded ?? 0),
+                        'chargeback' => (float) ($paymentStats->chargeback ?? 0)
+                    ],
+                    'inquiry_tags' => $inquiryTags,
+                    'status_breakdown' => $statusBreakdown,
+                    'revenue_trends' => $revenueTrends,
+                    'booking_status_trends' => $this->getStatusTrends($teamIds, $trendStart, $monthFormat, $yearFormat),
+                    'agent_performance' => $agents->map(function ($agent) use ($agentStats, $callStats, $agentInquiryDetails, $loginActivities, $tz) {
+                        $stats = $agentStats->get($agent->id);
+                        $calls = $callStats->get($agent->id);
+                        
+                        $inqDetails = $agentInquiryDetails->get($agent->id, collect())->map(function($item) {
+                            return [
+                                'tag' => $item->airline_inquiry,
+                                'count' => $item->count
+                            ];
+                        })->values();
+
+                        $login = $loginActivities->get($agent->id, collect())->first();
+                        $loginTime = $login ? $login->created_at->timezone($tz)->format('h:i A') : '--';
+
                         return [
-                            'tag' => $item->airline_inquiry,
-                            'count' => $item->count
+                            'id' => $agent->id,
+                            'name' => $agent->name,
+                            'email' => $agent->email,
+                            'status' => $agent->status,
+                            'bookings_count' => (int) ($stats->bookings_count ?? 0),
+                            'calls_count' => (int) ($calls->total_calls ?? 0),
+                            'inquiries_count' => (int) ($calls->total_inquiries ?? 0),
+                            'inquiry_details' => $inqDetails,
+                            'revenue' => (float) ($stats->total_revenue ?? 0),
+                            'login_time' => $loginTime,
                         ];
-                    })->values();
-
-                    $login = $loginActivities->get($agent->id, collect())->first();
-                    $loginTime = $login ? $login->created_at->timezone($tz)->format('h:i A') : '--';
-
-                    return [
-                        'id' => $agent->id,
-                        'name' => $agent->name,
-                        'email' => $agent->email,
-                        'status' => $agent->status,
-                        'bookings_count' => (int) ($stats->bookings_count ?? 0),
-                        'calls_count' => (int) ($calls->total_calls ?? 0),
-                        'inquiries_count' => (int) ($calls->total_inquiries ?? 0),
-                        'inquiry_details' => $inqDetails,
-                        'revenue' => (float) ($stats->total_revenue ?? 0),
-                        'login_time' => $loginTime,
-                    ];
-                })->values(),
-                'recent_bookings' => Booking::query()
-                    ->select(['id', 'booking_reference', 'client_id', 'agent_id', 'status', 'total_amount', 'currency', 'created_at'])
-                    ->with(['client:id,first_name,last_name,name', 'agent:id,name'])
-                    ->whereIn('agent_id', $teamIds)
-                    ->latest('created_at')
-                    ->take(5)
-                    ->get(),
-                'recent_inquiries' => CallLog::query()
-                    ->select(['id', 'agent_id', 'client_id', 'created_at', 'airline_inquiry', 'call_type', 'customer_outcome']) // Avoid heavy 'notes' in summary
-                    ->with(['agent:id,name', 'client:id,name,first_name,last_name'])
-                    ->whereIn('agent_id', $teamIds)
-                    ->where('log_scope', 'booking')
-                    ->latest('created_at')
-                    ->take(5)
-                    ->get(),
-                'period_label' => $period
-            ];
+                    })->values(),
+                    'recent_bookings' => Booking::query()
+                        ->select(['id', 'booking_reference', 'client_id', 'agent_id', 'status', 'total_amount', 'currency', 'created_at'])
+                        ->with(['client:id,first_name,last_name,name', 'agent:id,name'])
+                        ->whereIn('agent_id', $teamIds)
+                        ->latest('created_at')
+                        ->take(5)
+                        ->get(),
+                    'recent_inquiries' => CallLog::query()
+                        ->select(['id', 'agent_id', 'client_id', 'created_at', 'airline_inquiry', 'call_type', 'customer_outcome'])
+                        ->with(['agent:id,name', 'client:id,name,first_name,last_name'])
+                        ->whereIn('agent_id', $teamIds)
+                        ->where('log_scope', 'booking')
+                        ->latest('created_at')
+                        ->take(5)
+                        ->get(),
+                    'period_label' => $period
+                ];
         });
 
         return response()->json([
@@ -467,18 +569,128 @@ class DashboardController extends Controller
 
     private function getAgentStats($user)
     {
-        $cacheKey = 'dashboard.agent.stats.' . $user->id;
+        $request = request();
+        $period = $request->get('period', 'monthly');
+        $customStart = $request->get('start_date');
+        $customEnd = $request->get('end_date');
 
-        $data = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($user) {
-            $dailyRevenue = (float) Booking::where('agent_id', $user->id)
-                ->whereDate('created_at', now()->toDateString())
-                ->sum('total_amount');
+        $cacheKey = 'dashboard.agent.stats.v5.' . $user->id . '.' . $period;
+        if ($period === 'custom') {
+            $cacheKey .= "." . md5($customStart . $customEnd);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($user, $period, $customStart, $customEnd) {
+            $now = now();
+            $startDate = null;
+            $endDate = $now->toDateTimeString();
+
+            switch ($period) {
+                case 'yesterday':
+                    $startDate = $now->copy()->subDay()->startOfDay()->toDateTimeString();
+                    $endDate = $now->copy()->subDay()->endOfDay()->toDateTimeString();
+                    break;
+                case 'all':
+                    $startDate = '2020-01-01 00:00:00';
+                    break;
+                case 'daily':
+                    $startDate = $now->copy()->startOfDay()->toDateTimeString();
+                    break;
+                case 'weekly':
+                    $startDate = $now->copy()->subDays(7)->toDateTimeString();
+                    break;
+                case 'custom':
+                    $startDate = $customStart ? now()->parse($customStart)->startOfDay()->toDateTimeString() : $now->copy()->subDays(30)->toDateTimeString();
+                    $endDate = $customEnd ? now()->parse($customEnd)->endOfDay()->toDateTimeString() : $now->toDateTimeString();
+                    break;
+                case 'monthly':
+                default:
+                    $startDate = $now->copy()->subDays(30)->toDateTimeString();
+                    break;
+            }
+
+            // Booking stats for the period
+            $bookings = Booking::where('agent_id', $user->id)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->selectRaw('COUNT(*) as count, SUM(total_amount) as revenue')
+                ->first();
+
+            // Total across all time
+            $totalBookingsCount = Booking::where('agent_id', $user->id)->count();
+            $totalRevenueAllTime = (float) Booking::where('agent_id', $user->id)->sum('total_amount');
+
+            // Calls and Inquiries
+            $calls = CallLog::where('agent_id', $user->id)
+                ->where('log_scope', 'booking')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->selectRaw('COUNT(*) as total_calls, SUM(CASE WHEN airline_inquiry IS NOT NULL AND airline_inquiry != "" THEN 1 ELSE 0 END) as total_inquiries')
+                ->first();
+
+            // Payment metrics for the period
+            $paymentStats = PaymentAuth::query()
+                ->whereExists(function($query) use ($user) {
+                    $query->select(DB::raw(1))
+                        ->from('booking_payment_auth')
+                        ->join('bookings', 'bookings.id', '=', 'booking_payment_auth.booking_id')
+                        ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id')
+                        ->where('bookings.agent_id', $user->id);
+                })
+                ->select(
+                    DB::raw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN total_amount ELSE 0 END) as charged"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Refunded' THEN total_amount ELSE 0 END) as refunded"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Chargeback' THEN total_amount ELSE 0 END) as chargeback")
+                )
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->first();
+
+            $netRevenue = ($paymentStats->charged ?? 0) - ($paymentStats->refunded ?? 0) - ($paymentStats->chargeback ?? 0);
+
+            // Revenue Trends (Last 6 Months)
+            $isSqlite = config('database.default') === 'sqlite';
+            $monthFormat = $isSqlite ? "strftime('%m', created_at)" : "DATE_FORMAT(created_at, '%m')";
+            $yearFormat = $isSqlite ? "strftime('%Y', created_at)" : "DATE_FORMAT(created_at, '%Y')";
+            $trendStart = now()->subMonths(6)->startOfMonth();
+
+            $revenueTrends = Booking::where('agent_id', $user->id)
+                ->select(
+                    DB::raw('SUM(total_amount) as amount'),
+                    DB::raw("$monthFormat as month_num"),
+                    DB::raw("$yearFormat as year_num")
+                )
+                ->where('created_at', '>=', $trendStart)
+                ->groupBy('year_num', 'month_num')
+                ->orderBy('year_num', 'asc')
+                ->orderBy('month_num', 'asc')
+                ->get()
+                ->map(function ($item) {
+                    $monthName = date("M", mktime(0, 0, 0, (int)$item->month_num, 1));
+                    return ['name' => $monthName, 'revenue' => (float)$item->amount];
+                });
+
+            // Booking Distribution by Status
+            $bookingDistribution = Booking::where('agent_id', $user->id)
+                ->select('status', DB::raw('COUNT(*) as value'))
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupBy('status')
+                ->get()
+                ->map(function ($item) {
+                    return ['name' => $item->status, 'value' => (int)$item->value];
+                });
 
             return [
-                'my_bookings_count' => Booking::where('agent_id', $user->id)->count(),
-                'my_revenue' => (float) Booking::where('agent_id', $user->id)->sum('total_amount'),
-                'daily_revenue' => $dailyRevenue,
-                'my_calls' => CallLog::where('agent_id', $user->id)->where('log_scope', 'booking')->count(),
+                'my_bookings_count' => (int) ($bookings->count ?? 0),
+                'my_revenue' => (float) ($bookings->revenue ?? 0),
+                'total_bookings_all_time' => $totalBookingsCount,
+                'total_revenue_all_time' => $totalRevenueAllTime,
+                'daily_revenue' => (float) $netRevenue, // This is net for the period
+                'revenue' => [
+                    'charged' => (float) ($paymentStats->charged ?? 0),
+                    'refunded' => (float) ($paymentStats->refunded ?? 0),
+                    'chargeback' => (float) ($paymentStats->chargeback ?? 0)
+                ],
+                'revenue_trends' => $revenueTrends,
+                'booking_distribution' => $bookingDistribution,
+                'my_calls' => (int) ($calls->total_calls ?? 0),
+                'my_inquiries' => (int) ($calls->total_inquiries ?? 0),
                 'recent_logs' => CallLog::query()
                     ->select(['id', 'agent_id', 'client_id', 'created_at', 'call_type', 'customer_outcome', 'airline_inquiry', 'notes'])
                     ->where('agent_id', $user->id)
@@ -486,7 +698,15 @@ class DashboardController extends Controller
                     ->latest('created_at')
                     ->take(5)
                     ->get(),
+                'recent_bookings' => Booking::query()
+                    ->select(['id', 'booking_reference', 'client_id', 'agent_id', 'status', 'total_amount', 'currency', 'created_at'])
+                    ->with(['client:id,first_name,last_name,name'])
+                    ->where('agent_id', $user->id)
+                    ->latest('created_at')
+                    ->take(5)
+                    ->get(),
                 'daily_target' => 75,
+                'period_label' => $period
             ];
         });
 
@@ -506,6 +726,8 @@ class DashboardController extends Controller
             })->get();
         } elseif ($user->hasRole('supervisor')) {
             $agents = $user->supervisedAgents()->get();
+            // Include themselves in the list
+            $agents->push($user);
         } else {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
@@ -590,7 +812,11 @@ class DashboardController extends Controller
                     ->orderBy('created_at', 'desc')
                     ->first();
                 
-                $isLoggedInAtStart = $lastActivityBefore && in_array($lastActivityBefore->activity_type, ['login', 'on_call', 'idle', 'break_start']);
+                // STALE SESSION CHECK: If last activity was more than 24 hours before $start, ignore it.
+                // This prevents activity from days ago (like May 6) bleeding into today's (May 15) report.
+                $isStale = $lastActivityBefore && $lastActivityBefore->created_at->diffInHours($start) > 24;
+                
+                $isLoggedInAtStart = $lastActivityBefore && !$isStale && in_array($lastActivityBefore->activity_type, ['login', 'on_call', 'idle', 'break_start']);
                 
                 $sessionStart = null;
                 if ($isLoggedInAtStart) {
@@ -598,7 +824,9 @@ class DashboardController extends Controller
                 }
 
                 $loginActivity = $activities->firstWhere('activity_type', 'login');
+                $logoutActivity = $activities->where('activity_type', 'logout')->last();
                 $loginTime = '--';
+                $logoutTime = '--';
                 
                 if ($loginActivity) {
                     $loginTime = $loginActivity->created_at->timezone($tz)->format('h:i A');
@@ -614,6 +842,10 @@ class DashboardController extends Controller
                     } else {
                         $loginTime = 'Prev. Session';
                     }
+                }
+
+                if ($logoutActivity) {
+                    $logoutTime = $logoutActivity->created_at->timezone($tz)->format('h:i A');
                 }
 
                 $currentSegmentStart = $isLoggedInAtStart ? $start : null;
@@ -654,12 +886,35 @@ class DashboardController extends Controller
 
                 $stats = $bookingStats->get($agent->id);
                 
+                // Determine display status for the period
+                $displayStatus = $agent->status;
+                if ($activities->isEmpty() && !$isLoggedInAtStart) {
+                    $displayStatus = 'Offline';
+                } elseif ($activities->isNotEmpty()) {
+                    // For current day, we can use the latest activity to determine status if it's "live"
+                    $lastAct = $activities->last();
+                    if ($period === 'live' || $period === 'daily') {
+                        $type = $lastAct->activity_type;
+                        if ($type === 'logout') $displayStatus = 'Offline';
+                        elseif ($type === 'break_start') $displayStatus = 'Break';
+                        elseif (in_array($type, ['login', 'break_end', 'idle'])) $displayStatus = 'Active';
+                        elseif ($type === 'on_call') $displayStatus = 'On Call';
+                    } else {
+                        // For historical reports, if they logged out, they are offline. 
+                        // If they never logged out, we'll just keep the recorded status or show offline if it's a past date.
+                        if ($activities->contains('activity_type', 'logout')) {
+                            $displayStatus = 'Offline';
+                        }
+                    }
+                }
+
                 return [
                     'id' => $agent->id,
                     'agent_id' => $agent->id,
                     'agent_name' => $agent->name,
-                    'status' => $agent->status,
+                    'status' => $displayStatus,
                     'login_time' => $loginTime,
+                    'logout_time' => $logoutTime,
                     'calls_picked' => (int) ($callCounts->get($agent->id) ?? 0),
                     'bookings_created' => (int) ($stats->bookings_created ?? 0),
                     'daily_revenue' => (float) ($stats->period_revenue ?? 0),
@@ -731,20 +986,23 @@ class DashboardController extends Controller
 
             // Get supervisor logins
             $supIds = $supervisors->pluck('id')->toArray();
-            $logins = \App\Models\UserActivity::whereIn('user_id', $supIds)
-                ->where('activity_type', 'login')
-                ->whereDate('created_at', now()->toDateString())
+            $activities = \App\Models\UserActivity::whereIn('user_id', $supIds)
+                ->whereIn('activity_type', ['login', 'logout'])
+                ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
                 ->orderBy('created_at', 'asc')
                 ->get()
                 ->groupBy('user_id');
 
-            $supervisorSummary = $supervisors->map(function ($sup) use ($period, $start, $end, $logins, $tz) {
-                // ... (supervisor mapping logic)
+            $supervisorSummary = $supervisors->map(function ($sup) use ($period, $start, $end, $activities, $tz) {
+                $supActivities = $activities->get($sup->id, collect());
+                $login = $supActivities->firstWhere('activity_type', 'login');
+                $logout = $supActivities->where('activity_type', 'logout')->last();
+                
+                $loginTime = $login ? $login->created_at->timezone($tz)->format('h:i A') : '--';
+                $logoutTime = $logout ? $logout->created_at->timezone($tz)->format('h:i A') : '--';
+
                 $agents = $sup->supervisedAgents;
                 $agentIds = $agents->pluck('id')->toArray();
-                
-                $login = $logins->get($sup->id, collect())->first();
-                $loginTime = $login ? $login->created_at->timezone($tz)->format('h:i A') : '--';
 
                 // Calculate Revenue for the team
                 $teamRevenue = Booking::whereIn('agent_id', $agentIds)
@@ -787,6 +1045,7 @@ class DashboardController extends Controller
                     'id' => $sup->id,
                     'supervisor_name' => $sup->name,
                     'login_time' => $loginTime,
+                    'logout_time' => $logoutTime,
                     'total_agents' => $totalAgents,
                     'active_agents' => $active,
                     'on_break' => $onBreak,

@@ -19,10 +19,26 @@ import {
   Phone,
   CheckCircle2,
   CircleDollarSign,
-  Mail
+  Mail,
+  Calendar,
+  PieChart as PieChartIcon
 } from 'lucide-react';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from 'recharts';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import Input from '../../components/ui/Input';
 import activityService from '../activity-tracker/activityService';
 import Toast from '../../components/ui/Toast';
 
@@ -38,27 +54,33 @@ const AgentDashboard = () => {
   const MotionDiv = motion.div;
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [currentStatus, setCurrentStatus] = useState('active');
-  const [activities, setActivities] = useState([]);
-  const [lastActivityTime, setLastActivityTime] = useState(null);
-  const [elapsedStatusTime, setElapsedStatusTime] = useState('00:00:00');
+  const [period, setPeriod] = useState('monthly');
+  const [customRange, setCustomRange] = useState({ start: '', end: '' });
   
   const [baseBreakdown, setBaseBreakdown] = useState({ active: 0, on_call: 0, break: 0, idle: 0 });
   const [liveBreakdown, setLiveBreakdown] = useState({ active: '00:00:00', on_call: '00:00:00', break: '00:00:00', idle: '00:00:00', total: '00:00:00' });
   
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentStatus, setCurrentStatus] = useState('Active');
+  const [lastActivityTime, setLastActivityTime] = useState(null);
+  const [elapsedStatusTime, setElapsedStatusTime] = useState('00:00:00');
+  const [activities, setActivities] = useState([]);
   const [toast, setToast] = useState({ message: '', type: 'success' });
 
   useEffect(() => {
+    if (period === 'custom' && (!customRange.start || !customRange.end)) return;
     fetchStats();
+  }, [period, customRange.start, customRange.end]);
+
+  useEffect(() => {
     fetchStatus();
   }, []);
 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const response = await dashboardService.getStats();
+      const response = await dashboardService.getStats(period, customRange.start, customRange.end, 'agent');
       setStats(response.data.data);
     } catch (e) {
       console.error('Failed to fetch agent stats', e);
@@ -121,6 +143,15 @@ const AgentDashboard = () => {
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? "Good Morning" : currentHour < 18 ? "Good Afternoon" : "Good Evening";
 
+  const periods = [
+    { id: 'all', label: 'All Time' },
+    { id: 'daily', label: 'Daily' },
+    { id: 'yesterday', label: 'Yesterday' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'custom', label: 'Custom Date' },
+  ];
+
   if (loading || !stats) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
@@ -128,6 +159,80 @@ const AgentDashboard = () => {
       </div>
     );
   }
+
+  const renderFilterBar = () => (
+    <div style={{ 
+      display: 'flex', 
+      flexWrap: 'wrap',
+      justifyContent: 'space-between', 
+      alignItems: 'center', 
+      gap: '20px',
+      background: 'var(--bg-card)',
+      padding: '20px 24px',
+      borderRadius: '24px',
+      border: '1px solid var(--border-color)',
+      marginBottom: '8px',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)'
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        gap: '4px', 
+        background: 'var(--bg-input)', 
+        padding: '4px', 
+        borderRadius: '14px', 
+        border: '1px solid var(--border-color)' 
+      }}>
+        {periods.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setPeriod(p.id)}
+            style={{
+              padding: '8px 20px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 700,
+              border: 'none',
+              background: period === p.id ? 'var(--bg-card)' : 'transparent',
+              color: period === p.id ? 'hsl(var(--primary))' : 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: period === p.id ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {period === 'custom' && (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ width: '150px' }}>
+              <Input 
+                type="date" 
+                icon={Calendar}
+                value={customRange.start} 
+                onChange={e => setCustomRange({...customRange, start: e.target.value})}
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px', height: 'auto' }}
+              />
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px', fontSize: '13px' }}>to</span>
+            <div style={{ width: '150px' }}>
+              <Input 
+                type="date" 
+                icon={Calendar}
+                value={customRange.end} 
+                onChange={e => setCustomRange({...customRange, end: e.target.value})}
+                style={{ marginBottom: 0 }}
+                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px', height: 'auto' }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
@@ -193,12 +298,10 @@ const AgentDashboard = () => {
                 {greeting}, <span className="premium-gradient-text">{userName}</span>
               </h1>
               <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '500px', lineHeight: '1.6' }}>
-                You have logged <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.my_bookings_count} bookings</span> totaling <span style={{ color: '#4ade80', fontWeight: 700 }}>${stats.my_revenue.toLocaleString()}</span>, with <span style={{ color: '#06B68A', fontWeight: 700 }}>${Number(stats.daily_revenue || 0).toLocaleString()}</span> booked today.
+                Personal Performance Overview for <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{period === 'all' ? 'All Time' : (period === 'monthly' ? 'this Month' : (period === 'weekly' ? 'this Week' : (period === 'daily' ? 'Today' : 'selected period')))}</span>.
               </p>
             </div>
           </div>
-          
-          {/* Buttons removed as requested */}
         </div>
 
         {/* Decorative elements */}
@@ -210,13 +313,185 @@ const AgentDashboard = () => {
         }} />
       </MotionDiv>
 
+      {renderFilterBar()}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+        <Card title="Net Revenue" icon={CircleDollarSign} subtitle={`Net for ${period}`}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
+            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.daily_revenue || 0)}
+          </div>
+        </Card>
+        <Card title="Collected" icon={CheckCircle2} subtitle={`Total charged in ${period}`}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: '#059669' }}>
+            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.revenue?.charged || 0)}
+          </div>
+        </Card>
+        <Card title="Refunded" icon={TrendingUp} subtitle={`Total refunded in ${period}`}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: '#3b82f6' }}>
+            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.revenue?.refunded || 0)}
+          </div>
+        </Card>
+        <Card title="Chargeback" icon={ShieldCheck} subtitle={`Total chargebacks in ${period}`}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: '#ef4444' }}>
+            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.revenue?.chargeback || 0)}
+          </div>
+        </Card>
+      </div>
+
+      {/* Revenue Tab Section */}
+      <Card style={{ padding: '32px', borderRadius: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CircleDollarSign size={20} color="hsl(var(--primary))" /> Revenue Breakdown
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Detailed financial metrics for selected period</p>
+          </div>
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Net Revenue</p>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#06B68A' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.daily_revenue || 0)}
+            </h4>
+          </div>
+          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Collected</p>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#059669' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.revenue?.charged || 0)}
+            </h4>
+          </div>
+          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Refunded</p>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.revenue?.refunded || 0)}
+            </h4>
+          </div>
+          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Chargeback</p>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#ef4444' }}>
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.revenue?.chargeback || 0)}
+            </h4>
+          </div>
+        </div>
+      </Card>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+        <Card title="Period Bookings" icon={FileText}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.my_bookings_count}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>New bookings this {period}</div>
+        </Card>
+        <Card title="Total Bookings" icon={Compass}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.total_bookings_all_time}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total across all time</div>
+        </Card>
+        <Card title="Total Revenue" icon={CircleDollarSign}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
+            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.total_revenue_all_time || 0)}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Gross across all time</div>
+        </Card>
+      </div>
+
+      {/* Charts Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '32px' }}>
+        <Card title="Revenue Trend" icon={TrendingUp} subtitle="Last 6 months performance">
+          <div style={{ height: '300px', width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stats.revenue_trends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#06B68A" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#06B68A" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 600 }}
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 600 }}
+                  tickFormatter={(value) => `$${value}`}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'var(--bg-card)', 
+                    borderRadius: '12px', 
+                    border: '1px solid var(--border-color)',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                  }}
+                  itemStyle={{ color: '#06B68A', fontWeight: 800 }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#06B68A" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorRev)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card title="Booking Overview" icon={PieChartIcon} subtitle={`Based on ${period} data`}>
+          <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={stats.booking_distribution || []}
+                  cx="50%"
+                  cy="45%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {(stats.booking_distribution || []).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={[
+                      '#06B68A', // Emerald
+                      '#3b82f6', // Blue
+                      '#f59e0b', // Amber
+                      '#ef4444', // Red
+                      '#8b5cf6', // Violet
+                      '#10b981', // Teal
+                      '#ec4899', // Pink
+                    ][index % 7]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'var(--bg-card)', 
+                    borderRadius: '12px', 
+                    border: '1px solid var(--border-color)' 
+                  }}
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  align="center"
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: '11px', fontWeight: 600, paddingTop: '20px' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '32px' }}>
-        <Card title="Activity Log" icon={Clock}>
+        <Card title="Recent Activity" icon={Clock}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {activities.map((activity, idx) => (
               <div key={idx} style={{ 
                 padding: '12px', 
-                background: 'var(--bg-card)', 
+                background: 'var(--bg-input)', 
                 borderRadius: '12px', 
                 border: '1px solid var(--border-color)',
                 display: 'flex',
@@ -239,71 +514,56 @@ const AgentDashboard = () => {
           </div>
         </Card>
         
-      {/* Activity Breakdown Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
-        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid rgba(96, 165, 250, 0.2)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(96, 165, 250, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#06B68A' }}>
-            <CircleDollarSign size={24} />
+        <Card title="Status Breakdown" icon={Clock}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
+            <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active</p>
+              <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#4ade80' }}>{liveBreakdown.active}</h4>
+            </div>
+            <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>On Call</p>
+              <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#facc15' }}>{liveBreakdown.on_call}</h4>
+            </div>
+            <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Break</p>
+              <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#f87171' }}>{liveBreakdown.break}</h4>
+            </div>
+            <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Idle</p>
+              <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#9ca3af' }}>{liveBreakdown.idle}</h4>
+            </div>
           </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Daily Revenue</p>
-            <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#06B68A' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.daily_revenue) || 0)}
-            </h4>
-          </div>
-        </div>
 
-        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--bg-card)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(6, 182, 138, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))' }}>
-            <Clock size={24} />
+          <div style={{ marginTop: '32px' }}>
+            <h4 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '16px', color: 'var(--text-main)' }}>Recent My Bookings</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {(stats.recent_bookings || []).map(book => (
+                <div key={book.id} style={{ 
+                  padding: '14px', 
+                  borderRadius: '16px', 
+                  border: '1px solid var(--border-color)', 
+                  background: 'var(--bg-input)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer'
+                }} onClick={() => navigate(`/agent/bookings/${book.id}`)}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '14px' }}>{book.booking_reference}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{book.client?.name || 'No Client'} • {new Date(book.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 800, color: '#06B68A' }}>${Number(book.total_amount).toLocaleString()}</div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: 'hsl(var(--primary))', marginTop: '4px' }}>{book.status}</div>
+                  </div>
+                </div>
+              ))}
+              {(stats.recent_bookings || []).length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>No bookings found.</p>}
+            </div>
           </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Gross Logged In</p>
-            <h4 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'monospace' }}>{liveBreakdown.total}</h4>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid rgba(74, 222, 128, 0.2)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(74, 222, 128, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80' }}>
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Active Status</p>
-            <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#4ade80', fontFamily: 'monospace' }}>{liveBreakdown.active}</h4>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid rgba(250, 204, 21, 0.2)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(250, 204, 21, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#facc15' }}>
-            <Phone size={24} />
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>On Calls</p>
-            <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#facc15', fontFamily: 'monospace' }}>{liveBreakdown.on_call}</h4>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid rgba(248, 113, 113, 0.2)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(248, 113, 113, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f87171' }}>
-            <Coffee size={24} />
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>On Break</p>
-            <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#f87171', fontFamily: 'monospace' }}>{liveBreakdown.break}</h4>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid rgba(156, 163, 175, 0.2)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(156, 163, 175, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
-            <Clock size={24} />
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Time Idle</p>
-            <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#9ca3af', fontFamily: 'monospace' }}>{liveBreakdown.idle}</h4>
-          </div>
-        </div>
+        </Card>
       </div>
-      </div>
+
       <Toast 
         message={toast.message} 
         type={toast.type} 
