@@ -17,7 +17,8 @@ import {
   Download,
   FileText,
   FileSpreadsheet,
-  FileJson
+  FileJson,
+  Trash2
 } from 'lucide-react';
 import ExportDropdown from '../../components/ui/ExportDropdown';
 import userService from './userService';
@@ -37,12 +38,11 @@ const UserList = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteModal, setDeleteModal] = useState({ open: false, userId: null, userName: '' });
 
   useEffect(() => {
     loadUsers();
   }, []);
-
-
 
   const loadUsers = async () => {
     setLoading(true);
@@ -62,6 +62,18 @@ const UserList = () => {
       loadUsers();
     } catch (error) {
       console.error('Failed to update status', error);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!deleteModal.userId) return;
+    try {
+      await userService.deleteUser(deleteModal.userId);
+      setDeleteModal({ open: false, userId: null, userName: '' });
+      loadUsers();
+    } catch (error) {
+      console.error('Failed to delete user', error);
+      alert('Failed to delete user.');
     }
   };
 
@@ -85,10 +97,7 @@ const UserList = () => {
     const login = user.latest_login?.created_at;
     if (!login) return 'Never';
     return new Date(login).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
   };
 
@@ -360,6 +369,13 @@ const UserList = () => {
                       >
                         {user.is_active ? 'Disable' : 'Enable'}
                       </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        icon={Trash2} 
+                        onClick={() => setDeleteModal({ open: true, userId: user.id, userName: user.name })}
+                        style={{ color: '#ef4444' }}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -375,6 +391,38 @@ const UserList = () => {
           onClose={() => setIsModalOpen(false)} 
           onSuccess={loadUsers} 
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.open && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(2, 6, 23, 0.8)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '24px'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '32px', borderRadius: '24px', textAlign: 'center' }}>
+            <div style={{ 
+              width: '64px', height: '64px', borderRadius: '20px', 
+              background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 24px auto'
+            }}>
+              <Trash2 size={32} />
+            </div>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '12px' }}>Delete Team Member?</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '32px', lineHeight: 1.6 }}>
+              Are you sure you want to delete <strong>{deleteModal.userName}</strong>? This action cannot be undone and will remove all their data from the system.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Button variant="glass" onClick={() => setDeleteModal({ open: false, userId: null, userName: '' })}>
+                Cancel
+              </Button>
+              <Button variant="primary" style={{ background: '#ef4444' }} onClick={handleDeleteMember}>
+                Delete User
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

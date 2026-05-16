@@ -281,6 +281,34 @@ class DashboardController extends Controller
                 'ready_to_charge' => $readyToCharge,
                 'recent_bookings' => $recentBookings,
                 'charge_queue' => $chargeQueue,
+                'recent_charges' => \App\Models\PaymentAuth::query()
+                    ->select(['payment_authorizations.id', 'payment_authorizations.total_amount', 'payment_authorizations.currency',
+                              'payment_authorizations.charge_status', 'payment_authorizations.collected_at',
+                              'payment_authorizations.client_id', 'payment_authorizations.status'])
+                    ->whereExists(function($q) {
+                        $q->select(DB::raw(1))
+                            ->from('booking_payment_auth')
+                            ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
+                    })
+                    ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback'])
+                    ->with([
+                        'client:id,first_name,last_name,name',
+                        'bookings:id,booking_reference'
+                    ])
+                    ->orderByDesc('updated_at')
+                    ->take(5)
+                    ->get()
+                    ->map(fn($pa) => [
+                        'id' => $pa->id,
+                        'amount' => (float) $pa->total_amount,
+                        'currency' => $pa->currency ?? 'USD',
+                        'charge_status' => $pa->charge_status,
+                        'collected_at' => $pa->collected_at,
+                        'client_name' => $pa->client
+                            ? trim(($pa->client->first_name ?? '') . ' ' . ($pa->client->last_name ?? '')) ?: $pa->client->name
+                            : 'Unknown',
+                        'booking_ref' => $pa->bookings->first()?->booking_reference ?? '—',
+                    ]),
                 'revenue_trends' => $revenueTrends,
                 'booking_status_distribution' => $bookingStatusDistribution,
                 'booking_status_trends' => $this->getStatusTrends(null, $trendStart, $monthFormat, $yearFormat),
@@ -353,6 +381,7 @@ class DashboardController extends Controller
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->select('agent_id', 
                     DB::raw('COUNT(*) as total_calls'),
+                    DB::raw('SUM(CASE WHEN customer_outcome != "Call dropped" THEN 1 ELSE 0 END) as total_pickups'),
                     DB::raw('SUM(CASE WHEN airline_inquiry IS NOT NULL AND airline_inquiry != "" THEN 1 ELSE 0 END) as total_inquiries')
                 )
                 ->groupBy('agent_id')
@@ -509,6 +538,8 @@ class DashboardController extends Controller
                     'daily_revenue' => (float) $netRevenue,
                     'daily_charged' => (float) ($paymentStats->charged ?? 0),
                     'period_bookings' => (int) ($teamKpi['total_count'] ?? 0),
+                    'total_calls' => (int) $callStats->sum('total_calls'),
+                    'total_inquiries' => (int) $callStats->sum('total_inquiries'),
                     'revenue' => [
                         'charged' => (float) ($paymentStats->charged ?? 0),
                         'charged_count' => (int) ($paymentStats->charged_count ?? 0),
@@ -563,6 +594,36 @@ class DashboardController extends Controller
                         ->latest('created_at')
                         ->take(5)
                         ->get(),
+                    'recent_charges' => \App\Models\PaymentAuth::query()
+                        ->select(['payment_authorizations.id', 'payment_authorizations.total_amount', 'payment_authorizations.currency',
+                                  'payment_authorizations.charge_status', 'payment_authorizations.collected_at',
+                                  'payment_authorizations.client_id', 'payment_authorizations.status'])
+                        ->whereExists(function($q) use ($teamIds) {
+                            $q->select(DB::raw(1))
+                                ->from('booking_payment_auth')
+                                ->join('bookings', 'bookings.id', '=', 'booking_payment_auth.booking_id')
+                                ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id')
+                                ->whereIn('bookings.agent_id', $teamIds);
+                        })
+                        ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback'])
+                        ->with([
+                            'client:id,first_name,last_name,name',
+                            'bookings:id,booking_reference'
+                        ])
+                        ->orderByDesc('updated_at')
+                        ->take(5)
+                        ->get()
+                        ->map(fn($pa) => [
+                            'id' => $pa->id,
+                            'amount' => (float) $pa->total_amount,
+                            'currency' => $pa->currency ?? 'USD',
+                            'charge_status' => $pa->charge_status,
+                            'collected_at' => $pa->collected_at,
+                            'client_name' => $pa->client
+                                ? trim(($pa->client->first_name ?? '') . ' ' . ($pa->client->last_name ?? '')) ?: $pa->client->name
+                                : 'Unknown',
+                            'booking_ref' => $pa->bookings->first()?->booking_reference ?? '—',
+                        ]),
                     'period_label' => $period
                 ];
         });
@@ -628,7 +689,8 @@ class DashboardController extends Controller
             $calls = CallLog::where('agent_id', $user->id)
                 ->where('log_scope', 'booking')
                 ->whereBetween('created_at', [$startDate, $endDate])
-                ->selectRaw('COUNT(*) as total_calls, SUM(CASE WHEN airline_inquiry IS NOT NULL AND airline_inquiry != "" THEN 1 ELSE 0 END) as total_inquiries')
+                ->selectRaw('COUNT(*) as total_calls, 
+                             SUM(CASE WHEN airline_inquiry IS NOT NULL AND airline_inquiry != "" THEN 1 ELSE 0 END) as total_inquiries')
                 ->first();
 
             // Payment metrics for the period

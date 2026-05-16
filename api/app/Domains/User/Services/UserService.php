@@ -90,6 +90,12 @@ class UserService
         return $user;
     }
 
+    public function deleteUser($id): bool
+    {
+        $user = $this->userRepository->find($id);
+        return $user->delete();
+    }
+
     public function getSupervisors(): Collection
     {
         return $this->userRepository->getSupervisors();

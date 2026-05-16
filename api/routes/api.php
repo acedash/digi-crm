@@ -76,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/admin/settings/mail', [SettingsController::class, 'updateMailSettings']);
         Route::put('/admin/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'update']);
         Route::patch('/admin/users/{user}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus']);
+        Route::delete('/admin/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'destroy']);
         Route::get('/admin/payment-authorizations/charge-queue', [PaymentAuthController::class, 'chargeQueue']);
         Route::post('/admin/payment-authorizations/{paymentAuth}/mark-charged', [PaymentAuthController::class, 'markCharged']);
     });

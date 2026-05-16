@@ -5,6 +5,7 @@ import {
   TrendingUp,
   Award,
   Phone,
+  PhoneCall,
   Plane,
   CircleDollarSign,
   ArrowRightLeft,
@@ -19,7 +20,10 @@ import {
   ShieldAlert,
   User,
   ClipboardList,
-  LayoutDashboard
+  LayoutDashboard,
+  ReceiptText,
+  ArrowDownLeft,
+  AlertTriangle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -302,55 +306,6 @@ const SupervisorDashboard = () => {
 
       {/* Top row of summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
-        <Card title="Net Revenue" icon={CircleDollarSign} subtitle={`Net for ${period}`}>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.daily_revenue || 0)}
-            </span>
-            <Trend value={stats?.revenue_growth} />
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 600 }}>Captured − Refunded − Chargeback</div>
-        </Card>
-
-        <Card title="Captured" icon={CheckCircle2} subtitle={`Charged in ${period}`}>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ fontSize: '28px', fontWeight: 800, color: '#059669' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.charged || 0)}
-            </span>
-          </div>
-          <div style={{ marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(5, 150, 105, 0.12)', color: '#059669', padding: '2px 8px', borderRadius: '20px' }}>
-              {stats?.revenue?.charged_count || 0} transactions
-            </span>
-          </div>
-        </Card>
-
-        <Card title="Refunded" icon={ArrowRightLeft} subtitle={`Total refunded in ${period}`}>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ fontSize: '28px', fontWeight: 800, color: '#3b82f6' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.refunded || 0)}
-            </span>
-          </div>
-          <div style={{ marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', padding: '2px 8px', borderRadius: '20px' }}>
-              {stats?.revenue?.refunded_count || 0} transactions
-            </span>
-          </div>
-        </Card>
-
-        <Card title="Chargeback" icon={ShieldAlert} subtitle={`Total chargebacks in ${period}`}>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ fontSize: '28px', fontWeight: 800, color: '#ef4444' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.chargeback || 0)}
-            </span>
-          </div>
-          <div style={{ marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', padding: '2px 8px', borderRadius: '20px' }}>
-              {stats?.revenue?.chargeback_count || 0} transactions
-            </span>
-          </div>
-        </Card>
-
         <Card title="Bookings" icon={ClipboardList} subtitle={`${stats?.period_bookings || 0} created this ${period}`}>
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
             <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.period_bookings || 0}</span>
@@ -364,6 +319,15 @@ const SupervisorDashboard = () => {
               ? ((stats.period_bookings / stats.total_inquiries) * 100).toFixed(1) 
               : '0'}%
           </span>
+        </Card>
+
+        <Card title="Total Call Logs" icon={PhoneCall}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.total_calls || 0}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total logged by team this {period}</div>
+        </Card>
+        <Card title="Team Inquiries" icon={Mail}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.total_inquiries || 0}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total inquiries tagged by team</div>
         </Card>
       </div>
 
@@ -555,12 +519,17 @@ const SupervisorDashboard = () => {
                       <td style={{ padding: '16px', borderRadius: '0 16px 16px 0', border: '1px solid var(--border-color)', borderLeft: 'none' }}>
                          <div style={{ display: 'flex', gap: '16px' }}>
                             <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>BOOKINGS</div>
-                              <div style={{ fontSize: '14px', fontWeight: 800, color: '#06B68A' }}>{agent.bookings_count}</div>
+                               <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>BOOKINGS</div>
+                               <div style={{ fontSize: '14px', fontWeight: 800, color: '#06B68A' }}>{agent.bookings_count}</div>
                             </div>
                             <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CONV.</div>
-                              <div style={{ fontSize: '14px', fontWeight: 800, color: conversion > 10 ? '#10b981' : '#f59e0b' }}>{conversion}%</div>
+                               <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CALLS</div>
+                               <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>{agent.calls_count}</div>
+                            </div>
+
+                            <div style={{ textAlign: 'center' }}>
+                               <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CONV.</div>
+                               <div style={{ fontSize: '14px', fontWeight: 800, color: conversion > 10 ? '#10b981' : '#f59e0b' }}>{conversion}%</div>
                             </div>
                          </div>
                       </td>
@@ -706,6 +675,68 @@ const SupervisorDashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Recent Charges Section */}
+      {(stats?.recent_charges || []).length > 0 && (
+        <Card title="Team Payment Activity" icon={ReceiptText} subtitle="Latest Team Captured · Refunded · Chargeback transactions">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+            {(stats.recent_charges || []).map((charge, idx) => {
+              const isCapture   = charge.charge_status === 'Charged/Captured';
+              const isRefund    = charge.charge_status === 'Refunded';
+              const isChargeback = charge.charge_status === 'Chargeback';
+              const color  = isCapture ? '#059669' : isRefund ? '#3b82f6' : '#ef4444';
+              const bg     = isCapture ? 'rgba(5,150,105,0.10)' : isRefund ? 'rgba(59,130,246,0.10)' : 'rgba(239,68,68,0.10)';
+              const label  = isCapture ? 'Captured' : isRefund ? 'Refunded' : 'Chargeback';
+              const Icon   = isCapture ? CheckCircle2 : isRefund ? ArrowDownLeft : AlertTriangle;
+              return (
+                <div key={idx} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 16px',
+                  borderRadius: '14px',
+                  background: 'var(--bg-input)',
+                  border: `1px solid ${color}30`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{
+                      width: '38px', height: '38px', borderRadius: '10px',
+                      background: bg, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', color
+                    }}>
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                        {charge.booking_ref}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {charge.client_name} &nbsp;·&nbsp;
+                        {charge.collected_at
+                          ? new Date(charge.collected_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          : '—'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 800, fontSize: '15px', color }}>
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: charge.currency || 'USD' }).format(charge.amount)}
+                    </div>
+                    <span style={{
+                      display: 'inline-block', marginTop: '4px',
+                      fontSize: '9px', fontWeight: 800, textTransform: 'uppercase',
+                      letterSpacing: '0.05em', padding: '2px 8px',
+                      borderRadius: '20px', background: bg, color
+                    }}>
+                      {label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
 
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />

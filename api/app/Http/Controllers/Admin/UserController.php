@@ -44,6 +44,12 @@ class UserController extends Controller
         return $this->success($user, 'User status toggled successfully');
     }
 
+    public function destroy($id): JsonResponse
+    {
+        $this->userService->deleteUser($id);
+        return $this->success(null, 'User deleted successfully');
+    }
+
     public function getSupervisors(): JsonResponse
     {
         return $this->success($this->userService->getSupervisors(), 'Supervisors retrieved successfully');

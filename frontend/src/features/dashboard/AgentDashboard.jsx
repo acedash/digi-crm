@@ -17,6 +17,7 @@ import {
   Clock,
   Compass,
   Phone,
+  PhoneCall,
   CheckCircle2,
   CircleDollarSign,
   Mail,
@@ -318,46 +319,26 @@ const AgentDashboard = () => {
 
       {renderFilterBar()}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
-        <Card title="Net Revenue" icon={CircleDollarSign} subtitle={`Net for ${period}`}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
-            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.daily_revenue || 0)}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 600 }}>Collected − Refunded − Chargeback</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
+        <Card title="Period Bookings" icon={FileText}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.my_bookings_count}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>New bookings this {period}</div>
         </Card>
-        <Card title="Captured" icon={CheckCircle2} subtitle={`Charged in ${period}`}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: '#059669' }}>
-            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.revenue?.charged || 0)}
-          </div>
-          <div style={{ marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(5, 150, 105, 0.12)', color: '#059669', padding: '2px 8px', borderRadius: '20px' }}>
-              {stats.revenue?.charged_count || 0} transactions
-            </span>
-          </div>
+        <Card title="Total Call Logs" icon={PhoneCall}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.my_calls}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total logged this {period}</div>
         </Card>
-        <Card title="Refunded" icon={TrendingUp} subtitle={`Total refunded in ${period}`}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: '#3b82f6' }}>
-            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.revenue?.refunded || 0)}
-          </div>
-          <div style={{ marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', padding: '2px 8px', borderRadius: '20px' }}>
-              {stats.revenue?.refunded_count || 0} transactions
-            </span>
-          </div>
+        <Card title="My Inquiries" icon={Mail}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats.my_inquiries}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total inquiries tagged</div>
         </Card>
-        <Card title="Chargeback" icon={ShieldCheck} subtitle={`Total chargebacks in ${period}`}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: '#ef4444' }}>
-            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.revenue?.chargeback || 0)}
-          </div>
-          <div style={{ marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', padding: '2px 8px', borderRadius: '20px' }}>
-              {stats.revenue?.chargeback_count || 0} transactions
-            </span>
-          </div>
+        <Card title="Total Bookings" icon={Compass}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.total_bookings_all_time}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total across all time</div>
         </Card>
       </div>
 
-      {/* Revenue Tab Section */}
+      {/* Revenue Breakdown Section */}
       <Card style={{ padding: '32px', borderRadius: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
@@ -365,6 +346,12 @@ const AgentDashboard = () => {
               <CircleDollarSign size={20} color="hsl(var(--primary))" /> Revenue Breakdown
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Detailed financial metrics for selected period</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+             <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total All-Time Revenue</p>
+             <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#06B68A' }}>
+               {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.total_revenue_all_time || 0)}
+             </h4>
           </div>
         </div>
         
@@ -395,23 +382,6 @@ const AgentDashboard = () => {
           </div>
         </div>
       </Card>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
-        <Card title="Period Bookings" icon={FileText}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.my_bookings_count}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>New bookings this {period}</div>
-        </Card>
-        <Card title="Total Bookings" icon={Compass}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.total_bookings_all_time}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total across all time</div>
-        </Card>
-        <Card title="Total Revenue" icon={CircleDollarSign}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: '#06B68A' }}>
-            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.total_revenue_all_time || 0)}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Gross across all time</div>
-        </Card>
-      </div>
 
       {/* Charts Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '32px' }}>

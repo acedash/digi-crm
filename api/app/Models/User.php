@@ -12,11 +12,23 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity, SoftDeletes;
+
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::deleting(function ($user) {
+            // Detach supervisors and agents if force deleting or just always clean up pivot
+            $user->supervisors()->detach();
+            $user->supervisedAgents()->detach();
+        });
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

@@ -42,13 +42,81 @@ const CallLoggingPage = () => {
     callback_datetime: ''
   });
 
-  const callTypes = ['Flight', 'Hotel', 'Cruise', 'Car Rental', 'General Details'];
-  const outcomes = [
-    'Booking created',
-    'Inquiry only',
-    'Follow up required',
-    'Call dropped'
-  ];
+  const callTypes = ['Flight', 'Hotel', 'Cruise', 'Car Rental', 'General Inquiry'];
+
+  const outcomeMap = {
+    'Flight': [
+      'New Booking', 'Cancellation', 'Date Change', 'Time Change', 'Flight Upgrade',
+      'Downgrade Request', 'O&D Change', 'Schedule Change (Airline initiated)',
+      'Name Correction', 'Name Change', 'Seat Selection', 'Meal Request',
+      'Baggage Add-on', 'Excess Baggage Query', 'Refund Request', 'Refund Follow-up',
+      'Reschedule Request', 'Fare Difference Query', 'Ticket Confirmation / Reissue',
+      'Check-in Assistance', 'Missed Flight / No Show', 'Flight Status Inquiry',
+      'Visa / Travel Document Query'
+    ],
+    'Hotel': [
+      'Hotel Booking', 'Hotel Cancellation', 'Hotel Modification', 'Date Change',
+      'Room Upgrade', 'Room Type Change', 'Early Check-in Request', 'Late Check-out Request',
+      'Refund Request', 'Refund Follow-up', 'Booking Confirmation', 'Special Request',
+      'Hotel Complaint', 'Hotel Availability Inquiry'
+    ],
+    'Cruise': [
+      'Cruise Booking', 'Cruise Changes', 'Cruise Cancellation', 'Cruise Packages',
+      'Cruise Upgrade', 'Cabin Upgrade', 'Date Change', 'Passenger Modification',
+      'Refund Request', 'Shore Excursion Query', 'Dining Package Query',
+      'Cruise Documentation Query', 'Cruise Complaint'
+    ],
+    'Car Rental': [
+      'Car Rental Booking', 'Car Rental Changes', 'Car Rental Cancellation',
+      'Vehicle Upgrade', 'Pickup / Drop Change', 'Driver Details Update',
+      'Extension Request', 'Refund Request', 'Insurance Query', 'Availability Inquiry'
+    ],
+    'General / Support': [
+      'General Inquiry', 'Pricing Inquiry', 'Quote Request', 'Payment Issue',
+      'Payment Confirmation', 'Failed Payment', 'Refund Status', 'Callback Request',
+      'Follow-up Call', 'Complaint / Escalation', 'Supervisor Request',
+      'Booking Verification', 'Existing Booking Query', 'Promo / Discount Inquiry',
+      'Membership / Loyalty Query'
+    ],
+    'Call Outcome / Disposition': [
+      'Wrong Number', 'Blank Call', 'Spam', 'Missed Call', 'Call Disconnected',
+      'Customer Unreachable', 'No Response', 'Duplicate Call', 'Language Barrier',
+      'Invalid Query', 'Test Call'
+    ]
+  };
+
+  const getAvailableOutcomes = () => {
+    let options = [];
+    
+    formData.call_type.forEach(type => {
+      const mapKey = type === 'General Inquiry' ? 'General / Support' : type;
+      if (outcomeMap[mapKey]) {
+        options = [...options, ...outcomeMap[mapKey]];
+      }
+      if (type === 'General Inquiry') {
+        options = [...options, ...outcomeMap['Call Outcome / Disposition']];
+      }
+    });
+
+    if (options.length === 0) {
+      options = [
+        ...outcomeMap['General / Support'],
+        ...outcomeMap['Call Outcome / Disposition']
+      ];
+    }
+
+    return Array.from(new Set(options));
+  };
+
+  const availableOutcomes = getAvailableOutcomes();
+
+  useEffect(() => {
+    if (!formData.customer_outcome && availableOutcomes.length > 0) {
+      setFormData(prev => ({ ...prev, customer_outcome: availableOutcomes[0] }));
+    } else if (formData.customer_outcome && !availableOutcomes.includes(formData.customer_outcome)) {
+      setFormData(prev => ({ ...prev, customer_outcome: availableOutcomes[0] }));
+    }
+  }, [formData.call_type]);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -680,7 +748,7 @@ const CallLoggingPage = () => {
                 onChange={(e) => setFormData({ ...formData, customer_outcome: e.target.value })}
                 style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
               >
-                {outcomes.map(o => <option key={o} value={o}>{o}</option>)}
+                {availableOutcomes.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
 

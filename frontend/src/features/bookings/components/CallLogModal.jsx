@@ -45,19 +45,92 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     call_type: getInitialCallTypes(),
     airline_inquiry: getInitialInquiryData(),
-    customer_outcome: 'Inquiry only',
+    customer_outcome: '', // Will be set by useEffect or first option
     notes: '',
     callback_required: false,
     callback_datetime: ''
   });
 
   const callTypes = ['Flight', 'Hotel', 'Cruise', 'Car Rental', 'General Inquiry'];
-  const outcomes = [
-    'Booking created',
-    'Inquiry only',
-    'Follow up required',
-    'Call dropped'
-  ];
+
+  const outcomeMap = {
+    'Flight': [
+      'New Booking', 'Cancellation', 'Date Change', 'Time Change', 'Flight Upgrade',
+      'Downgrade Request', 'O&D Change', 'Schedule Change (Airline initiated)',
+      'Name Correction', 'Name Change', 'Seat Selection', 'Meal Request',
+      'Baggage Add-on', 'Excess Baggage Query', 'Refund Request', 'Refund Follow-up',
+      'Reschedule Request', 'Fare Difference Query', 'Ticket Confirmation / Reissue',
+      'Check-in Assistance', 'Missed Flight / No Show', 'Flight Status Inquiry',
+      'Visa / Travel Document Query'
+    ],
+    'Hotel': [
+      'Hotel Booking', 'Hotel Cancellation', 'Hotel Modification', 'Date Change',
+      'Room Upgrade', 'Room Type Change', 'Early Check-in Request', 'Late Check-out Request',
+      'Refund Request', 'Refund Follow-up', 'Booking Confirmation', 'Special Request',
+      'Hotel Complaint', 'Hotel Availability Inquiry'
+    ],
+    'Cruise': [
+      'Cruise Booking', 'Cruise Changes', 'Cruise Cancellation', 'Cruise Packages',
+      'Cruise Upgrade', 'Cabin Upgrade', 'Date Change', 'Passenger Modification',
+      'Refund Request', 'Shore Excursion Query', 'Dining Package Query',
+      'Cruise Documentation Query', 'Cruise Complaint'
+    ],
+    'Car Rental': [
+      'Car Rental Booking', 'Car Rental Changes', 'Car Rental Cancellation',
+      'Vehicle Upgrade', 'Pickup / Drop Change', 'Driver Details Update',
+      'Extension Request', 'Refund Request', 'Insurance Query', 'Availability Inquiry'
+    ],
+    'General / Support': [
+      'General Inquiry', 'Pricing Inquiry', 'Quote Request', 'Payment Issue',
+      'Payment Confirmation', 'Failed Payment', 'Refund Status', 'Callback Request',
+      'Follow-up Call', 'Complaint / Escalation', 'Supervisor Request',
+      'Booking Verification', 'Existing Booking Query', 'Promo / Discount Inquiry',
+      'Membership / Loyalty Query'
+    ],
+    'Call Outcome / Disposition': [
+      'Wrong Number', 'Blank Call', 'Spam', 'Missed Call', 'Call Disconnected',
+      'Customer Unreachable', 'No Response', 'Duplicate Call', 'Language Barrier',
+      'Invalid Query', 'Test Call'
+    ]
+  };
+
+  const getAvailableOutcomes = () => {
+    let options = [];
+    
+    // Add selected types
+    formData.call_type.forEach(type => {
+      const mapKey = type === 'General Inquiry' ? 'General / Support' : type;
+      if (outcomeMap[mapKey]) {
+        options = [...options, ...outcomeMap[mapKey]];
+      }
+      // If General Inquiry is selected, ALSO add the disposition options
+      if (type === 'General Inquiry') {
+        options = [...options, ...outcomeMap['Call Outcome / Disposition']];
+      }
+    });
+
+    // If nothing selected, fallback to General Inquiry + Disposition
+    if (options.length === 0) {
+      options = [
+        ...outcomeMap['General / Support'],
+        ...outcomeMap['Call Outcome / Disposition']
+      ];
+    }
+
+    // Remove duplicates
+    return Array.from(new Set(options));
+  };
+
+  const availableOutcomes = getAvailableOutcomes();
+  
+  // Set initial outcome if empty
+  React.useEffect(() => {
+    if (!formData.customer_outcome && availableOutcomes.length > 0) {
+      setFormData(prev => ({ ...prev, customer_outcome: availableOutcomes[0] }));
+    } else if (formData.customer_outcome && !availableOutcomes.includes(formData.customer_outcome)) {
+      setFormData(prev => ({ ...prev, customer_outcome: availableOutcomes[0] }));
+    }
+  }, [formData.call_type]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,7 +138,6 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
     try {
       await api.post('/call-logs', {
         ...formData,
-        callback_required: formData.customer_outcome === 'Follow up required',
         client_id: client?.id,
         log_scope: 'booking',
       });
@@ -229,7 +301,7 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
                   color: 'var(--text-main)', outline: 'none'
                 }}
               >
-                {outcomes.map(o => <option key={o} value={o}>{o}</option>)}
+                {availableOutcomes.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
 
@@ -247,7 +319,17 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
               />
             </div>
 
-            {formData.customer_outcome === 'Follow up required' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', marginTop: '-8px' }}>
+              <input
+                type="checkbox"
+                checked={formData.callback_required}
+                onChange={(e) => setFormData({ ...formData, callback_required: e.target.checked })}
+                style={{ width: '16px', height: '16px', accentColor: '#06B68A' }}
+              />
+              Follow-up required
+            </label>
+
+            {formData.callback_required && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ overflow: 'hidden' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Scheduled Callback Time</label>
                 <input
@@ -263,6 +345,7 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
                 />
               </motion.div>
             )}
+
 
             <div style={{ marginTop: '8px', paddingBottom: '8px' }}>
               <Button
