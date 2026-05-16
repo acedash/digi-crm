@@ -203,7 +203,7 @@ const CallLoggingPage = () => {
 
   const handleExportPdf = () => {
     try {
-      const doc = new jsPDF();
+      const doc = new jsPDF('landscape');
       doc.setFontSize(18);
       doc.text("Call Logging Activity Report", 14, 22);
       doc.setFontSize(11);
@@ -211,20 +211,28 @@ const CallLoggingPage = () => {
       doc.text(`Scope: ${scopeFilter.toUpperCase()} | Generated: ${new Date().toLocaleString()}`, 14, 30);
 
       const tableRows = logs.map(log => [
-        new Date(log.created_at).toLocaleDateString(),
-        log.client ? `${log.client.first_name} ${log.client.last_name}` : (log.contact_name || 'Unknown'),
+        new Date(log.created_at).toLocaleString(),
+        log.log_scope === 'general' ? 'Marketing' : 'Booking',
+        log.client ? `${log.client.first_name} ${log.client.last_name}` : (log.contact_name || ''),
+        log.contact_phone || log.client?.phone || '',
+        log.contact_email || log.client?.email || '',
         (Array.isArray(log.call_type) ? log.call_type : [log.call_type]).join(', '),
+        typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k, v]) => `${k}: ${v}`).join(' | ') : (log.airline_inquiry || ''),
         log.customer_outcome,
         log.notes || ''
       ]);
 
       autoTable(doc, {
         startY: 40,
-        head: [['Date', 'Contact', 'Categories', 'Outcome', 'Notes']],
+        head: [['Date', 'Scope', 'Client', 'Phone', 'Email', 'Types', 'Category Details', 'Outcome', 'Notes']],
         body: tableRows,
         theme: 'striped',
-        headStyles: { fillColor: [37, 99, 235] }, // Use RGB for consistency
-        styles: { fontSize: 8 }
+        headStyles: { fillColor: [37, 99, 235] },
+        styles: { fontSize: 8 },
+        columnStyles: {
+          8: { cellWidth: 40 }, // Notes column
+          6: { cellWidth: 40 }  // Category details column
+        }
       });
 
       doc.save(`call-logs-${scopeFilter}-${new Date().toISOString().split('T')[0]}.pdf`);
