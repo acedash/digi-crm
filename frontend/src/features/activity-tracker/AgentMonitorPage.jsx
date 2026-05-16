@@ -27,7 +27,7 @@ const AgentMonitorPage = () => {
   const isAdmin = user?.roles?.includes('admin') || user?.roles?.[0]?.name === 'admin';
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
-  const [monitoringSummary, setMonitoringSummary] = useState({ supervisors: 0, active: 0, break: 0 });
+  const [monitoringSummary, setMonitoringSummary] = useState({ supervisors: 0, active: 0, break: 0, supActive: 0, supBreak: 0 });
   const [statsPeriod, setStatsPeriod] = useState('daily');
   const [statsStart, setStatsStart] = useState(new Date().toISOString().split('T')[0]);
   const [statsEnd, setStatsEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -292,9 +292,17 @@ const AgentMonitorPage = () => {
             Monitor activity and performance in real time.
           </p>
 
-          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#8b5cf6' }}>
               <span style={{ fontSize: '16px' }}>{monitoringSummary.supervisors}</span> Supervisors
+            </div>
+            <div style={{ color: 'var(--border-color)' }}>|</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', opacity: 0.9 }}>
+              <span style={{ fontSize: '16px' }}>{monitoringSummary.supActive}</span> Active Supervisors
+            </div>
+            <div style={{ color: 'var(--border-color)' }}>|</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', opacity: 0.9 }}>
+              <span style={{ fontSize: '16px' }}>{monitoringSummary.supBreak}</span> Supervisors On Break
             </div>
             <div style={{ color: 'var(--border-color)' }}>|</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}>
@@ -302,7 +310,7 @@ const AgentMonitorPage = () => {
             </div>
             <div style={{ color: 'var(--border-color)' }}>|</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
-              <span style={{ fontSize: '16px' }}>{monitoringSummary.break}</span> On Break
+              <span style={{ fontSize: '16px' }}>{monitoringSummary.break}</span> Agents On Break
             </div>
           </div>
         </div>

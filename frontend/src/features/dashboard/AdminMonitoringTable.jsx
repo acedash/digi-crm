@@ -25,6 +25,8 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate, onV
           const summary = res.data.summary;
           onSummaryChange({
             supervisors: summary?.total_supervisors ?? data.length,
+            supActive: summary?.sup_active ?? 0,
+            supBreak: summary?.sup_break ?? 0,
             active: summary?.total_active ?? data.reduce((acc, sup) => acc + (sup.active_agents || 0), 0),
             break: summary?.total_break ?? data.reduce((acc, sup) => acc + (sup.on_break || 0), 0)
           });

@@ -951,7 +951,7 @@ class DashboardController extends Controller
                 ->with(['supervisedAgents' => function ($query) {
                     $query->select('users.id', 'users.status');
                 }])
-                ->get(['id', 'name']);
+                ->get(['id', 'name', 'status']);
 
             $tz = config('app.timezone');
             $start = now()->timezone($tz)->startOfDay();
@@ -1060,7 +1060,18 @@ class DashboardController extends Controller
             $globalActive = 0;
             $globalBreak = 0;
 
+            $supActive = 0;
+            $supBreak = 0;
+
             if ($period === 'live') {
+                $supActive = $supervisors->filter(function ($sup) {
+                    $status = strtolower((string) ($sup->status ?? ''));
+                    return in_array($status, ['active', 'on call', 'idle'], true);
+                })->count();
+                $supBreak = $supervisors->filter(function ($sup) {
+                    return strtolower((string) ($sup->status ?? '')) === 'break';
+                })->count();
+
                 $globalActive = $allAgents->filter(function ($agent) {
                     $status = strtolower((string) ($agent->status ?? ''));
                     return in_array($status, ['active', 'on call', 'idle'], true);
@@ -1082,12 +1093,28 @@ class DashboardController extends Controller
                         $globalActive++;
                     }
                 }
+
+                $globalLatestSupActivities = \App\Models\UserActivity::whereIn('user_id', $supIds)
+                    ->whereBetween('created_at', [$start->toDateTimeString(), $end->toDateTimeString()])
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->unique('user_id');
+
+                foreach ($globalLatestSupActivities as $activity) {
+                    if ($activity->activity_type === 'break_start') {
+                        $supBreak++;
+                    } elseif (in_array($activity->activity_type, ['login', 'on_call', 'idle', 'break_end'])) {
+                        $supActive++;
+                    }
+                }
             }
 
             return [
                 'supervisors' => $supervisorSummary,
                 'summary' => [
                     'total_supervisors' => $supervisors->count(),
+                    'sup_active' => $supActive,
+                    'sup_break' => $supBreak,
                     'total_active' => $globalActive,
                     'total_break' => $globalBreak
                 ]
