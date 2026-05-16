@@ -293,10 +293,6 @@ const AgentMonitorPage = () => {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', marginTop: '16px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#8b5cf6' }}>
-              <span style={{ fontSize: '16px' }}>{monitoringSummary.supervisors}</span> Supervisors
-            </div>
-            <div style={{ color: 'var(--border-color)' }}>|</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', opacity: 0.9 }}>
               <span style={{ fontSize: '16px' }}>{monitoringSummary.supActive}</span> Active Supervisors
             </div>
