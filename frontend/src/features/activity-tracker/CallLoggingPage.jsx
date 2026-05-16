@@ -174,19 +174,36 @@ const CallLoggingPage = () => {
     }
   };
 
+  const getServiceDetails = (log) => ({
+    flightName: log.airline_inquiry?.Flight || '',
+    hotelName: log.airline_inquiry?.Hotel || '',
+    cruiseName: log.airline_inquiry?.Cruise || '',
+    carRental: log.airline_inquiry?.['Car Rental'] || '',
+    other: log.airline_inquiry?.['General Details'] || '',
+  });
+
   const handleExportExcel = () => {
     try {
-      const data = logs.map(log => ({
-        Date: new Date(log.created_at).toLocaleString(),
-        Scope: log.log_scope === 'general' ? 'Marketing' : 'Booking',
-        Client: log.client ? `${log.client.first_name} ${log.client.last_name}` : log.contact_name,
-        Phone: log.contact_phone || log.client?.phone || '',
-        Email: log.contact_email || log.client?.email || '',
-        Types: (log.call_type || []).join(', '),
-        'Category Details': typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k, v]) => `${k}: ${v}`).join(' | ') : log.airline_inquiry,
-        Outcome: log.customer_outcome,
-        Notes: log.notes
-      }));
+      const data = logs.map(log => {
+        const svc = getServiceDetails(log);
+        return {
+          Date: new Date(log.created_at).toLocaleString(),
+          Scope: log.log_scope === 'general' ? 'Marketing' : 'Booking',
+          Client: log.client
+            ? `${log.client.first_name || ''} ${log.client.last_name || ''}`.trim()
+            : (log.contact_name || ''),
+          Phone: log.contact_phone || log.client?.phone || '',
+          Email: log.contact_email || log.client?.email || '',
+          Types: (log.call_type || []).join(', '),
+          'Flight Name': svc.flightName,
+          'Hotel Name': svc.hotelName,
+          'Cruise Name': svc.cruiseName,
+          'Car Rental': svc.carRental,
+          'Other Details': svc.other,
+          Outcome: log.customer_outcome || '',
+          Notes: log.notes || '',
+        };
+      });
 
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
@@ -196,8 +213,6 @@ const CallLoggingPage = () => {
     } catch (e) {
       console.error(e);
       setToast({ message: 'Failed to export Excel', type: 'error' });
-    } finally {
-      // Done
     }
   };
 
@@ -210,42 +225,35 @@ const CallLoggingPage = () => {
       doc.setTextColor(100);
       doc.text(`Scope: ${scopeFilter.toUpperCase()} | Generated: ${new Date().toLocaleString()}`, 14, 30);
 
-      const getCategoryDetails = (inquiry) => {
-        if (!inquiry || typeof inquiry !== 'object') return String(inquiry || '');
-        try {
-          return Object.entries(inquiry)
-            .filter(([, v]) => v)
-            .map(([k, v]) => `${k}: ${v}`)
-            .join(' | ');
-        } catch {
-          return '';
-        }
-      };
-
-      const tableRows = logs.map(log => [
-        new Date(log.created_at).toLocaleString(),
-        log.log_scope === 'general' ? 'Marketing' : 'Booking',
-        log.client
-          ? `${log.client.first_name || ''} ${log.client.last_name || ''}`.trim()
-          : (log.contact_name || ''),
-        log.contact_phone || log.client?.phone || '',
-        log.contact_email || log.client?.email || '',
-        (Array.isArray(log.call_type) ? log.call_type : [log.call_type ?? '']).join(', '),
-        getCategoryDetails(log.airline_inquiry),
-        log.customer_outcome || '',
-        log.notes || ''
-      ]);
+      const tableRows = logs.map(log => {
+        const svc = getServiceDetails(log);
+        return [
+          new Date(log.created_at).toLocaleString(),
+          log.log_scope === 'general' ? 'Marketing' : 'Booking',
+          log.client
+            ? `${log.client.first_name || ''} ${log.client.last_name || ''}`.trim()
+            : (log.contact_name || ''),
+          log.contact_phone || log.client?.phone || '',
+          log.contact_email || log.client?.email || '',
+          (Array.isArray(log.call_type) ? log.call_type : [log.call_type ?? '']).join(', '),
+          svc.flightName,
+          svc.hotelName,
+          svc.cruiseName,
+          svc.carRental,
+          log.customer_outcome || '',
+          log.notes || '',
+        ];
+      });
 
       autoTable(doc, {
         startY: 40,
-        head: [['Date', 'Scope', 'Client', 'Phone', 'Email', 'Types', 'Category Details', 'Outcome', 'Notes']],
+        head: [['Date', 'Scope', 'Client', 'Phone', 'Email', 'Types', 'Flight', 'Hotel', 'Cruise', 'Car Rental', 'Outcome', 'Notes']],
         body: tableRows,
         theme: 'striped',
         headStyles: { fillColor: [37, 99, 235] },
-        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
+        styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
         columnStyles: {
-          6: { cellWidth: 45 },
-          8: { cellWidth: 45 }
+          11: { cellWidth: 40 }, // Notes
         }
       });
 

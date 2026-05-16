@@ -84,7 +84,11 @@ class CallLogController extends Controller
                 'Contact Phone',
                 'Lead Source',
                 'Call Type',
-                'Airline Inquiry',
+                'Flight Name',
+                'Hotel Name',
+                'Cruise Name',
+                'Car Rental',
+                'Other Details',
                 'Outcome',
                 'Callback Required',
                 'Callback Datetime',
@@ -97,6 +101,8 @@ class CallLogController extends Controller
                         ? trim(($log->client->first_name ?? '') . ' ' . ($log->client->last_name ?? '')) ?: ($log->client->name ?? '')
                         : null;
 
+                    $inquiry = is_array($log->airline_inquiry) ? $log->airline_inquiry : [];
+
                     fputcsv($handle, [
                         optional($log->created_at)->format('Y-m-d H:i:s'),
                         $log->log_scope === 'general' ? 'Marketing Call' : 'Booking Call',
@@ -106,9 +112,11 @@ class CallLogController extends Controller
                         $log->client?->phone ?: $log->contact_phone,
                         $log->lead_source,
                         is_array($log->call_type) ? implode(', ', $log->call_type) : $log->call_type,
-                        is_array($log->airline_inquiry) 
-                            ? collect($log->airline_inquiry)->map(fn($val, $key) => "$key: $val")->implode(' | ') 
-                            : $log->airline_inquiry,
+                        $inquiry['Flight'] ?? '',
+                        $inquiry['Hotel'] ?? '',
+                        $inquiry['Cruise'] ?? '',
+                        $inquiry['Car Rental'] ?? '',
+                        $inquiry['General Details'] ?? '',
                         $log->customer_outcome,
                         $log->callback_required ? 'Yes' : 'No',
                         $log->callback_datetime,
