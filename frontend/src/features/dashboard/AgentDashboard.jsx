@@ -71,27 +71,75 @@ const AgentDashboard = () => {
   const [elapsedStatusTime, setElapsedStatusTime] = useState('00:00:00');
   const [activities, setActivities] = useState([]);
   const [toast, setToast] = useState({ message: '', type: 'success' });
+  const prevChargesRef = React.useRef([]);
 
   useEffect(() => {
     if (period === 'custom' && (!customRange.start || !customRange.end)) return;
     fetchStats();
+
+    const intervalId = setInterval(() => {
+      fetchStats(true); // pass true to indicate silent poll
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(intervalId);
   }, [period, customRange.start, customRange.end]);
 
   useEffect(() => {
     fetchStatus();
   }, []);
 
-  const fetchStats = async () => {
-    setLoading(true);
+  const fetchStats = async (isPolling = false) => {
+    if (!isPolling) setLoading(true);
     try {
       const response = await dashboardService.getStats(period, customRange.start, customRange.end, 'agent');
-      setStats(response.data.data);
+      const newStats = response.data.data;
+      
+      prevChargesRef.current = newStats.recent_charges || [];
+      setStats(newStats);
+      fetchStatus();
     } catch (e) {
       console.error('Failed to fetch agent stats', e);
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   };
+
+  // Dedicated effect to monitor charge status changes
+  useEffect(() => {
+    if (!stats?.recent_charges) return;
+    
+    const isFirstLoad = !window._dashboardInitialized;
+    if (!window._lastSeenCharges) window._lastSeenCharges = {};
+
+    let hasChange = false;
+    stats.recent_charges.forEach(charge => {
+      const chargeKey = `charge_${charge.id}`;
+      const prevStatus = window._lastSeenCharges[chargeKey];
+
+      // Only notify if this isn't the very first time the dashboard loaded
+      if (!isFirstLoad) {
+        if (!prevStatus || prevStatus !== charge.charge_status) {
+          const msg = `Update: Booking ${charge.booking_ref} is now ${charge.charge_status}`;
+          setToast({ message: msg, type: charge.charge_status === 'Charged/Captured' ? 'success' : 'error' });
+          
+          console.log('%c!!! NOTIFICATION TRIGGERED !!!', 'color: white; background: red; font-size: 20px', msg);
+          try {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(() => {});
+          } catch(e) {}
+          
+          hasChange = true;
+        }
+      }
+      
+      window._lastSeenCharges[chargeKey] = charge.charge_status;
+    });
+
+    if (isFirstLoad && stats.recent_charges.length > 0) {
+      window._dashboardInitialized = true;
+      console.log('Dashboard notifications initialized.');
+    }
+  }, [stats?.recent_charges]);
 
   const fetchStatus = async () => {
     try {
@@ -209,6 +257,10 @@ const AgentDashboard = () => {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, background: 'var(--bg-input)', padding: '8px 16px', borderRadius: '12px' }}>
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></div>
+          Last synced: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </div>
         {period === 'custom' && (
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
             <div style={{ width: '150px' }}>

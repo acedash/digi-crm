@@ -69,7 +69,7 @@ const SecureNotepad = () => {
   };
 
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }} className="no-print">
+    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center' }} className="no-print">
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -86,8 +86,11 @@ const SecureNotepad = () => {
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              marginBottom: '16px',
-              overflow: 'hidden'
+              marginBottom: '-28px',
+              paddingBottom: '20px',
+              overflow: 'hidden',
+              position: 'relative',
+              zIndex: 1
             }}
           >
             <div style={{ 
@@ -100,7 +103,7 @@ const SecureNotepad = () => {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ShieldCheck size={18} style={{ color: 'hsl(var(--primary))' }} />
-                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', letterSpacing: '0.5px' }}>SECURE NOTEPAD</span>
+                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', letterSpacing: '0.5px' }}>Secure Notepad</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {saving && <RefreshCw size={12} className="animate-spin" style={{ color: 'var(--text-muted)' }} />}
@@ -125,7 +128,7 @@ const SecureNotepad = () => {
                 onCopy={handlePrevent}
                 onCut={handlePrevent}
                 onContextMenu={handlePrevent}
-                placeholder="Temporary notes during call... (Auto-deleted after session)"
+                placeholder="Capture important details while on a call."
                 style={{
                   flex: 1,
                   padding: '20px',
@@ -158,6 +161,7 @@ const SecureNotepad = () => {
       </AnimatePresence>
 
       <motion.button
+        id="secure-notepad-toggle"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
@@ -165,15 +169,17 @@ const SecureNotepad = () => {
           width: '56px',
           height: '56px',
           borderRadius: '50%',
-          background: isOpen ? 'var(--text-main)' : 'hsl(var(--primary))',
-          color: isOpen ? 'var(--bg-app)' : 'white',
-          border: 'none',
+          background: isOpen ? 'white' : 'hsl(var(--primary))',
+          color: isOpen ? '#0f172a' : 'white',
+          border: isOpen ? '1px solid var(--border-color)' : 'none',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-          transition: 'all 0.3s ease'
+          transition: 'all 0.3s ease',
+          zIndex: 10,
+          position: 'relative'
         }}
       >
         <StickyNote size={24} />

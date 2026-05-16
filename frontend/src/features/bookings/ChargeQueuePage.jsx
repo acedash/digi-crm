@@ -227,7 +227,7 @@ const ChargeQueuePage = () => {
       await paymentAuthService.markCharged(selectedRecord.id, {
         collection_reference: collectionReference,
         collection_notes: collectionNotes,
-        charge_status: chargeStatus,
+        charge_status: chargeStatus
       });
       setToast({ message: 'Marked as updated successfully.', type: 'success' });
       setSelectedRecord(null);

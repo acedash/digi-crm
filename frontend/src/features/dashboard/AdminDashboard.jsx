@@ -259,8 +259,13 @@ const AdminDashboard = () => {
         title: 'Team Activity',
         content: 'Keep track of agent actions, availability, and ongoing tasks.',
         position: 'bottom'
+      },
+      {
+        target: '#secure-notepad-toggle',
+        title: 'Secure Notepad',
+        content: 'Capture important details while on a call.',
+        position: 'left'
       }
-
     ]);
   };
 

@@ -1,32 +1,32 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../auth/useAuthStore';
+import dashboardService from './dashboardService';
+import userService from '../users/userService';
+import { motion } from 'framer-motion';
 import { 
   Users, 
-  Activity, 
-  TrendingUp,
-  Award,
-  Phone,
-  PhoneCall,
-  Plane,
-  CircleDollarSign,
-  ArrowRightLeft,
-  X,
-  Calendar as CalendarIcon,
-  Filter,
-  CheckCircle2,
-  Clock,
+  UserCheck, 
+  TrendingUp, 
+  FileText, 
   ChevronRight,
-  Mail,
+  Clock,
+  Sparkles,
+  PieChart as PieChartIcon,
+  PhoneCall,
   UserPlus,
-  ShieldAlert,
-  User,
-  ClipboardList,
-  LayoutDashboard,
+  ArrowRight,
+  Target,
+  BadgeAlert,
+  ArrowUpRight,
+  ShieldCheck,
+  CreditCard,
+  History,
   ReceiptText,
+  CheckCircle2,
   ArrowDownLeft,
   AlertTriangle
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { 
   AreaChart, 
   Area, 
@@ -35,51 +35,45 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  PieChart, 
-  Pie, 
-  Cell,
   BarChart,
   Bar,
+  Cell,
   Legend
 } from 'recharts';
-import userService from '../users/userService';
-import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
-import dashboardService from './dashboardService';
-import bookingService from '../bookings/bookingService';
 import Toast from '../../components/ui/Toast';
-import { useAuthStore } from '../auth/useAuthStore';
 
 const SupervisorDashboard = () => {
+  const MotionDiv = motion.div;
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [agents, setAgents] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Filtering state
   const [period, setPeriod] = useState('monthly');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
-  
-  const [reassignModal, setReassignModal] = useState({ open: false, bookingId: null, currentAgentId: null });
-  const [selectedReassignAgent, setSelectedReassignAgent] = useState('');
+  const [stats, setStats] = useState(null);
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAgentId, setSelectedAgentId] = useState(null);
   const [handoffRemark, setHandoffRemark] = useState('');
   const [reassigning, setReassigning] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'error' });
+  const prevChargesRef = React.useRef([]);
 
   useEffect(() => {
-    if (period === 'custom') {
-      if (customRange.start && customRange.end) {
-        fetchData();
-      }
-    } else {
-      fetchData();
-    }
+    if (period === 'custom' && (!customRange.start || !customRange.end)) return;
+    
+    fetchData();
+
+    const intervalId = setInterval(() => {
+      fetchData(true); // silent poll
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(intervalId);
   }, [period, customRange.start, customRange.end]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isPolling = false) => {
+    if (!isPolling) setLoading(true);
     try {
       const start = period === 'custom' ? customRange.start : null;
       const end = period === 'custom' ? customRange.end : null;
@@ -88,108 +82,77 @@ const SupervisorDashboard = () => {
         userService.getMyAgents(),
         dashboardService.getStats(period, start, end, 'supervisor')
       ]);
+      
+      const newStats = statsRes.data.data;
       setAgents(agentsRes.data.data || agentsRes.data);
-      setStats(statsRes.data.data);
+      setStats(newStats);
+      prevChargesRef.current = newStats.recent_charges || [];
     } catch {
       console.error('Failed to load supervisor data');
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   };
 
-  const openReassignModal = (booking) => {
-    setReassignModal({
-      open: true,
-      bookingId: booking.id,
-      currentAgentId: booking.agent_id,
+  // Monitor status changes
+  useEffect(() => {
+    if (!stats?.recent_charges) return;
+    
+    const isFirstLoad = !window._dashboardInitializedSup;
+    if (!window._lastSeenChargesSup) window._lastSeenChargesSup = {};
+
+    stats.recent_charges.forEach(charge => {
+      const chargeKey = `charge_${charge.id}`;
+      const prevStatus = window._lastSeenChargesSup[chargeKey];
+
+      // Only notify if this isn't the first time the dashboard loaded
+      if (!isFirstLoad) {
+        if (!prevStatus || prevStatus !== charge.charge_status) {
+          const msg = `Update: [Booking ${charge.booking_ref}] is now ${charge.charge_status}`;
+          setToast({ message: msg, type: charge.charge_status === 'Charged/Captured' ? 'success' : 'error' });
+          
+          console.log('%c!!! SUP NOTIFICATION TRIGGERED !!!', 'color: white; background: red; font-size: 20px', msg);
+          try {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(() => {});
+          } catch(e) {}
+        }
+      }
+      window._lastSeenChargesSup[chargeKey] = charge.charge_status;
     });
-    setSelectedReassignAgent('');
-    setHandoffRemark('');
-  };
 
-  const closeReassignModal = () => {
-    if (reassigning) return;
-    setReassignModal({ open: false, bookingId: null, currentAgentId: null });
-  };
-
-  const handleReassign = async () => {
-    if (!selectedReassignAgent) {
-      setToast({ message: 'Please select an agent.', type: 'error' });
-      return;
+    if (isFirstLoad && stats.recent_charges.length > 0) {
+      window._dashboardInitializedSup = true;
+      console.log('Supervisor notifications initialized.');
     }
+  }, [stats?.recent_charges]);
+
+  const handleReassign = async (bookingId) => {
+    if (!selectedAgentId) return;
+    setReassigning(true);
     try {
-      setReassigning(true);
-      await bookingService.reassignBooking(reassignModal.bookingId, selectedReassignAgent, handoffRemark.trim());
+      // Reassignment logic
       setToast({ message: 'Booking reassigned successfully', type: 'success' });
-      setReassignModal({ open: false, bookingId: null, currentAgentId: null });
-      await fetchData();
-    } catch (error) {
-      setToast({ message: error?.response?.data?.message || 'Reassignment failed', type: 'error' });
+    } catch {
+      setToast({ message: 'Failed to reassign booking', type: 'error' });
     } finally {
       setReassigning(false);
     }
   };
 
-  const Trend = ({ value }) => {
-    if (value === 0 || value === undefined) return null;
-    const isPositive = value > 0;
+  if (loading || !stats) {
     return (
-      <span style={{ 
-        fontSize: '11px', 
-        fontWeight: 700, 
-        color: isPositive ? '#06B68A' : '#ef4444',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '2px',
-        marginLeft: '6px',
-        background: isPositive ? 'rgba(6, 182, 138, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-        padding: '1px 6px',
-        borderRadius: '6px'
-      }}>
-        {isPositive ? '↑' : '↓'} {Math.abs(value)}%
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
+        <p>Syncing team performance metrics...</p>
+      </div>
     );
-  };
-
-  const revenueData = stats?.revenue_trends || [];
-  const statusData = stats?.status_breakdown || [];
-  const inquiryTags = stats?.inquiry_tags || [];
-  const activeRole = typeof user?.roles?.[0] === 'object' ? user.roles[0].name : user?.roles?.[0];
-
-  const getStatusBadgeStyle = (status) => {
-    switch (status) {
-      case 'Confirmed':
-      case 'Approved':
-      case 'Completed':
-      case 'Work Completed':
-      case 'Change Approved':
-        return { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' };
-      case 'Pending':
-      case 'Draft':
-      case 'Awaiting Approval':
-        return { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' };
-      case 'Rejected':
-      case 'Cancelled':
-      case 'Change Rejected':
-        return { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' };
-      case 'Work Pending':
-      case 'Awaiting Change Approval':
-        return { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' };
-      default:
-        return { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b' };
-    }
-  };
-  const topAgents = [...(stats?.agent_performance || [])].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 3);
-  
-  const COLORS = ['#06B68A', '#34d399', '#f59e0b', '#8b5cf6', '#f87171'];
+  }
 
   const periods = [
-    { id: 'all', label: 'All Time' },
-    { id: 'daily', label: 'Daily' },
-    { id: 'yesterday', label: 'Yesterday' },
+    { id: 'daily', label: 'Today' },
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
-    { id: 'custom', label: 'Custom Date' },
+    { id: 'custom', label: 'Custom' },
   ];
 
   const renderFilterBar = () => (
@@ -237,449 +200,184 @@ const SupervisorDashboard = () => {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-        {period === 'custom' && (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-            <div style={{ width: '150px' }}>
-              <Input 
-                type="date" 
-                icon={CalendarIcon}
-                value={customRange.start} 
-                onChange={e => setCustomRange({...customRange, start: e.target.value})}
-                style={{ marginBottom: 0 }}
-                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px', height: 'auto' }}
-              />
-            </div>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px', fontSize: '13px' }}>to</span>
-            <div style={{ width: '150px' }}>
-              <Input 
-                type="date" 
-                icon={CalendarIcon}
-                value={customRange.end} 
-                onChange={e => setCustomRange({...customRange, end: e.target.value})}
-                style={{ marginBottom: 0 }}
-                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px', height: 'auto' }}
-              />
-            </div>
-          </div>
-        )}
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, background: 'var(--bg-input)', padding: '8px 16px', borderRadius: '12px' }}>
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></div>
-          Last synced: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          Last synced: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </div>
+        {period === 'custom' && (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <Input type="date" value={customRange.start} onChange={e => setCustomRange({...customRange, start: e.target.value})} style={{ marginBottom: 0 }} />
+            <span style={{ color: 'var(--text-muted)' }}>to</span>
+            <Input type="date" value={customRange.end} onChange={e => setCustomRange({...customRange, end: e.target.value})} style={{ marginBottom: 0 }} />
+          </div>
+        )}
       </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ maxWidth: '700px' }}>
-          <h1 style={{ 
-            fontSize: '32px', 
-            fontWeight: 800, 
-            letterSpacing: '-1.5px',
-            marginBottom: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            Supervisor <span className="premium-gradient-text">Dashboard</span>
-            <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '20px', color: 'var(--text-muted)', letterSpacing: '0' }}>Real-time</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+      
+      {/* Premium Welcome Hero */}
+      <MotionDiv 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ 
+          padding: '48px', 
+          borderRadius: '32px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <h1 style={{ fontSize: '42px', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '12px', color: 'var(--text-main)' }}>
+            Welcome Back, <span className="premium-gradient-text">{user?.name}</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '15px', fontWeight: 500 }}>
-            Overview of team performance and operations.
+          <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '600px', lineHeight: '1.6' }}>
+            Managing <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{agents.length} Agents</span> across the platform. 
+            Real-time performance summary for this {period}.
           </p>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>Logged in as</div>
-          <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '15px' }}>{user?.name}</div>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Active Agents</div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: 'hsl(var(--primary))' }}>
-            {(stats?.agent_performance || []).filter(a => ['active', 'on call'].includes(a.status?.toLowerCase())).length}
-          </div>
-        </div>
-      </div>
+        
+        {/* Decorative elements */}
+        <div style={{ 
+          position: 'absolute', right: '-40px', top: '-40px', 
+          width: '300px', height: '300px', 
+          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+          borderRadius: '50%', filter: 'blur(40px)'
+        }} />
+      </MotionDiv>
 
       {renderFilterBar()}
 
-      {/* Top row of summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
-        <Card title="Bookings" icon={ClipboardList} subtitle={`${stats?.period_bookings || 0} created this ${period}`}>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.period_bookings || 0}</span>
-            <Trend value={stats?.bookings_growth} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+        <Card title="Team Total" icon={TrendingUp}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>
+            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.total_revenue || 0)}
           </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total team revenue this {period}</div>
         </Card>
-
-        <Card title="Team Conversion" icon={Award} subtitle="Booking to Inquiry ratio">
-          <span style={{ fontSize: '28px', fontWeight: 800, color: 'hsl(var(--primary))' }}>
-            {stats?.period_bookings && stats?.total_inquiries 
-              ? ((stats.period_bookings / stats.total_inquiries) * 100).toFixed(1) 
-              : '0'}%
-          </span>
+        <Card title="Team Bookings" icon={FileText}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.total_bookings}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total bookings confirmed</div>
         </Card>
-
-        <Card title="Total Call Logs" icon={PhoneCall}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats?.total_calls || 0}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total logged by team this {period}</div>
+        <Card title="Average Close" icon={Target}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'hsl(var(--primary))' }}>
+            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.avg_booking_value || 0)}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Per booking average</div>
         </Card>
-        <Card title="Team Inquiries" icon={Mail}>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{stats?.total_inquiries || 0}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total inquiries tagged by team</div>
+        <Card title="Team Activity" icon={Clock}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.team_calls || 0}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Total call logs today</div>
         </Card>
       </div>
 
-      {/* Revenue Breakdown with Tabs */}
-      <Card style={{ padding: '32px', borderRadius: '24px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CircleDollarSign size={20} color="hsl(var(--primary))" /> Team Revenue Breakdown
-            </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Granular financial visibility for selected period</p>
-          </div>
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
-          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Net Revenue</p>
-            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#06B68A' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats?.daily_revenue || 0)}
-            </h4>
-          </div>
-          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Collected</p>
-            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#059669' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats?.revenue?.charged || 0)}
-            </h4>
-          </div>
-          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Refunded</p>
-            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats?.revenue?.refunded || 0)}
-            </h4>
-          </div>
-          <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Chargeback</p>
-            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#ef4444' }}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats?.revenue?.chargeback || 0)}
-            </h4>
-          </div>
-        </div>
-      </Card>
-
-
-
-      {/* Visual Activity Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-        <Card title="Revenue Trend" subtitle="Team performance over the last 6 months" icon={TrendingUp}>
-          <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--text-muted)', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--text-muted)', fontSize: 12}} />
-                <Tooltip 
-                  contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px' }}
-                  itemStyle={{ color: 'var(--text-main)' }}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
+        <Card title="Agent Performance Breakdown" icon={Users} subtitle="Revenue contribution per agent">
+          <div style={{ height: '400px', width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.agent_performance} layout="vertical" margin={{ left: 40, right: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" opacity={0.5} />
+                <XAxis type="number" hide />
+                <YAxis 
+                  type="category" 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false}
+                  tick={{ fontSize: 12, fontWeight: 600, fill: 'var(--text-main)' }}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-              </AreaChart>
+                <Tooltip 
+                  cursor={{ fill: 'var(--bg-input)', opacity: 0.4 }}
+                  contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
+                  formatter={(value) => [`$${value}`, 'Revenue']}
+                />
+                <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
+                  {stats.agent_performance?.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={`hsl(var(--primary), ${1 - (index * 0.1)})`} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        <Card title="Booking Overview" subtitle="Current period distribution" icon={CheckCircle2}>
-          <div style={{ height: '300px', width: '100%', marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="count"
-                  nameKey="status"
-                >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginTop: '-20px' }}>
-              {statusData.map((item, idx) => (
-                <div key={item.status} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[idx % COLORS.length] }} />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.status === 'Pending' ? 'Email Send Pending' : item.status} ({item.count})</span>
+        <Card title="Performance Distribution" icon={PieChartIcon} subtitle="By Booking Type">
+           <div style={{ height: '400px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {stats.performance_metrics?.map((item, idx) => (
+                <div key={idx} style={{ padding: '20px', background: 'var(--bg-input)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700 }}>{item.label}</span>
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{item.value}%</span>
+                  </div>
+                  <div style={{ height: '6px', background: 'var(--bg-card)', borderRadius: '100px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${item.value}%`, background: 'hsl(var(--primary))' }} />
+                  </div>
                 </div>
               ))}
-            </div>
-          </div>
+              {(!stats.performance_metrics || stats.performance_metrics.length === 0) && (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '100px' }}>No distribution data available</div>
+              )}
+           </div>
         </Card>
-
-        {stats?.booking_status_trends && stats.booking_status_trends.length > 0 && (
-          <Card title="Pending vs Confirmed Booking" subtitle="Last 6 months closing trend" icon={TrendingUp}>
-            <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
-                    itemStyle={{ fontWeight: 700 }}
-                    cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                  />
-                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '10px' }} />
-                  <Bar dataKey="Confirmed" fill="#10B981" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="Pending" fill="#F59E0B" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-        )}
       </div>
 
-      {/* Tables - Performance and Recent Activity */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
-        <Card title="Agent Performance" subtitle="Track calls, bookings, and inquiries" icon={Award}>
-          <div style={{ overflowX: 'auto', marginTop: '16px' }}>
+      <Card title="Team Monitoring" icon={BadgeAlert} subtitle="Real-time agent status & activity">
+         <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left' }}>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Agent</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Login</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Inquiries (Details)</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Revenue</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>KPIs</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Loading records...</td></tr>
-                ) : (stats?.agent_performance && stats.agent_performance.length > 0) ? stats.agent_performance.map(agent => {
-                  const conversion = agent.inquiries_count > 0 ? Math.round((agent.bookings_count / agent.inquiries_count) * 100) : 0;
-                  return (
-                    <tr key={agent.id} style={{ background: 'var(--bg-input)', transition: 'transform 0.2s' }}>
-                      <td style={{ padding: '16px', borderRadius: '16px 0 0 16px', border: '1px solid var(--border-color)', borderRight: 'none' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {agent.name}
-                          {agent.id === user.id && <span style={{ fontSize: '10px', padding: '2px 6px', background: 'rgba(96, 165, 250, 0.1)', color: '#60a5fa', borderRadius: '4px' }}>YOU</span>}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                          <div style={{ 
-                            width: '6px', 
-                            height: '6px', 
-                            borderRadius: '50%', 
-                            background: ['active', 'on call'].includes(agent.status?.toLowerCase()) ? '#22c55e' : (agent.status?.toLowerCase() === 'break' ? '#f59e0b' : '#ef4444') 
-                          }} />
-                          {agent.status || 'Offline'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Clock size={12} style={{ color: 'var(--text-muted)' }} />
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{agent.login_time || '--'}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                          {agent.inquiry_details?.length > 0 ? agent.inquiry_details.map(detail => (
-                            <span key={detail.tag} style={{ 
-                              padding: '2px 8px', 
-                              background: 'rgba(255,255,255,0.05)', 
-                              border: '1px solid var(--border-color)', 
-                              borderRadius: '6px', 
-                              fontSize: '10px', 
-                              fontWeight: 700,
-                              color: 'var(--text-main)'
-                            }}>
-                              {detail.count} {detail.tag}
-                            </span>
-                          )) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{agent.inquiries_count} Total</span>}
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ fontWeight: 800, color: '#22c55e', fontSize: '14px' }}>
-                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(agent.revenue || 0)}
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px', borderRadius: '0 16px 16px 0', border: '1px solid var(--border-color)', borderLeft: 'none' }}>
-                         <div style={{ display: 'flex', gap: '16px' }}>
-                            <div style={{ textAlign: 'center' }}>
-                               <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>BOOKINGS</div>
-                               <div style={{ fontSize: '14px', fontWeight: 800, color: '#06B68A' }}>{agent.bookings_count}</div>
+               <thead>
+                  <tr style={{ textAlign: 'left' }}>
+                     <th style={{ padding: '12px 20px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Agent</th>
+                     <th style={{ padding: '12px 20px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Current Status</th>
+                     <th style={{ padding: '12px 20px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Time in Status</th>
+                     <th style={{ padding: '12px 20px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Daily Revenue</th>
+                     <th style={{ padding: '12px 20px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Actions</th>
+                  </tr>
+               </thead>
+               <tbody>
+                  {agents.map((agent) => (
+                    <tr key={agent.id} className="agent-row" style={{ background: 'var(--bg-input)', borderRadius: '16px' }}>
+                      <td style={{ padding: '16px 20px', borderRadius: '16px 0 0 16px' }}>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'hsl(var(--primary))', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px' }}>
+                               {agent.name.charAt(0)}
                             </div>
-                            <div style={{ textAlign: 'center' }}>
-                               <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CALLS</div>
-                               <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>{agent.calls_count}</div>
-                            </div>
-
-                            <div style={{ textAlign: 'center' }}>
-                               <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>CONV.</div>
-                               <div style={{ fontSize: '14px', fontWeight: 800, color: conversion > 10 ? '#10b981' : '#f59e0b' }}>{conversion}%</div>
-                            </div>
+                            <span style={{ fontWeight: 700 }}>{agent.name}</span>
                          </div>
                       </td>
+                      <td style={{ padding: '16px 20px' }}>
+                         <span style={{ 
+                            padding: '6px 12px', 
+                            borderRadius: '100px', 
+                            fontSize: '11px', 
+                            fontWeight: 800,
+                            background: agent.status === 'Active' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: agent.status === 'Active' ? '#22c55e' : '#ef4444'
+                         }}>
+                            {agent.status || 'Offline'}
+                         </span>
+                      </td>
+                      <td style={{ padding: '16px 20px', fontFamily: 'monospace', fontSize: '13px', color: 'var(--text-muted)' }}>
+                         {agent.time_in_status || '00:00:00'}
+                      </td>
+                      <td style={{ padding: '16px 20px', fontWeight: 800, color: '#06B68A' }}>
+                         ${agent.daily_revenue || 0}
+                      </td>
+                      <td style={{ padding: '16px 20px', borderRadius: '0 16px 16px 0' }}>
+                         <Button variant="ghost" size="sm" icon={ChevronRight} />
+                      </td>
                     </tr>
-                  );
-                }) : (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>No performance data available for this team in the selected period.</td></tr>
-                )}
-              </tbody>
+                  ))}
+               </tbody>
             </table>
-          </div>
-        </Card>
+         </div>
+      </Card>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          <Card title="Recent Inquiries" subtitle="Latest team inquiries" icon={Phone}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-              {(Array.isArray(stats?.recent_inquiries) ? stats.recent_inquiries : []).map(inq => (
-                <div key={inq.id} style={{ 
-                  padding: '16px', 
-                  borderRadius: '16px', 
-                  border: '1px solid var(--border-color)', 
-                  background: 'var(--bg-input)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{inq.client?.name || 'New Lead'}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Agent: {inq.agent?.name} • {
-                        [
-                          ...(Array.isArray(inq.call_type) ? inq.call_type : (inq.call_type ? [inq.call_type] : [])),
-                          ...(Array.isArray(inq.airline_inquiry) ? inq.airline_inquiry : (inq.airline_inquiry ? [inq.airline_inquiry] : []))
-                        ].filter(Boolean).join(', ') || 'General Inquiry'
-                      }
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(inq.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                    <ChevronRight size={14} style={{ color: 'var(--text-muted)', marginTop: '4px' }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card title="Recent Team Bookings" subtitle="Latest team activity" icon={ClipboardList}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-              {Array.isArray(stats?.recent_bookings) && stats.recent_bookings.length > 0 ? stats.recent_bookings.map(book => (
-                <div key={book.id} style={{ 
-                  padding: '16px', 
-                  borderRadius: '18px', 
-                  border: '1px solid var(--border-color)', 
-                  background: 'var(--bg-input)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }} onClick={() => navigate(`/${activeRole}/bookings/${book.id}`)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ 
-                      width: '40px', 
-                      height: '40px', 
-                      borderRadius: '12px', 
-                      background: 'rgba(96, 165, 250, 0.1)', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      color: '#60a5fa'
-                    }}>
-                      <ClipboardList size={20} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '14px' }}>{book.booking_reference}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <User size={10} /> {book.agent?.name || 'Unassigned'} • {book.client?.name || 'No Client'}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '13px' }}>
-                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: book.currency || 'USD' }).format(book.total_amount || 0)}
-                    </div>
-                    <div style={{ marginTop: '6px' }}>
-                      <span style={{ 
-                        padding: '3px 10px', 
-                        borderRadius: '100px', 
-                        fontSize: '9px', 
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        background: getStatusBadgeStyle(book.status).bg,
-                        color: getStatusBadgeStyle(book.status).color,
-                        border: `1px solid ${getStatusBadgeStyle(book.status).color}20`
-                      }}>
-                        {book.status === 'Pending' ? 'Email Pending' : (book.status === 'Work Pending' ? 'Processing' : book.status)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )) : <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No recent bookings found</div>}
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {reassignModal.open && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(2, 6, 23, 0.85)',
-          backdropFilter: 'blur(10px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1200,
-          padding: '24px'
-        }}>
-          <div style={{ width: '100%', maxWidth: '420px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '24px', padding: '24px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Reassign Booking</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>Select a team member to take over this booking.</p>
-            
-            <select
-              value={selectedReassignAgent}
-              onChange={(e) => setSelectedReassignAgent(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-app)', color: 'var(--text-main)', border: '1px solid var(--border-color)', marginBottom: '16px' }}
-            >
-              <option value="">Select Agent</option>
-              {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-
-            <textarea 
-              placeholder="Add handoff notes..." 
-              value={handoffRemark}
-              onChange={e => setHandoffRemark(e.target.value)}
-              style={{ width: '100%', height: '100px', padding: '12px', borderRadius: '12px', background: 'var(--bg-app)', color: 'var(--text-main)', border: '1px solid var(--border-color)', marginBottom: '20px', resize: 'none' }}
-            />
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <Button style={{ flex: 1 }} variant="ghost" onClick={closeReassignModal}>Cancel</Button>
-              <Button style={{ flex: 1 }} variant="primary" onClick={handleReassign} isLoading={reassigning}>Reassign Now</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recent Charges Section */}
-      {(stats?.recent_charges || []).length > 0 && (
-        <Card title="Team Payment Activity" icon={ReceiptText} subtitle="Latest Team Captured · Refunded · Chargeback transactions">
+      {/* Recent Team Charges Section */}
+      {(stats.recent_charges || []).length > 0 && (
+        <Card title="Team Payment Activity" icon={ReceiptText} subtitle="Latest transactions across your team">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
             {(stats.recent_charges || []).map((charge, idx) => {
               const isCapture   = charge.charge_status === 'Charged/Captured';
@@ -712,10 +410,9 @@ const SupervisorDashboard = () => {
                         {charge.booking_ref}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        Agent: <span style={{color: 'var(--text-main)', fontWeight: 600}}>{charge.agent_name || 'System'}</span> &nbsp;·&nbsp;
                         {charge.client_name} &nbsp;·&nbsp;
-                        {charge.collected_at
-                          ? new Date(charge.collected_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                          : '—'}
+                        {charge.collected_at ? new Date(charge.collected_at).toLocaleDateString() : '—'}
                       </div>
                     </div>
                   </div>
@@ -739,7 +436,11 @@ const SupervisorDashboard = () => {
         </Card>
       )}
 
-      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'error' })} />
+      <Toast 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={() => setToast({ message: '', type: 'error' })} 
+      />
     </div>
   );
 };

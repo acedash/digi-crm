@@ -176,8 +176,8 @@ const AgentMonitorPage = () => {
   ] : [];
 
   const PeriodFilterBar = ({ period, start, end, onPeriodChange, onCustomStartChange, onCustomEndChange, section }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
-      <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', maxWidth: '100%' }}>
+      <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)', overflowX: 'auto', maxWidth: '100%', scrollbarWidth: 'none' }}>
         {periods.map((p) => (
           <button
             key={p.id}
@@ -186,6 +186,7 @@ const AgentMonitorPage = () => {
               padding: '6px 14px',
               borderRadius: '8px',
               border: 'none',
+              whiteSpace: 'nowrap',
               background: period === p.id ? 'var(--bg-card)' : 'transparent',
               color: period === p.id ? 'var(--text-main)' : 'var(--text-muted)',
               fontSize: '12px',
@@ -201,7 +202,7 @@ const AgentMonitorPage = () => {
       </div>
 
       {period === 'custom' && (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)', animation: 'fadeIn 0.3s ease' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)', animation: 'fadeIn 0.3s ease', flexWrap: 'wrap' }}>
           <div style={{ width: '150px' }}>
             <Input
               type="date"
@@ -229,8 +230,8 @@ const AgentMonitorPage = () => {
   );
 
   const AttendanceFilterBar = ({ period, start, end, onPeriodChange, onCustomStartChange, onCustomEndChange }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
-      <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', maxWidth: '100%' }}>
+      <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)', overflowX: 'auto', maxWidth: '100%', scrollbarWidth: 'none' }}>
         {[
           { id: 'daily', label: 'Daily' },
           { id: 'yesterday', label: 'Yesterday' },
@@ -243,6 +244,7 @@ const AgentMonitorPage = () => {
               padding: '6px 14px',
               borderRadius: '8px',
               border: 'none',
+              whiteSpace: 'nowrap',
               background: period === p.id ? 'var(--bg-card)' : 'transparent',
               color: period === p.id ? 'var(--text-main)' : 'var(--text-muted)',
               fontSize: '12px',
