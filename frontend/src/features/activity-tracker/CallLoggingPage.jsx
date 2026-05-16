@@ -203,22 +203,36 @@ const CallLoggingPage = () => {
 
   const handleExportPdf = () => {
     try {
-      const doc = new jsPDF('landscape');
+      const doc = new jsPDF({ orientation: 'landscape' });
       doc.setFontSize(18);
       doc.text("Call Logging Activity Report", 14, 22);
       doc.setFontSize(11);
       doc.setTextColor(100);
       doc.text(`Scope: ${scopeFilter.toUpperCase()} | Generated: ${new Date().toLocaleString()}`, 14, 30);
 
+      const getCategoryDetails = (inquiry) => {
+        if (!inquiry || typeof inquiry !== 'object') return String(inquiry || '');
+        try {
+          return Object.entries(inquiry)
+            .filter(([, v]) => v)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(' | ');
+        } catch {
+          return '';
+        }
+      };
+
       const tableRows = logs.map(log => [
         new Date(log.created_at).toLocaleString(),
         log.log_scope === 'general' ? 'Marketing' : 'Booking',
-        log.client ? `${log.client.first_name} ${log.client.last_name}` : (log.contact_name || ''),
+        log.client
+          ? `${log.client.first_name || ''} ${log.client.last_name || ''}`.trim()
+          : (log.contact_name || ''),
         log.contact_phone || log.client?.phone || '',
         log.contact_email || log.client?.email || '',
-        (Array.isArray(log.call_type) ? log.call_type : [log.call_type]).join(', '),
-        typeof log.airline_inquiry === 'object' ? Object.entries(log.airline_inquiry).map(([k, v]) => `${k}: ${v}`).join(' | ') : (log.airline_inquiry || ''),
-        log.customer_outcome,
+        (Array.isArray(log.call_type) ? log.call_type : [log.call_type ?? '']).join(', '),
+        getCategoryDetails(log.airline_inquiry),
+        log.customer_outcome || '',
         log.notes || ''
       ]);
 
@@ -228,10 +242,10 @@ const CallLoggingPage = () => {
         body: tableRows,
         theme: 'striped',
         headStyles: { fillColor: [37, 99, 235] },
-        styles: { fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
         columnStyles: {
-          8: { cellWidth: 40 }, // Notes column
-          6: { cellWidth: 40 }  // Category details column
+          6: { cellWidth: 45 },
+          8: { cellWidth: 45 }
         }
       });
 
