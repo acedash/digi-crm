@@ -25,6 +25,7 @@ import AdminMonitoringTable from './AdminMonitoringTable';
 import { AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { getStatusLabel, getAuthorizationTypeLabel } from '../bookings/bookingUtils';
 import { useWalkthroughStore } from '../../store/walkthroughStore';
+import AgentReportSlideOver from './components/AgentReportSlideOver';
 
 const COLORS = [
   '#06B68A', // Emerald
@@ -41,7 +42,6 @@ const COLORS = [
   '#14b8a6'  // Cyan
 ];
 
-
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
@@ -50,6 +50,11 @@ const AdminDashboard = () => {
   const [period, setPeriod] = useState('daily');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+
+  // Report SlideOver state
+  const [selectedAgentId, setSelectedAgentId] = useState(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportFilters, setReportFilters] = useState({ period: 'daily', start: null, end: null });
 
   // Independent stats periods
   const [bookPeriod, setBookPeriod] = useState('daily');
@@ -60,6 +65,12 @@ const AdminDashboard = () => {
   const [bookStats, setBookStats] = useState(null);
   const [callStats, setCallStats] = useState(null);
   const [revStats, setRevStats] = useState(null);
+
+  const handleViewReport = (id, periodFilter, start, end) => {
+    setSelectedAgentId(id);
+    setReportFilters({ period: periodFilter === 'live' ? 'daily' : periodFilter, start, end });
+    setIsReportOpen(true);
+  };
 
   useEffect(() => {
     if (period === 'custom') {
@@ -615,8 +626,18 @@ const AdminDashboard = () => {
           period={period} 
           startDate={customStart} 
           endDate={customEnd} 
+          onViewReport={handleViewReport}
         />
       </div>
+
+      <AgentReportSlideOver
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        agentId={selectedAgentId}
+        initialPeriod={reportFilters.period}
+        initialStart={reportFilters.start}
+        initialEnd={reportFilters.end}
+      />
     </div>
   );
 };
