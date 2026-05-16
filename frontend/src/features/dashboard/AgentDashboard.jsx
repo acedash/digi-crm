@@ -21,7 +21,10 @@ import {
   CircleDollarSign,
   Mail,
   Calendar,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  ReceiptText,
+  ArrowDownLeft,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -579,6 +582,68 @@ const AgentDashboard = () => {
           </div>
         </Card>
       </div>
+
+      {/* Recent Charges Section */}
+      {(stats.recent_charges || []).length > 0 && (
+        <Card title="Recent Payment Activity" icon={ReceiptText} subtitle="Latest Captured · Refunded · Chargeback transactions">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+            {(stats.recent_charges || []).map((charge, idx) => {
+              const isCapture   = charge.charge_status === 'Charged/Captured';
+              const isRefund    = charge.charge_status === 'Refunded';
+              const isChargeback = charge.charge_status === 'Chargeback';
+              const color  = isCapture ? '#059669' : isRefund ? '#3b82f6' : '#ef4444';
+              const bg     = isCapture ? 'rgba(5,150,105,0.10)' : isRefund ? 'rgba(59,130,246,0.10)' : 'rgba(239,68,68,0.10)';
+              const label  = isCapture ? 'Captured' : isRefund ? 'Refunded' : 'Chargeback';
+              const Icon   = isCapture ? CheckCircle2 : isRefund ? ArrowDownLeft : AlertTriangle;
+              return (
+                <div key={idx} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 16px',
+                  borderRadius: '14px',
+                  background: 'var(--bg-input)',
+                  border: `1px solid ${color}30`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{
+                      width: '38px', height: '38px', borderRadius: '10px',
+                      background: bg, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', color
+                    }}>
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                        {charge.booking_ref}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {charge.client_name} &nbsp;·&nbsp;
+                        {charge.collected_at
+                          ? new Date(charge.collected_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          : '—'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 800, fontSize: '15px', color }}>
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: charge.currency || 'USD' }).format(charge.amount)}
+                    </div>
+                    <span style={{
+                      display: 'inline-block', marginTop: '4px',
+                      fontSize: '9px', fontWeight: 800, textTransform: 'uppercase',
+                      letterSpacing: '0.05em', padding: '2px 8px',
+                      borderRadius: '20px', background: bg, color
+                    }}>
+                      {label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Toast 
         message={toast.message} 

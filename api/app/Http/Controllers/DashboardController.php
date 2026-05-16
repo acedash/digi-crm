@@ -585,7 +585,7 @@ class DashboardController extends Controller
             $cacheKey .= "." . md5($customStart . $customEnd);
         }
 
-        $data = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($user, $period, $customStart, $customEnd) {
+        $data = Cache::remember($cacheKey, now()->addSeconds(10), function () use ($user, $period, $customStart, $customEnd) {
             $now = now();
             $startDate = null;
             $endDate = $now->toDateTimeString();
@@ -717,6 +717,36 @@ class DashboardController extends Controller
                     ->latest('created_at')
                     ->take(5)
                     ->get(),
+                'recent_charges' => \App\Models\PaymentAuth::query()
+                    ->select(['payment_authorizations.id', 'payment_authorizations.total_amount', 'payment_authorizations.currency',
+                              'payment_authorizations.charge_status', 'payment_authorizations.collected_at',
+                              'payment_authorizations.client_id', 'payment_authorizations.status'])
+                    ->whereExists(function($q) use ($user) {
+                        $q->select(DB::raw(1))
+                            ->from('booking_payment_auth')
+                            ->join('bookings', 'bookings.id', '=', 'booking_payment_auth.booking_id')
+                            ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id')
+                            ->where('bookings.agent_id', $user->id);
+                    })
+                    ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback'])
+                    ->with([
+                        'client:id,first_name,last_name,name',
+                        'bookings:id,booking_reference'
+                    ])
+                    ->orderByDesc('updated_at')
+                    ->take(5)
+                    ->get()
+                    ->map(fn($pa) => [
+                        'id' => $pa->id,
+                        'amount' => (float) $pa->total_amount,
+                        'currency' => $pa->currency ?? 'USD',
+                        'charge_status' => $pa->charge_status,
+                        'collected_at' => $pa->collected_at,
+                        'client_name' => $pa->client
+                            ? trim(($pa->client->first_name ?? '') . ' ' . ($pa->client->last_name ?? '')) ?: $pa->client->name
+                            : 'Unknown',
+                        'booking_ref' => $pa->bookings->first()?->booking_reference ?? '—',
+                    ]),
                 'daily_target' => 75,
                 'period_label' => $period
             ];
