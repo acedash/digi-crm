@@ -81,6 +81,11 @@ class PaymentAuthRepository extends BaseRepository
                     ];
                 }
             }
+            if (isset($record->metadata['change_entries'])) {
+                $meta = $record->metadata;
+                unset($meta['change_entries']);
+                $record->metadata = $meta;
+            }
             return $record;
         });
     }
