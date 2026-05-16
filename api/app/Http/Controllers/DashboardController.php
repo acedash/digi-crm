@@ -470,7 +470,10 @@ class DashboardController extends Controller
                 ->select(
                     DB::raw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN total_amount ELSE 0 END) as charged"),
                     DB::raw("SUM(CASE WHEN charge_status = 'Refunded' THEN total_amount ELSE 0 END) as refunded"),
-                    DB::raw("SUM(CASE WHEN charge_status = 'Chargeback' THEN total_amount ELSE 0 END) as chargeback")
+                    DB::raw("SUM(CASE WHEN charge_status = 'Chargeback' THEN total_amount ELSE 0 END) as chargeback"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN 1 ELSE 0 END) as charged_count"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Refunded' THEN 1 ELSE 0 END) as refunded_count"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Chargeback' THEN 1 ELSE 0 END) as chargeback_count")
                 )
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->first();
@@ -508,8 +511,11 @@ class DashboardController extends Controller
                     'period_bookings' => (int) ($teamKpi['total_count'] ?? 0),
                     'revenue' => [
                         'charged' => (float) ($paymentStats->charged ?? 0),
+                        'charged_count' => (int) ($paymentStats->charged_count ?? 0),
                         'refunded' => (float) ($paymentStats->refunded ?? 0),
-                        'chargeback' => (float) ($paymentStats->chargeback ?? 0)
+                        'refunded_count' => (int) ($paymentStats->refunded_count ?? 0),
+                        'chargeback' => (float) ($paymentStats->chargeback ?? 0),
+                        'chargeback_count' => (int) ($paymentStats->chargeback_count ?? 0),
                     ],
                     'inquiry_tags' => $inquiryTags,
                     'status_breakdown' => $statusBreakdown,
@@ -637,7 +643,10 @@ class DashboardController extends Controller
                 ->select(
                     DB::raw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN total_amount ELSE 0 END) as charged"),
                     DB::raw("SUM(CASE WHEN charge_status = 'Refunded' THEN total_amount ELSE 0 END) as refunded"),
-                    DB::raw("SUM(CASE WHEN charge_status = 'Chargeback' THEN total_amount ELSE 0 END) as chargeback")
+                    DB::raw("SUM(CASE WHEN charge_status = 'Chargeback' THEN total_amount ELSE 0 END) as chargeback"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Charged/Captured' THEN 1 ELSE 0 END) as charged_count"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Refunded' THEN 1 ELSE 0 END) as refunded_count"),
+                    DB::raw("SUM(CASE WHEN charge_status = 'Chargeback' THEN 1 ELSE 0 END) as chargeback_count")
                 )
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->first();
@@ -684,8 +693,11 @@ class DashboardController extends Controller
                 'daily_revenue' => (float) $netRevenue, // This is net for the period
                 'revenue' => [
                     'charged' => (float) ($paymentStats->charged ?? 0),
+                    'charged_count' => (int) ($paymentStats->charged_count ?? 0),
                     'refunded' => (float) ($paymentStats->refunded ?? 0),
-                    'chargeback' => (float) ($paymentStats->chargeback ?? 0)
+                    'refunded_count' => (int) ($paymentStats->refunded_count ?? 0),
+                    'chargeback' => (float) ($paymentStats->chargeback ?? 0),
+                    'chargeback_count' => (int) ($paymentStats->chargeback_count ?? 0),
                 ],
                 'revenue_trends' => $revenueTrends,
                 'booking_distribution' => $bookingDistribution,

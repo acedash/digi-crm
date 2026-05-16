@@ -309,12 +309,18 @@ const SupervisorDashboard = () => {
             </span>
             <Trend value={stats?.revenue_growth} />
           </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 600 }}>Captured − Refunded − Chargeback</div>
         </Card>
 
-        <Card title="Collected" icon={CheckCircle2} subtitle={`Total charged in ${period}`}>
+        <Card title="Captured" icon={CheckCircle2} subtitle={`Charged in ${period}`}>
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
             <span style={{ fontSize: '28px', fontWeight: 800, color: '#059669' }}>
               {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.charged || 0)}
+            </span>
+          </div>
+          <div style={{ marginTop: '6px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(5, 150, 105, 0.12)', color: '#059669', padding: '2px 8px', borderRadius: '20px' }}>
+              {stats?.revenue?.charged_count || 0} transactions
             </span>
           </div>
         </Card>
@@ -325,12 +331,22 @@ const SupervisorDashboard = () => {
               {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.refunded || 0)}
             </span>
           </div>
+          <div style={{ marginTop: '6px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', padding: '2px 8px', borderRadius: '20px' }}>
+              {stats?.revenue?.refunded_count || 0} transactions
+            </span>
+          </div>
         </Card>
 
         <Card title="Chargeback" icon={ShieldAlert} subtitle={`Total chargebacks in ${period}`}>
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
             <span style={{ fontSize: '28px', fontWeight: 800, color: '#ef4444' }}>
               {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.revenue?.chargeback || 0)}
+            </span>
+          </div>
+          <div style={{ marginTop: '6px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', padding: '2px 8px', borderRadius: '20px' }}>
+              {stats?.revenue?.chargeback_count || 0} transactions
             </span>
           </div>
         </Card>
