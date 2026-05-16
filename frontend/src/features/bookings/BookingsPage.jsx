@@ -23,9 +23,8 @@ const BookingsPage = () => {
   };
 
   const handleSuccess = (flash) => {
-    navigate(location.state?.returnTo || `${basePath}/bookings`, { state: { flash }, replace: true });
+    navigate(`${basePath}/bookings`, { state: { flash } });
   };
-
 
 
   return (
@@ -33,9 +32,9 @@ const BookingsPage = () => {
       <AnimatePresence mode="wait">
         {view === 'list' && (
           <div key="list">
-            <BookingList 
-              onCreate={handleCreate} 
-              onEdit={handleEdit} 
+            <BookingList
+              onCreate={handleCreate}
+              onEdit={handleEdit}
             />
           </div>
         )}
@@ -43,11 +42,11 @@ const BookingsPage = () => {
         {view === 'form' && (
           <div key="form">
             <div style={{ padding: '24px' }}>
-              <BookingForm 
+              <BookingForm
                 key={editingId || 'new'}
-                bookingId={editingId} 
-                onSuccess={handleSuccess} 
-                onCancel={() => navigate(location.state?.returnTo || `${basePath}/bookings`, { replace: true })} 
+                bookingId={editingId}
+                onSuccess={handleSuccess}
+                onCancel={() => navigate(location.state?.returnTo || `${basePath}/bookings`)}
               />
             </div>
           </div>

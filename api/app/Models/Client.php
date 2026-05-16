@@ -68,7 +68,7 @@ class Client extends Model
 
     public function latestBooking()
     {
-        return $this->hasOne(Booking::class)->latest('created_at');
+        return $this->hasOne(Booking::class)->latestOfMany();
     }
 
 

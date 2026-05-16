@@ -155,7 +155,7 @@ const ClientList = ({ isEmbedded = false }) => {
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF('l', 'mm', 'a4'); // Use landscape for more columns
-      const tableColumn = ["ID", "Name", "Email", "Phone", "Address", "Latest Booking", "Spend"];
+      const tableColumn = ["ID", "Name", "Email", "Phone", "Address", "Latest Booking", "Date", "Spend"];
       const tableRows = clients.map(client => {
         const booking = client.latestBooking || client.latest_booking;
         const bookingStr = booking ? `${booking.booking_reference}\n${(booking.services || []).map(s => {
@@ -164,6 +164,10 @@ const ClientList = ({ isEmbedded = false }) => {
           return `${type}: ${name}`;
         }).join(', ')}` : 'No Bookings';
 
+        const dateStr = booking 
+          ? new Date(booking.created_at).toLocaleDateString() 
+          : new Date(client.created_at).toLocaleDateString();
+
         return [
           `C-${String(client.id).padStart(4, '0')}`,
           `${client.first_name || ''} ${client.last_name || ''}`.trim(),
@@ -171,6 +175,7 @@ const ClientList = ({ isEmbedded = false }) => {
           client.phone || '--',
           client.address || '--',
           bookingStr,
+          dateStr,
           `$${Number(client.bookings_sum_total_amount || 0).toLocaleString()}`
         ];
       });
