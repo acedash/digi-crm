@@ -9,6 +9,7 @@ import { BACKEND_BASE_URL } from '../../services/api';
 import Button from '../../components/ui/Button';
 import sensitiveAuditService from '../../services/sensitiveAuditService';
 import ExportDropdown from '../../components/ui/ExportDropdown';
+import Toast from '../../components/ui/Toast';
 
 const formatMoney = (amount, currency = 'USD') =>
   new Intl.NumberFormat('en-US', {
@@ -95,6 +96,7 @@ const ConsentProofPage = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [proof, setProof] = useState(null);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState({ message: '', type: 'success' });
 
   useEffect(() => {
     const loadProof = async () => {
@@ -204,9 +206,9 @@ const ConsentProofPage = () => {
       await paymentAuthService.refreshProofSnapshot(proof.token);
       const response = await paymentAuthService.getProofByBooking(id);
       setProof(response.data.data);
-      alert('Proof snapshot refreshed successfully.');
+      setToast({ message: 'Proof snapshot refreshed successfully.', type: 'success' });
     } catch (err) {
-      alert('Failed to refresh snapshot: ' + (err.response?.data?.message || err.message));
+      setToast({ message: 'Failed to refresh snapshot: ' + (err.response?.data?.message || err.message), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -801,6 +803,14 @@ const ConsentProofPage = () => {
           </div>
         )}
       </div>
+
+      {toast.message && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast({ message: '', type: 'success' })} 
+        />
+      )}
     </div>
   );
 };

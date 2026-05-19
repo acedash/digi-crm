@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, History, Megaphone, 
   Briefcase, Download, MoreHorizontal, FileText, Table, Phone, Mail, FileJson,
-  Calendar as CalendarIcon, Filter, RefreshCw
+  Calendar as CalendarIcon, Filter, RefreshCw, HelpCircle
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -14,6 +14,8 @@ import callLogService from './callLogService';
 import clientService from '../clients/clientService';
 import sensitiveAuditService from '../../services/sensitiveAuditService';
 import ExportDropdown from '../../components/ui/ExportDropdown';
+import Toast from '../../components/ui/Toast';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 const CallLoggingPage = () => {
   const [loading, setLoading] = useState(false);
@@ -186,12 +188,30 @@ const CallLoggingPage = () => {
     fetchClients();
   }, [fetchClients, fetchLogs]);
 
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
+  const startCallLogsTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#call-logs-title-area',
+        title: 'Call Logging 📞',
+        content: 'Track all incoming and outgoing calls, link them to clients, and log outcomes.',
+        position: 'bottom'
+      },
+      {
+        target: '#call-log-filters',
+        title: 'Filter Activity',
+        content: 'Filter the recent activity by scope (Marketing/Booking) and timeframe.',
+        position: 'bottom',
+        offset: 20
+      },
+      {
+        target: '#new-log-form',
+        title: 'Log a New Call',
+        content: 'Use this form to quickly log a new call. Select the scope, client, call types, and outcome.',
+        position: 'left'
+      }
+    ]);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -214,7 +234,7 @@ const CallLoggingPage = () => {
       });
       fetchLogs();
     } catch {
-      alert('Failed to log call');
+      setToast({ message: 'Failed to log call', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -357,20 +377,34 @@ const CallLoggingPage = () => {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '32px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 800 }}>Call <span className="premium-gradient-text">Logging</span></h1>
+          <div id="call-logs-title-area">
+            <h1 style={{ fontSize: '32px', fontWeight: 800 }}>Call <span className="premium-gradient-text">Logging</span></h1>
+          </div>
 
-          <ExportDropdown
-            isExporting={exporting}
-            options={[
-              { label: 'As PDF Report', icon: FileText, onClick: handleExportPdf },
-              { label: 'As Excel Data', icon: Table, onClick: handleExportExcel },
-              { label: 'As CSV Format', icon: FileText, onClick: handleExportCsv },
-              { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJson },
-            ]}
-          />
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={startCallLogsTour}
+              icon={HelpCircle}
+              style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+            >
+              Show Guide
+            </Button>
+            <ExportDropdown
+              isExporting={exporting}
+              options={[
+                { label: 'As PDF Report', icon: FileText, onClick: handleExportPdf },
+                { label: 'As Excel Data', icon: Table, onClick: handleExportExcel },
+                { label: 'As CSV Format', icon: FileText, onClick: handleExportCsv },
+                { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJson },
+              ]}
+            />
+          </div>
         </div>
 
-        <Card style={{ padding: '24px' }}>
+        <div id="call-log-filters">
+          <Card style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'hsla(var(--primary), 0.1)', color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -469,6 +503,7 @@ const CallLoggingPage = () => {
             )}
           </div>
         </Card>
+        </div>
 
         <Card title="Recent Activity" icon={History}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -616,7 +651,8 @@ const CallLoggingPage = () => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <Card title="New Log entry" icon={PhoneCall}>
+        <div id="new-log-form">
+          <Card title="New Log entry" icon={PhoneCall}>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {[
@@ -776,17 +812,15 @@ const CallLoggingPage = () => {
             <Button variant="primary" fullWidth isLoading={loading} type="submit" icon={CheckCircle2}>Save Log Entry</Button>
           </form>
         </Card>
+        </div>
       </div>
 
       {toast && (
-        <div style={{
-          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
-          background: toast.type === 'success' ? '#22c55e' : '#ef4444', color: 'white',
-          padding: '12px 24px', borderRadius: '12px', fontWeight: 700, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-          zIndex: 9999
-        }}>
-          {toast.message}
-        </div>
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
       )}
     </div>
   );

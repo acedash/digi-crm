@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWalkthroughStore } from '../../store/walkthroughStore';
 import { X, ChevronRight, ChevronLeft } from 'lucide-react';
-import Button from './Button';
 
 const Walkthrough = () => {
   const { isActive, currentStepIndex, steps, nextStep, prevStep, endTour } = useWalkthroughStore();
@@ -12,35 +12,50 @@ const Walkthrough = () => {
   const tooltipRef = useRef(null);
 
   useEffect(() => {
-    if (!isActive || !step) return;
+    if (!isActive || !step) {
+      setTargetRect(null);
+      return;
+    }
 
+    let timeout;
     const updatePosition = () => {
       const element = document.querySelector(step.target);
       if (element) {
         const rect = element.getBoundingClientRect();
         setTargetRect(rect);
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else {
         setTargetRect(null);
       }
     };
 
+    // Update immediately so we don't show the old target
     updatePosition();
+
+    // Scroll into view once on step change
+    const element = document.querySelector(step.target);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: step.scrollBlock || 'nearest' });
+    }
+
+    // Initial delay to allow components to mount/animate and scroll to settle
+    timeout = setTimeout(updatePosition, 300);
+
     window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition);
+    window.addEventListener('scroll', updatePosition, true); // Capture all scroll events
 
     return () => {
+      clearTimeout(timeout);
       window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
     };
   }, [isActive, step]);
 
   useEffect(() => {
     if (!targetRect || !tooltipRef.current) return;
 
-    const tWidth = tooltipRef.current.offsetWidth;
-    const tHeight = tooltipRef.current.offsetHeight;
-    const padding = 20;
+    const tWidth = tooltipRef.current.offsetWidth || 320;
+    const tHeight = tooltipRef.current.offsetHeight || 150;
+    const padding = 20 + (step.offset || 0);
     const pos = step.position || 'bottom';
 
     let top = 0;
@@ -56,11 +71,11 @@ const Walkthrough = () => {
         left = targetRect.left + (targetRect.width / 2) - (tWidth / 2);
         break;
       case 'left':
-        top = targetRect.top + (targetRect.height / 2) - (tHeight / 2);
+        top = targetRect.top + (targetRect.height / 2) - (tHeight / 2) + (step.offsetY || 0);
         left = targetRect.left - tWidth - padding;
         break;
       case 'right':
-        top = targetRect.top + (targetRect.height / 2) - (tHeight / 2);
+        top = targetRect.top + (targetRect.height / 2) - (tHeight / 2) + (step.offsetY || 0);
         left = targetRect.right + padding;
         break;
       default:
@@ -73,11 +88,11 @@ const Walkthrough = () => {
     top = Math.max(20, Math.min(top, window.innerHeight - tHeight - 20));
 
     setTooltipPos({ top, left });
-  }, [targetRect, step?.position, currentStepIndex]);
+  }, [targetRect, step?.position, currentStepIndex, isActive]);
 
   if (!isActive || !step) return null;
 
-  return (
+  return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
       {/* Backdrop with Spotlight */}
       <motion.div
@@ -90,8 +105,8 @@ const Walkthrough = () => {
           background: 'rgba(2, 6, 23, 0.7)',
           backdropFilter: 'blur(2px)',
           pointerEvents: 'auto',
-          maskImage: targetRect ? `radial-gradient(circle at ${targetRect.left + targetRect.width / 2}px ${targetRect.top + targetRect.height / 2}px, transparent ${Math.max(targetRect.width, targetRect.height) / 1.5}px, black ${Math.max(targetRect.width, targetRect.height) / 1.2}px)` : 'none',
-          WebkitMaskImage: targetRect ? `radial-gradient(circle at ${targetRect.left + targetRect.width / 2}px ${targetRect.top + targetRect.height / 2}px, transparent ${Math.max(targetRect.width, targetRect.height) / 1.5}px, black ${Math.max(targetRect.width, targetRect.height) / 1.2}px)` : 'none',
+          maskImage: targetRect ? `radial-gradient(circle at ${targetRect.left + targetRect.width / 2}px ${targetRect.top + targetRect.height / 2}px, transparent ${Math.min(250, Math.max(targetRect.width, targetRect.height) / 1.2)}px, black ${Math.min(300, Math.max(targetRect.width, targetRect.height))}px)` : 'none',
+          WebkitMaskImage: targetRect ? `radial-gradient(circle at ${targetRect.left + targetRect.width / 2}px ${targetRect.top + targetRect.height / 2}px, transparent ${Math.min(250, Math.max(targetRect.width, targetRect.height) / 1.2)}px, black ${Math.min(300, Math.max(targetRect.width, targetRect.height))}px)` : 'none',
         }}
         onClick={endTour}
       />
@@ -101,10 +116,15 @@ const Walkthrough = () => {
         <motion.div
           key={currentStepIndex}
           ref={tooltipRef}
-          initial={{ opacity: 0, scale: 0.9, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0, x: tooltipPos.left, y: tooltipPos.top }}
-          exit={{ opacity: 0, scale: 0.9, y: 10 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1, 
+            x: tooltipPos.left, 
+            y: tooltipPos.top 
+          }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           style={{
             position: 'absolute',
             width: '320px',
@@ -115,6 +135,8 @@ const Walkthrough = () => {
             boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
             pointerEvents: 'auto',
             zIndex: 10000,
+            top: 0,
+            left: 0
           }}
         >
           <button
@@ -220,8 +242,10 @@ const Walkthrough = () => {
           />
         </motion.div>
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body
   );
 };
 
 export default Walkthrough;
+

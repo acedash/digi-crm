@@ -142,6 +142,46 @@ const BookingList = ({ onCreate, onEdit }) => {
     return () => window.clearTimeout(timeout);
   }, [searchTerm]);
 
+  const startBookingsTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#bookings-title',
+        title: 'Bookings Management 📅',
+        content: 'Welcome to the Bookings section. Here you can track, manage, and process all client travel itineraries.',
+        position: 'bottom'
+      },
+      {
+        target: '#booking-stats',
+        title: 'Real-time Statistics',
+        content: 'Get a quick overview of your booking volume and current status distribution at a glance.',
+        position: 'bottom'
+      },
+      {
+        target: '#booking-search-container',
+        title: 'Search & Filters',
+        content: 'Use these tools to find specific bookings by ID, client name, or filter by travel date and payment status.',
+        position: 'bottom',
+        offset: 40,
+        scrollBlock: 'center'
+      },
+      {
+        target: '#bookings-list-new-btn',
+        title: 'Create New Reservation',
+        content: 'Start a new booking workflow from here. You can add passengers, flights, hotels, and more.',
+        position: 'left'
+      },
+      {
+        target: '#first-booking-actions',
+        title: 'Actionable Booking List',
+        content: 'Manage each booking directly. Send approval emails, modify details, or update statuses as the workflow progresses.',
+        position: 'left',
+        scrollBlock: 'center',
+        offsetY: -60
+      }
+    ]);
+  };
+
   const fetchBookings = useCallback(async (page = 1) => {
     if (isFetchingRef.current) return;
     try {
@@ -304,7 +344,11 @@ const BookingList = ({ onCreate, onEdit }) => {
           fetchBookings(pagination.current_page);
           return;
         } catch (err) {
-          setToast({ message: err?.response?.data?.message || 'Failed to send email. Check SMTP settings.', type: 'error' });
+          const isValidation = err?.response?.status === 422;
+          setToast({ 
+            message: isValidation ? err.response.data.message : 'Failed to deliver email. Please verify your SMTP Configuration in Settings or ensure the client email is valid.', 
+            type: 'error' 
+          });
           return;
         }
       }
@@ -338,7 +382,11 @@ const BookingList = ({ onCreate, onEdit }) => {
               setEmailPreview({ open: false });
               fetchBookings(pagination.current_page);
             } catch (err) {
-              setToast({ message: err?.response?.data?.message || 'Failed to send email. Check SMTP settings.', type: 'error' });
+              const isValidation = err?.response?.status === 422;
+              setToast({ 
+                message: isValidation ? err.response.data.message : 'Failed to deliver email. Please verify your SMTP Configuration in Settings or ensure the client email is valid.', 
+                type: 'error' 
+              });
             } finally {
               setEmailPreview(prev => ({ ...prev, isLoading: false }));
             }
@@ -420,7 +468,11 @@ const BookingList = ({ onCreate, onEdit }) => {
             setEmailPreview({ open: false });
             fetchBookings(pagination.current_page);
           } catch (err) {
-            setToast({ message: err?.response?.data?.message || 'Failed to send email', type: 'error' });
+            const isValidation = err?.response?.status === 422;
+            setToast({ 
+              message: isValidation ? err.response.data.message : 'Failed to deliver email. Please verify your SMTP Configuration in Settings or ensure the client email is valid.', 
+              type: 'error' 
+            });
           } finally {
             setEmailPreview(prev => ({ ...prev, isLoading: false }));
           }
@@ -737,9 +789,9 @@ const BookingList = ({ onCreate, onEdit }) => {
   return (
     <div style={{ padding: window.innerWidth <= 768 ? '16px' : '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header Area */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div id="bookings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
-          <h1 className="premium-gradient-text" style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
+          <h1 id="bookings-title" className="premium-gradient-text" style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
             Bookings
           </h1>
           <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '14px' }}>
@@ -747,7 +799,16 @@ const BookingList = ({ onCreate, onEdit }) => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <Button variant="primary" icon={Plus} onClick={onCreate}>New Booking</Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={startBookingsTour}
+            icon={HelpCircle}
+            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+          >
+            Show Guide
+          </Button>
+          <Button id="bookings-list-new-btn" variant="primary" icon={Plus} onClick={onCreate}>New Booking</Button>
         </div>
       </div>
 
@@ -830,7 +891,7 @@ const BookingList = ({ onCreate, onEdit }) => {
       <div id="booking-tools" style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '40px' }}>
         {/* Row 1: Primary Search, Dates, Refresh, Export */}
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: window.innerWidth <= 768 ? '100%' : '300px', maxWidth: window.innerWidth <= 768 ? '100%' : '400px' }}>
+          <div id="booking-search-container" style={{ flex: 1, minWidth: window.innerWidth <= 768 ? '100%' : '300px', maxWidth: window.innerWidth <= 768 ? '100%' : '400px' }}>
             <Input 
               placeholder="Search by ID, reference, client name, or PNR..." 
               icon={Search}
@@ -1062,6 +1123,7 @@ const BookingList = ({ onCreate, onEdit }) => {
 
             return (
               <BookingRow
+                id={index === 0 ? 'first-booking-row' : undefined}
                 key={booking.id}
                 booking={booking}
                 index={index}

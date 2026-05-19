@@ -11,7 +11,8 @@ import {
   Calendar as CalendarIcon,
   RefreshCw,
   Filter,
-  Clock
+  Clock,
+  HelpCircle
 } from 'lucide-react';
 import { useAuthStore } from '../auth/useAuthStore';
 import Card from '../../components/ui/Card';
@@ -21,6 +22,7 @@ import dashboardService from '../dashboard/dashboardService';
 import AgentReportSlideOver from '../dashboard/components/AgentReportSlideOver';
 import AttendanceReport from './AttendanceReport';
 import Button from '../../components/ui/Button';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 const AgentMonitorPage = () => {
   const { user } = useAuthStore();
@@ -119,6 +121,38 @@ const AgentMonitorPage = () => {
     setSelectedAgentId(id);
     setReportFilters({ period: period === 'live' ? 'daily' : period, start, end });
     setIsReportOpen(true);
+  };
+
+  const startTeamMonitorTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#team-monitor-title-area',
+        title: 'Team Activity Monitor 📈',
+        content: "Monitor your team's activity, performance, and summary stats in real time.",
+        position: 'bottom'
+      },
+      {
+        target: '#team-monitor-stats',
+        title: 'Key Metrics',
+        content: 'Quickly view total bookings, calls picked, and revenue for the selected period.',
+        position: 'bottom',
+        offset: 20
+      },
+      {
+        target: '#live-team-activity-title-text',
+        title: 'Activity Tables',
+        content: 'View detailed activity for supervisors and agents, including live status and sessions.',
+        position: 'bottom',
+        scrollBlock: 'center'
+      },
+      {
+        target: '#team-monitor-attendance-btn',
+        title: 'Attendance Report',
+        content: 'Toggle the Attendance Report to view detailed session logs, breaks, and hours worked.',
+        position: 'bottom'
+      }
+    ]);
   };
 
   const periods = [
@@ -282,7 +316,7 @@ const AgentMonitorPage = () => {
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ marginBottom: '12px' }}>
+        <div id="team-monitor-title-area" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
             <Activity size={32} style={{ color: '#06B68A' }} />
             <h1 style={{ fontSize: '32px', fontWeight: 800, margin: 0 }}>
@@ -314,8 +348,18 @@ const AgentMonitorPage = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={startTeamMonitorTour}
+              icon={HelpCircle}
+              style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+            >
+              Show Guide
+            </Button>
             <Button
+              id="team-monitor-attendance-btn"
               variant={showAttendance ? "primary" : "secondary"}
               icon={CalendarIcon}
               onClick={() => setShowAttendance(!showAttendance)}
@@ -342,7 +386,7 @@ const AgentMonitorPage = () => {
         <AttendanceReport onClose={() => setShowAttendance(false)} />
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+          <div id="team-monitor-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
             {statCards.map((item) => (
               <div
                 key={item.title}
@@ -361,7 +405,7 @@ const AgentMonitorPage = () => {
             ))}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
+          <div id="team-monitor-tables" style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
             {isAdmin && (
               <div style={{ background: 'rgba(255, 255, 255, 0.01)', padding: '24px', borderRadius: '32px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -401,7 +445,7 @@ const AgentMonitorPage = () => {
                     <Filter size={20} />
                   </div>
                   <div>
-                    <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)' }}>Live Team Activity</h2>
+                    <h2 id="live-team-activity-title-text" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)' }}>Live Team Activity</h2>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>Real-time agent productivity</p>
                   </div>
                 </div>

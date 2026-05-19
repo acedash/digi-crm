@@ -132,6 +132,7 @@ function ActionChip({ icon: Icon, label, onClick, tone = 'default', title, disab
 }
 
 const BookingRow = ({
+  id,
   booking,
   index,
   canReassign,
@@ -190,6 +191,7 @@ const BookingRow = ({
 
   return (
     <div
+      id={id}
       key={booking.id}
       style={{
         opacity: 1,
@@ -434,6 +436,7 @@ const BookingRow = ({
 
           {/* Group 5: Actions */}
           <div
+            id={index === 0 ? 'first-booking-actions' : undefined}
             style={{
               paddingLeft: window.innerWidth <= 768 ? '0' : '16px',
               borderLeft: window.innerWidth <= 768 ? 'none' : '1px solid var(--border-color)',

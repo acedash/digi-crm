@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Calendar as CalendarIcon, ChevronRight, X, User, Phone, Coffee, CheckCircle2, LogOut } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, ChevronRight, X, User, Phone, Coffee, CheckCircle2, LogOut, HelpCircle } from 'lucide-react';
 import activityService from './activityService';
 import { useAuthStore } from '../auth/useAuthStore';
 import Input from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 const TODAY = new Date().toISOString().split('T')[0];
 
@@ -92,6 +94,47 @@ const ActivityLogs = () => {
     setSelectedUserActivity(null);
   };
 
+  const startActivityTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    if (isManagerView) {
+      startTour([
+        {
+          target: '#activity-center-header',
+          title: 'Activity Center',
+          content: 'View user-wise activity for your entire team.',
+          position: 'bottom'
+        },
+        {
+          target: '#activity-date-picker',
+          title: 'Select Date',
+          content: 'Use this date picker to view historical activity for any specific day.',
+          position: 'bottom'
+        },
+        {
+          target: '#activity-logs-panel',
+          title: 'Activity Logs',
+          content: 'See a breakdown of first entry, last exit, and total active time for each user. Click "View" for a detailed chronological trace.',
+          position: 'top'
+        }
+      ]);
+    } else {
+      startTour([
+        {
+          target: '#my-activity-header',
+          title: 'My Activity',
+          content: 'This is the historical record of your daily work sessions.',
+          position: 'bottom'
+        },
+        {
+          target: '#my-activity-table',
+          title: 'Historical Logs',
+          content: 'Click on any date row to see a detailed chronological trace of your session.',
+          position: 'top'
+        }
+      ]);
+    }
+  };
+
   const formatHms = (totalSec) => {
     if (!totalSec) return '00:00:00';
     const h = Math.floor(totalSec / 3600).toString().padStart(2, '0');
@@ -130,7 +173,7 @@ const ActivityLogs = () => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
-          <div>
+          <div id="activity-center-header">
             <h1 style={{ fontSize: '30px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.8px' }}>
               {isAdmin ? (
                 <>Activity <span style={{ color: '#10b981' }}>Center</span></>
@@ -140,21 +183,32 @@ const ActivityLogs = () => {
               {managerSubtitle}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-            <div style={{ width: '160px' }}>
-              <Input
-                type="date"
-                icon={CalendarIcon}
-                value={selectedDate}
-                onChange={(event) => fetchAdminDetails(event.target.value)}
-                style={{ marginBottom: 0 }}
-                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', background: 'var(--bg-input)', fontSize: '13px', borderRadius: '10px' }}
-              />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={startActivityTour}
+              icon={HelpCircle}
+              style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+            >
+              Show Guide
+            </Button>
+            <div id="activity-date-picker" style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+              <div style={{ width: '160px' }}>
+                <Input
+                  type="date"
+                  icon={CalendarIcon}
+                  value={selectedDate}
+                  onChange={(event) => fetchAdminDetails(event.target.value)}
+                  style={{ marginBottom: 0 }}
+                  inputStyle={{ padding: '8px 12px', paddingLeft: '44px', background: 'var(--bg-input)', fontSize: '13px', borderRadius: '10px' }}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="glass-panel" style={{ borderRadius: '20px', padding: '20px' }}>
+        <div id="activity-logs-panel" className="glass-panel" style={{ borderRadius: '20px', padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid var(--border-color)' }}>
             <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{formatDateLabel(selectedDate)}</div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedDate === TODAY ? 'Today' : 'Selected date'}</div>
@@ -306,19 +360,30 @@ const ActivityLogs = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      <div>
-        <h1 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-1px' }}>
-          My Activity
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '15px', marginTop: '4px' }}>
-          Historical record of your daily work sessions and time breakdown.
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div id="my-activity-header">
+          <h1 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-1px' }}>
+            My Activity
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '15px', marginTop: '4px' }}>
+            Historical record of your daily work sessions and time breakdown.
+          </p>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={startActivityTour}
+          icon={HelpCircle}
+          style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+        >
+          Show Guide
+        </Button>
       </div>
 
       {loading ? (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading activity logs...</div>
       ) : (
-        <div className="glass-panel" style={{ borderRadius: '24px', overflow: 'hidden' }}>
+        <div id="my-activity-table" className="glass-panel" style={{ borderRadius: '24px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.02)' }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Clock, Box, ArrowRight, Activity, Download, Search, Globe, Monitor, Eye, XCircle, FileSpreadsheet, FileJson } from 'lucide-react';
+import { Shield, Clock, Box, ArrowRight, Activity, Download, Search, Globe, Monitor, Eye, XCircle, FileSpreadsheet, FileJson, HelpCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ExportDropdown from '../../components/ui/ExportDropdown';
 import Card from '../../components/ui/Card';
@@ -7,6 +7,8 @@ import api from '../../services/api';
 import { AnimatePresence } from 'framer-motion';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import Toast from '../../components/ui/Toast';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 const AuditTrailPage = () => {
   const [logs, setLogs] = useState([]);
@@ -14,6 +16,32 @@ const AuditTrailPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState('all');
   const [selectedLog, setSelectedLog] = useState(null);
+  const [toast, setToast] = useState({ message: '', type: 'error' });
+
+  const startAuditTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#audit-title-area',
+        title: 'System Audit Trail',
+        content: 'View a complete timeline of team activity and system changes.',
+        position: 'bottom'
+      },
+      {
+        target: '#audit-search-input',
+        title: 'Audit Filters',
+        content: 'Search for specific actions or filter by data mutations vs time tracking events.',
+        position: 'bottom'
+      },
+      {
+        target: '#audit-logs-list',
+        title: 'Audit Logs',
+        content: 'Review each log entry, including the timestamp, actor, action, and specific data changes.',
+        position: 'top',
+        scrollBlock: 'center'
+      }
+    ]);
+  };
 
   useEffect(() => {
     fetchLogs();
@@ -28,6 +56,7 @@ const AuditTrailPage = () => {
       }
     } catch (error) {
       console.error('Failed to fetch audit logs:', error);
+      setToast({ message: 'Failed to synchronize audit telemetry. Retrying...', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -225,7 +254,7 @@ const AuditTrailPage = () => {
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
-        <div>
+        <div id="audit-title-area">
           <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)' }}>
             <Shield size={32} style={{ color: '#8b5cf6' }} />
             System <span className="premium-gradient-text">Audit Trail</span>
@@ -236,6 +265,15 @@ const AuditTrailPage = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '12px' }}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={startAuditTour}
+            icon={HelpCircle}
+            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+          >
+            Show Guide
+          </Button>
           <Button variant="outline" size="sm" icon={Activity} onClick={fetchLogs} disabled={loading}>
             {loading ? 'Compiling...' : 'Live Sync'}
           </Button>
@@ -249,8 +287,10 @@ const AuditTrailPage = () => {
       </div>
 
       <Card style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-        <div style={{ padding: '20px 24px', background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 300px', gap: '16px', alignItems: 'center' }}>
+        <div id="audit-filters-wrapper">
+          <div style={{ padding: '20px 24px', background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 300px', gap: '16px', alignItems: 'center' }}>
           <Input 
+            id="audit-search-input"
             placeholder="Search by action, user, or module..." 
             icon={Search}
             value={searchTerm}
@@ -271,9 +311,10 @@ const AuditTrailPage = () => {
             <option value="system">Data Mutations (Database)</option>
             <option value="temporal">Agent Time Tracking</option>
           </select>
+          </div>
         </div>
 
-        <div style={{ maxHeight: '65vh', overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div id="audit-logs-list" style={{ maxHeight: '65vh', overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <AnimatePresence>
             {loading && logs.length === 0 ? (
               <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -448,6 +489,11 @@ const AuditTrailPage = () => {
           </div>
         )}
       </AnimatePresence>
+      <Toast 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={() => setToast({ message: '', type: 'error' })} 
+      />
     </div>
   );
 };

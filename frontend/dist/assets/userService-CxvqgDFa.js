@@ -1,1 +1,0 @@
-import{n as e}from"./api-FsKOOfPV.js";var t={getUsers:()=>e.get(`/admin/users`),getSupervisors:()=>e.get(`/admin/supervisors`),getMyAgents:()=>e.get(`/supervisor/my-agents`),createUser:t=>e.post(`/admin/users`,t),updateUser:(t,n)=>e.put(`/admin/users/${t}`,n),toggleStatus:t=>e.patch(`/admin/users/${t}/toggle-status`),deleteUser:t=>e.delete(`/admin/users/${t}`)};export{t};

@@ -7,11 +7,13 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ExportDropdown from '../../components/ui/ExportDropdown';
 import { FileText, FileSpreadsheet } from 'lucide-react';
+import Toast from '../../components/ui/Toast';
 
 const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate, onViewReport }) => {
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'error' });
   const tableRef = React.useRef(null);
 
   const fetchActivity = async () => {
@@ -154,6 +156,7 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate, onV
 
     } catch (err) {
       console.error('PDF Export failed:', err);
+      setToast({ message: 'Failed to generate PDF report. Please try again.', type: 'error' });
       content.style.cssText = originalCssText;
     } finally {
       setIsExporting(false);
@@ -306,6 +309,11 @@ const AdminMonitoringTable = ({ onSummaryChange, period, startDate, endDate, onV
         </table>
       </div>
       </div>
+      <Toast 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={() => setToast({ message: '', type: 'error' })} 
+      />
     </Card>
   );
 };

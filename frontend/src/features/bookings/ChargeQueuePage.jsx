@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BadgeDollarSign, CreditCard, RefreshCw, ShieldCheck, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowRight, BadgeDollarSign, CreditCard, RefreshCw, ShieldCheck, Calendar as CalendarIcon, HelpCircle } from 'lucide-react';
 import paymentAuthService from './paymentAuthService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -12,6 +12,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExportDropdown from '../../components/ui/ExportDropdown';
 import { FileSpreadsheet, FileText, FileJson } from 'lucide-react';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 
 
@@ -121,6 +122,37 @@ const ChargeQueuePage = () => {
   const [meta, setMeta] = useState({ total: 0, current_page: 1, last_page: 1 });
   const [stats, setStats] = useState({ initial: 0, modified: 0 }); 
   const [toast, setToast] = useState({ message: '', type: 'error' });
+
+  const startChargeQueueTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#charge-queue-title-area',
+        title: 'Charge Queue',
+        content: 'This page helps you manage payments that are pending charge or have already been collected.',
+        position: 'bottom'
+      },
+      {
+        target: '#charge-queue-view-filters',
+        title: 'Queue Filters',
+        content: 'Filter the queue to see all records, only pending charges, or past charged history.',
+        position: 'bottom'
+      },
+      {
+        target: '#charge-queue-stats',
+        title: 'Overview Metrics',
+        content: 'Quickly view the total number of records, initial approvals, and charge changes.',
+        position: 'bottom'
+      },
+      {
+        target: '#charge-queue-actions',
+        title: 'Charge Records',
+        content: 'Review each authorization. Click "Consent" to view the digital signature, or "Mark Update" to record a successful charge.',
+        position: 'left',
+        scrollBlock: 'center'
+      }
+    ]);
+  };
 
   const getFilterParams = useCallback(() => {
     const params = {};
@@ -293,7 +325,7 @@ const ChargeQueuePage = () => {
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
-        <div>
+        <div id="charge-queue-title-area">
           <h1 style={{ fontSize: '32px', fontWeight: 800, letterSpacing: '-1px', marginBottom: '8px' }}>
             Charge <span style={{ color: '#10b981' }}>Queue</span>
           </h1>
@@ -302,6 +334,15 @@ const ChargeQueuePage = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={startChargeQueueTour}
+            icon={HelpCircle}
+            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+          >
+            Show Guide
+          </Button>
           <ExportDropdown options={exportOptions} />
           <Button variant="outline" icon={RefreshCw} size="sm" onClick={loadQueue}>
             Refresh
@@ -314,7 +355,7 @@ const ChargeQueuePage = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
           {/* Main View Filters */}
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto' }}>
+          <div id="charge-queue-view-filters" style={{ display: 'flex', gap: '8px', overflowX: 'auto' }}>
             {[
               { value: 'all', label: 'All Records' },
               { value: 'pending', label: 'Pending Charge' },
@@ -401,7 +442,7 @@ const ChargeQueuePage = () => {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+      <div id="charge-queue-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
         <Card title="Records" subtitle="Total in current queue" icon={BadgeDollarSign}>
           <div style={{ fontSize: '30px', fontWeight: 800, color: '#16a34a' }}>{meta.total}</div>
         </Card>
@@ -433,6 +474,7 @@ const ChargeQueuePage = () => {
             <>
               {/* Table Header */}
               <div 
+                id="charge-queue-table"
                 style={{ 
                   display: 'grid', 
                   gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1.5fr) minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1.5fr)', 
@@ -459,7 +501,7 @@ const ChargeQueuePage = () => {
 
 
 
-              {queue.map((record) => {
+              {queue.map((record, index) => {
               const authType = record.consent_snapshot?.authorization_type || record.metadata?.authorization_type || 'initial';
               const booking = record.bookings?.[0];
               const clientName =
@@ -541,7 +583,7 @@ const ChargeQueuePage = () => {
                     </div>
 
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                    <div id={index === 0 ? "charge-queue-actions" : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                       {/* Row 1: Review Group */}
                       <div style={{ 
                         display: 'flex', 

@@ -17,6 +17,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import api from '../../services/api';
+import Toast from '../../components/ui/Toast';
 
 const ReportsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -27,6 +28,7 @@ const ReportsPage = () => {
     status: '',
     search: ''
   });
+  const [toast, setToast] = useState({ message: '', type: 'error' });
 
   useEffect(() => {
     fetchReports();
@@ -41,6 +43,7 @@ const ReportsPage = () => {
       setData(response.data.data.data || response.data.data || []);
     } catch (err) {
       console.error('Failed to fetch reports', err);
+      setToast({ message: 'Could not load report data. Please check your connection.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -222,6 +225,11 @@ const ReportsPage = () => {
           </tbody>
         </table>
       </div>
+      <Toast 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={() => setToast({ message: '', type: 'error' })} 
+      />
     </div>
   );
 };

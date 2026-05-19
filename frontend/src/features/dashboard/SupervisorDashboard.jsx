@@ -89,6 +89,7 @@ const SupervisorDashboard = () => {
       prevChargesRef.current = newStats.recent_charges || [];
     } catch {
       console.error('Failed to load supervisor data');
+      setToast({ message: 'Failed to sync team performance. Retrying...', type: 'error' });
     } finally {
       if (!isPolling) setLoading(false);
     }

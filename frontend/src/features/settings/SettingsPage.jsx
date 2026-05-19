@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { 
   Mail, Server, ShieldCheck, Save, Eye, Code, 
   User, CreditCard, Layout, Info, ChevronRight,
-  Maximize2, FileText, CheckCircle2
+  Maximize2, FileText, CheckCircle2, HelpCircle
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
@@ -10,6 +10,7 @@ import Button from '../../components/ui/Button';
 import Toast from '../../components/ui/Toast';
 import settingsService from './settingsService';
 import { useAuthStore } from '../auth/useAuthStore';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 const decodeHtmlEntities = (value) => value
   .replace(/&amp;/g, '&')
@@ -113,6 +114,31 @@ const SettingsPage = () => {
   const bodyRef = useRef(null);
   const termsRef = useRef(null);
   const [lastFocusedRef, setLastFocusedRef] = useState(null);
+
+  const startSettingsTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#settings-title-area',
+        title: 'Settings & Configuration',
+        content: 'Configure global system settings like SMTP servers and email templates.',
+        position: 'bottom'
+      },
+      {
+        target: '#smtp-config-card',
+        title: 'SMTP Configuration',
+        content: 'Enter your mail server credentials here to enable outgoing emails from the CRM.',
+        position: 'bottom'
+      },
+      {
+        target: '#email-templates-card',
+        title: 'Email Templates',
+        content: 'Edit and preview the HTML templates used for customer communications like Payment Authorizations.',
+        position: 'top',
+        scrollBlock: 'center'
+      }
+    ]);
+  };
 
   useEffect(() => {
     loadSettings();
@@ -255,15 +281,26 @@ const SettingsPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div>
-        <h1 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.8px' }}>
-          Settings
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          {isAdmin
-            ? 'Configure SMTP and email templates for the CRM.'
-            : 'Review your account and workspace preferences.'}
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div id="settings-title-area">
+          <h1 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.8px' }}>
+            Settings
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
+            {isAdmin
+              ? 'Configure SMTP and email templates for the CRM.'
+              : 'Review your account and workspace preferences.'}
+          </p>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={startSettingsTour}
+          icon={HelpCircle}
+          style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+        >
+          Show Guide
+        </Button>
       </div>
 
       {!isAdmin && (
@@ -286,7 +323,7 @@ const SettingsPage = () => {
       )}
 
       {isAdmin && (
-        <Card title="SMTP Configuration" subtitle="Mail server used for customer approval emails" icon={Mail}>
+        <Card id="smtp-config-card" title="SMTP Configuration" subtitle="Mail server used for customer approval emails" icon={Mail}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '16px' }}>
             <Input
               label="SMTP Host"
@@ -369,6 +406,7 @@ const SettingsPage = () => {
 
       {/* Email Templates Card - Now visible to all roles */}
       <Card 
+        id="email-templates-card"
         title="Email Templates" 
         subtitle="Manage customer-facing mail copy for the CRM lifecycle" 
         icon={Mail}

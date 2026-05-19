@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 
@@ -9,7 +10,7 @@ const Toast = ({ message, type = 'error', onClose }) => {
   const color = type === 'error' ? '#f87171' : '#4ade80';
   const Icon = type === 'error' ? AlertCircle : CheckCircle2;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: 50, scale: 0.9 }}
@@ -20,7 +21,7 @@ const Toast = ({ message, type = 'error', onClose }) => {
           bottom: '100px',
           left: '50%',
           transform: 'translateX(-50%)',
-          zIndex: 2000,
+          zIndex: 99999,
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
@@ -31,7 +32,8 @@ const Toast = ({ message, type = 'error', onClose }) => {
           border: `1px solid ${color}40`,
           boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
           minWidth: '300px',
-          maxWidth: '500px'
+          maxWidth: '500px',
+          pointerEvents: 'auto'
         }}
       >
         <div style={{ 
@@ -52,8 +54,10 @@ const Toast = ({ message, type = 'error', onClose }) => {
           <X size={16} />
         </button>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 
 export default Toast;
+

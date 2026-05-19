@@ -18,9 +18,11 @@ import {
   FileText,
   FileSpreadsheet,
   FileJson,
-  Trash2
+  Trash2,
+  HelpCircle
 } from 'lucide-react';
 import ExportDropdown from '../../components/ui/ExportDropdown';
+import Toast from '../../components/ui/Toast';
 import userService from './userService';
 import UserForm from './UserForm';
 import jsPDF from 'jspdf';
@@ -29,6 +31,7 @@ import * as XLSX from 'xlsx';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 const AgentIcon = ({ size }) => <ClipboardList size={size} />;
 
@@ -39,6 +42,32 @@ const UserList = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModal, setDeleteModal] = useState({ open: false, userId: null, userName: '' });
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+
+  const startUserTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#users-title-area',
+        title: 'Team Management',
+        content: 'Manage team roles, access, and performance from this dashboard.',
+        position: 'bottom'
+      },
+      {
+        target: '#users-stats',
+        title: 'Team Overview',
+        content: 'Quickly see your total staff count, and the breakdown of Admins and Agents.',
+        position: 'bottom'
+      },
+      {
+        target: '#users-actions',
+        title: 'User Settings',
+        content: 'Edit user details, enable/disable accounts, or delete members entirely.',
+        position: 'left',
+        scrollBlock: 'center'
+      }
+    ]);
+  };
 
   useEffect(() => {
     loadUsers();
@@ -73,7 +102,7 @@ const UserList = () => {
       loadUsers();
     } catch (error) {
       console.error('Failed to delete user', error);
-      alert('Failed to delete user.');
+      setToast({ message: 'Failed to delete user.', type: 'error' });
     }
   };
 
@@ -137,7 +166,7 @@ const UserList = () => {
       doc.save(`Team_Export_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
       console.error("PDF generation failed:", err);
-      alert("PDF Export failed.");
+      setToast({ message: "PDF Export failed.", type: 'error' });
     }
   };
 
@@ -185,7 +214,7 @@ const UserList = () => {
 
       {/* Header */}
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
-        <div>
+        <div id="users-title-area">
           <h1 style={{ 
             fontSize: '32px', 
             fontWeight: 800, 
@@ -199,6 +228,15 @@ const UserList = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={startUserTour}
+            icon={HelpCircle}
+            style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+          >
+            Show Guide
+          </Button>
           <ExportDropdown
             options={[
               { label: 'As PDF Report', icon: FileText, onClick: handleExportPDF },
@@ -213,7 +251,7 @@ const UserList = () => {
       </div>
 
       {/* Stats Quick Look */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+      <div id="users-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
         <Card title="Total Staff Member" subtitle="All team members" icon={Users}>
           <p style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{users.length}</p>
         </Card>
@@ -265,7 +303,7 @@ const UserList = () => {
           </thead>
           <tbody>
             <AnimatePresence>
-              {filteredUsers.map((user) => {
+              {filteredUsers.map((user, index) => {
                 const actStatus = getActivityStatus(user);
                 return (
                 <tr 
@@ -350,7 +388,7 @@ const UserList = () => {
                       {user.is_active ? 'Enabled' : 'Disabled'}
                     </span>
                   </td>
-                  <td className="no-print" style={{ padding: '16px 24px', textAlign: 'right' }}>
+                  <td className="no-print" id={index === 0 ? "users-actions" : undefined} style={{ padding: '16px 24px', textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
                       <Button variant="ghost" size="sm" icon={Settings} onClick={() => handleEditMember(user)} />
                       <Button 
@@ -423,6 +461,13 @@ const UserList = () => {
             </div>
           </div>
         </div>
+      )}
+      {toast.message && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast({ message: '', type: 'success' })} 
+        />
       )}
     </div>
   );

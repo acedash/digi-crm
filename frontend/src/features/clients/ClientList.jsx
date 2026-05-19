@@ -16,9 +16,12 @@ import {
   FileSpreadsheet,
   FileJson,
   Calendar as CalendarIcon,
-  Download
+  Download,
+  HelpCircle
 } from 'lucide-react';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 import ExportDropdown from '../../components/ui/ExportDropdown';
+import Toast from '../../components/ui/Toast';
 import clientService from './clientService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -51,6 +54,7 @@ const ClientList = ({ isEmbedded = false }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [stats, setStats] = useState({ total: 0, today: 0, yesterday: 0 });
+  const [toast, setToast] = useState({ message: '', type: 'success' });
 
   const isFetchingRef = React.useRef(false);
 
@@ -132,6 +136,31 @@ const ClientList = ({ isEmbedded = false }) => {
     }
   };
 
+  const startClientsTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#clients-title-area',
+        title: 'Clients Management 👥',
+        content: 'View and manage all your clients, their contact info, and lifetime spend.',
+        position: 'bottom'
+      },
+      {
+        target: '#clients-search-container',
+        title: 'Search & Filters',
+        content: 'Search for clients by name, email, or use advanced filters to find specific records.',
+        position: 'bottom',
+        offset: 20
+      },
+      {
+        target: '#client-details-btn-0',
+        title: 'Client Details',
+        content: 'Click here to view full profile, booking history, and active cards for this client.',
+        position: 'left'
+      }
+    ]);
+  };
+
 
   const handleSearch = (e) => setSearch(e.target.value);
 
@@ -148,7 +177,7 @@ const ClientList = ({ isEmbedded = false }) => {
       fetchClients();
     } catch (error) {
       console.error('Failed to delete client', error);
-      alert(error?.response?.data?.message || 'Failed to delete client.');
+      setToast({ message: error?.response?.data?.message || 'Failed to delete client.', type: 'error' });
     }
   };
 
@@ -194,7 +223,7 @@ const ClientList = ({ isEmbedded = false }) => {
       doc.save("Clients_Export.pdf");
     } catch (err) {
       console.error("PDF generation failed:", err);
-      alert("PDF Export failed. Check browser console.");
+      setToast({ message: "PDF Export failed. Check browser console.", type: 'error' });
     }
   };
 
@@ -317,8 +346,8 @@ const ClientList = ({ isEmbedded = false }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', padding: isEmbedded ? '0' : '0' }}>
       {!isEmbedded && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div>
+        <div id="clients-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div id="clients-title-area">
             <h1 style={{ 
               fontSize: '32px', 
               fontWeight: 800, 
@@ -336,13 +365,24 @@ const ClientList = ({ isEmbedded = false }) => {
               Centralized management for travelers and corporate accounts.
             </p>
           </div>
-          <ExportDropdown
-            options={[
-              { label: 'As PDF Report', icon: FileText, onClick: handleExportPDF },
-              { label: 'As Excel Data', icon: FileSpreadsheet, onClick: handleExportExcel },
-              { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJSON },
-            ]}
-          />
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={startClientsTour}
+              icon={HelpCircle}
+              style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+            >
+              Show Guide
+            </Button>
+            <ExportDropdown
+              options={[
+                { label: 'As PDF Report', icon: FileText, onClick: handleExportPDF },
+                { label: 'As Excel Data', icon: FileSpreadsheet, onClick: handleExportExcel },
+                { label: 'As Raw JSON', icon: FileJson, onClick: handleExportJSON },
+              ]}
+            />
+          </div>
         </div>
       )}
 
@@ -374,7 +414,7 @@ const ClientList = ({ isEmbedded = false }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 300px', maxWidth: '400px' }}>
+          <div id="clients-search-container" style={{ flex: '1 1 300px', maxWidth: '400px' }}>
             <Input 
               placeholder="Search by name, email, phone, or ID..." 
               icon={Search}
@@ -661,6 +701,13 @@ const ClientList = ({ isEmbedded = false }) => {
           )}
         </AnimatePresence>
       </div>
+      {toast.message && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast({ message: '', type: 'success' })} 
+        />
+      )}
     </div>
   );
 };

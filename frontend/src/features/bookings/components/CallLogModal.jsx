@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { XCircle, PhoneCall, CheckCircle2 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import api from '../../../services/api';
+import Toast from '../../../components/ui/Toast';
 
 const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'success' });
 
   // Auto-extract service names from booking
   const getInitialInquiryData = () => {
@@ -145,7 +146,7 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
       onClose();
     } catch (error) {
       console.error('Failed to log call:', error);
-      alert('Failed to log call. Please try again.');
+      setToast({ message: 'Failed to log call. Please try again.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -362,6 +363,14 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
           </form>
         </div>
       </div>
+
+      {toast.message && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast({ message: '', type: 'error' })} 
+        />
+      )}
     </div>
 
   );

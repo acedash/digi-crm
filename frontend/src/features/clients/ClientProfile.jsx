@@ -32,6 +32,7 @@ import ClientForm from './ClientForm';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { getStatusStyle } from '../../utils/statusStyles';
+import Toast from '../../components/ui/Toast';
 
 
 const ClientProfile = () => {
@@ -43,6 +44,7 @@ const ClientProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCards, setShowCards] = useState({});
+  const [toast, setToast] = useState({ message: '', type: 'success' });
 
   const fetchClient = useCallback(async () => {
     setLoading(true);
@@ -67,7 +69,7 @@ const ClientProfile = () => {
         await clientService.deleteClient(id);
         navigate(`${basePath}/clients`);
       } catch {
-        alert('Failed to delete client.');
+        setToast({ message: 'Failed to delete client.', type: 'error' });
       }
     }
   };
@@ -129,7 +131,7 @@ const ClientProfile = () => {
         </Button>
         <div style={{ display: 'flex', gap: '12px' }}>
           <Button 
-            id="new-booking-btn"
+            id="client-profile-new-btn"
             variant="primary" 
             icon={Plus} 
             onClick={() => navigate(`${basePath}/bookings/new?client_id=${id}`)}
@@ -649,6 +651,13 @@ const ClientProfile = () => {
         )}
       </Card>
 
+      {toast.message && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast({ message: '', type: 'success' })} 
+        />
+      )}
     </div>
   );
 };

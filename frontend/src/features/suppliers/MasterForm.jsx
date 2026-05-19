@@ -4,10 +4,12 @@ import { motion } from 'framer-motion';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import masterService from './masterService';
+import Toast from '../../components/ui/Toast';
 
 const MasterForm = ({ isOpen, onClose, onSuccess, type = 'hotel', master = null }) => {
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'success' });
 
   useEffect(() => {
     if (master) {
@@ -36,7 +38,7 @@ const MasterForm = ({ isOpen, onClose, onSuccess, type = 'hotel', master = null 
       onClose();
     } catch (error) {
       console.error(`Failed to save ${type}`, error);
-      alert(`Error saving ${type}. Please check fields.`);
+      setToast({ message: `Error saving ${type}. Please check fields.`, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -218,6 +220,13 @@ const MasterForm = ({ isOpen, onClose, onSuccess, type = 'hotel', master = null 
           </div>
         </form>
       </motion.div>
+      {toast.message && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast({ message: '', type: 'success' })} 
+        />
+      )}
     </div>
   );
 };
