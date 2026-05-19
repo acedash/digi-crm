@@ -48,9 +48,11 @@ class AuthorizationMailer
             'auth_id' => $authorization->id
         ]);
 
-        Mail::to($authorization->client->email)->send(
-            new AuthorizationEmail($authorization, $approvalUrl)
-        );
+        retry(3, function () use ($authorization, $approvalUrl) {
+            Mail::to($authorization->client->email)->send(
+                new AuthorizationEmail($authorization, $approvalUrl)
+            );
+        }, 500);
     }
 
 }

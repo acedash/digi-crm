@@ -334,6 +334,13 @@ class DashboardController extends Controller
         $endDate = $now->toDateTimeString();
 
         switch ($period) {
+            case 'all':
+                $startDate = '2020-01-01 00:00:00';
+                break;
+            case 'yesterday':
+                $startDate = $now->copy()->subDay()->startOfDay()->toDateTimeString();
+                $endDate   = $now->copy()->subDay()->endOfDay()->toDateTimeString();
+                break;
             case 'daily':
                 $startDate = $now->copy()->startOfDay()->toDateTimeString();
                 break;

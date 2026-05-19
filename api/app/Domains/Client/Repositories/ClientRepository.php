@@ -44,11 +44,7 @@ class ClientRepository extends BaseRepository
                 'latestBooking',
                 'latestBooking.services.serviceable',
                 'latestBooking.paymentAuthorizations',
-            ])
-
-
-            ->withSum('bookings', 'total_amount')
-            ->withCount(['passengers', 'bookings']);
+            ]);
 
 
         // 1. Role-based scoping (Index Friendly)
@@ -140,7 +136,12 @@ class ClientRepository extends BaseRepository
             });
         }
 
-        return $query->latest('created_at')->paginate($perPage);
+        $paginator = $query->latest('created_at')->paginate($perPage);
+        
+        // Optimize: Load heavy aggregates only for the paginated subset to avoid full table scans
+        $paginator->getCollection()->loadCount(['passengers', 'bookings'])->loadSum('bookings', 'total_amount');
+        
+        return $paginator;
     }
 
     public function find($id): ?Client

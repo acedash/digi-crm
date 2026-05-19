@@ -28,17 +28,14 @@ const Walkthrough = () => {
       }
     };
 
-    // Update immediately so we don't show the old target
-    updatePosition();
-
-    // Scroll into view once on step change
+    // Scroll into view instantly so getBoundingClientRect is accurate immediately
     const element = document.querySelector(step.target);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: step.scrollBlock || 'nearest' });
+      element.scrollIntoView({ behavior: 'instant', block: step.scrollBlock || 'center' });
     }
 
-    // Initial delay to allow components to mount/animate and scroll to settle
-    timeout = setTimeout(updatePosition, 300);
+    // Short delay to let the browser finish the reflow after instant scroll
+    timeout = setTimeout(updatePosition, 100);
 
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true); // Capture all scroll events
@@ -65,6 +62,10 @@ const Walkthrough = () => {
       case 'top':
         top = targetRect.top - tHeight - padding;
         left = targetRect.left + (targetRect.width / 2) - (tWidth / 2);
+        break;
+      case 'top-left':
+        top = targetRect.top - tHeight - padding;
+        left = targetRect.left + 20; // Slight indent from the left edge
         break;
       case 'bottom':
         top = targetRect.bottom + padding;
@@ -235,6 +236,7 @@ const Walkthrough = () => {
               transform: 'rotate(45deg)',
               zIndex: -1,
               ...(step.position === 'top' ? { bottom: '-8px', left: 'calc(50% - 8px)' } :
+                 step.position === 'top-left' ? { bottom: '-8px', left: '32px' } :
                  step.position === 'left' ? { right: '-8px', top: 'calc(50% - 8px)' } :
                  step.position === 'right' ? { left: '-8px', top: 'calc(50% - 8px)' } :
                  { top: '-8px', left: 'calc(50% - 8px)' })

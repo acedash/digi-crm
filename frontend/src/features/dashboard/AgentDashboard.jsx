@@ -25,7 +25,8 @@ import {
   PieChart as PieChartIcon,
   ReceiptText,
   ArrowDownLeft,
-  AlertTriangle
+  AlertTriangle,
+  HelpCircle
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -45,6 +46,7 @@ import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import activityService from '../activity-tracker/activityService';
 import Toast from '../../components/ui/Toast';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 // Inline SVG fallback for missing icons
 const ShieldCheck = ({ size = 24 }) => (
@@ -72,6 +74,48 @@ const AgentDashboard = () => {
   const [activities, setActivities] = useState([]);
   const [toast, setToast] = useState({ message: '', type: 'success' });
   const prevChargesRef = React.useRef([]);
+
+  const startAgentTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#agent-dashboard-title',
+        title: 'Welcome to your Dashboard 👋',
+        content: 'This is your central hub. Keep track of your current status, session time, and overall personal performance.',
+        position: 'right'
+      },
+      {
+        target: '#agent-period-selector',
+        title: 'Time Period 📅',
+        content: 'Filter your stats by Day, Week, Month, or use a custom date range to track your progress over time.',
+        position: 'bottom'
+      },
+      {
+        target: '#agent-stats-grid',
+        title: 'Quick Stats ⚡',
+        content: 'Get a quick overview of your new bookings, call logs, tagged inquiries, and total all-time bookings.',
+        position: 'bottom'
+      },
+      {
+        target: '#agent-revenue-breakdown',
+        title: 'Revenue Breakdown 💰',
+        content: 'Track your financial performance including net revenue, collected amounts, refunds, and chargebacks.',
+        position: 'top'
+      },
+      {
+        target: '#agent-charts-section',
+        title: 'Performance Trends 📈',
+        content: 'Visualize your revenue trends over the last 6 months and see your booking distribution by type.',
+        position: 'top'
+      },
+      {
+        target: '#agent-status-breakdown',
+        title: 'Time Management ⏱️',
+        content: 'Monitor exactly how much time you have spent in Active, On Call, Break, and Idle statuses today.',
+        position: 'right'
+      }
+    ]);
+  };
 
   useEffect(() => {
     if (period === 'custom' && (!customRange.start || !customRange.end)) return;
@@ -226,7 +270,7 @@ const AgentDashboard = () => {
       marginBottom: '8px',
       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)'
     }}>
-      <div style={{ 
+      <div id="agent-period-selector" style={{ 
         display: 'flex', 
         gap: '4px', 
         background: 'var(--bg-input)', 
@@ -256,11 +300,20 @@ const AgentDashboard = () => {
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, background: 'var(--bg-input)', padding: '8px 16px', borderRadius: '12px' }}>
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></div>
           Last synced: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={startAgentTour}
+          icon={HelpCircle}
+          style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+        >
+          Show Guide
+        </Button>
         {period === 'custom' && (
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
             <div style={{ width: '150px' }}>
@@ -308,7 +361,7 @@ const AgentDashboard = () => {
       >
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
+            <div id="agent-dashboard-title">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ 
                   padding: '8px 16px', borderRadius: '100px', 
@@ -371,7 +424,7 @@ const AgentDashboard = () => {
 
       {renderFilterBar()}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
+      <div id="agent-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
         <Card title="Period Bookings" icon={FileText}>
           <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>{stats.my_bookings_count}</div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>New bookings this {period}</div>
@@ -393,7 +446,7 @@ const AgentDashboard = () => {
       {/* Revenue Breakdown Section */}
       <Card style={{ padding: '32px', borderRadius: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div>
+          <div id="agent-revenue-breakdown">
             <h3 style={{ fontSize: '20px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CircleDollarSign size={20} color="hsl(var(--primary))" /> Revenue Breakdown
             </h3>
@@ -437,7 +490,7 @@ const AgentDashboard = () => {
 
       {/* Charts Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '32px' }}>
-        <Card title="Revenue Trend" icon={TrendingUp} subtitle="Last 6 months performance">
+        <Card titleId="agent-charts-section" title="Revenue Trend" icon={TrendingUp} subtitle="Last 6 months performance">
           <div style={{ height: '300px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.revenue_trends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -555,7 +608,7 @@ const AgentDashboard = () => {
           </div>
         </Card>
         
-        <Card title="Status Breakdown" icon={Clock}>
+        <Card titleId="agent-status-breakdown" title="Status Breakdown" icon={Clock}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
             <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
               <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active</p>

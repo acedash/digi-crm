@@ -57,9 +57,11 @@ class BookingTemplateMailer
             throw new \RuntimeException('No tracked flight change found. Edit the booking and record the flight change details before sending this email.');
         }
 
-        Mail::to($booking->client->email)->send(
-            new BookingLifecycleEmail($booking, $template, $context)
-        );
+        retry(3, function () use ($booking, $template, $context) {
+            Mail::to($booking->client->email)->send(
+                new BookingLifecycleEmail($booking, $template, $context)
+            );
+        }, 500);
 
         $this->recordDelivery($booking, $templateKey, $context);
 

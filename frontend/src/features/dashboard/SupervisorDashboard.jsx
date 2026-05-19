@@ -25,7 +25,8 @@ import {
   ReceiptText,
   CheckCircle2,
   ArrowDownLeft,
-  AlertTriangle
+  AlertTriangle,
+  HelpCircle
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -38,12 +39,14 @@ import {
   BarChart,
   Bar,
   Cell,
+  LabelList,
   Legend
 } from 'recharts';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Toast from '../../components/ui/Toast';
+import { useWalkthroughStore } from '../../store/walkthroughStore';
 
 const SupervisorDashboard = () => {
   const MotionDiv = motion.div;
@@ -59,6 +62,49 @@ const SupervisorDashboard = () => {
   const [reassigning, setReassigning] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'error' });
   const prevChargesRef = React.useRef([]);
+
+  const startSupervisorTour = () => {
+    const { startTour } = useWalkthroughStore.getState();
+    startTour([
+      {
+        target: '#supervisor-dashboard-title',
+        title: 'Supervisor Dashboard 📊',
+        content: 'Welcome to your Supervisor Dashboard! Here you can monitor team activities, view overall performance, and manage agents in real time.',
+        position: 'bottom'
+      },
+      {
+        target: '#supervisor-period-selector',
+        title: 'Date Range Selector 📅',
+        content: 'Filter performance metrics across different time periods like Today, Weekly, Monthly, or a Custom range.',
+        position: 'bottom'
+      },
+      {
+        target: '#supervisor-stats-grid',
+        title: 'Team Performance Metrics 📈',
+        content: 'Get a quick overview of total team revenue, number of bookings, average close value, and total activity.',
+        position: 'bottom'
+      },
+      {
+        target: '#supervisor-agent-performance-card',
+        title: 'Agent Performance Breakdown 📊',
+        content: 'Visualize the revenue contribution of each agent to see who is leading team performance.',
+        position: 'right'
+      },
+      {
+        target: '#supervisor-performance-distribution-card',
+        title: 'Performance Distribution 🍰',
+        content: 'Analyze booking type distribution to see where your team is focusing their efforts.',
+        position: 'left'
+      },
+      {
+        target: '#supervisor-team-monitoring-title',
+        title: 'Real-Time Team Monitor 👥',
+        content: 'Track live agent statuses, see how long they have been in that status, and monitor their daily revenue contributions.',
+        position: 'bottom',
+        scrollBlock: 'start'
+      }
+    ]);
+  };
 
   useEffect(() => {
     if (period === 'custom' && (!customRange.start || !customRange.end)) return;
@@ -149,76 +195,88 @@ const SupervisorDashboard = () => {
     );
   }
 
+  const BAR_COLORS = ['#06B68A', '#0891b2', '#7c3aed', '#f59e0b', '#ef4444', '#16a34a', '#db2777', '#0284c7'];
+
   const periods = [
-    { id: 'daily', label: 'Today' },
+    { id: 'all', label: 'All Time' },
+    { id: 'daily', label: 'Daily' },
+    { id: 'yesterday', label: 'Yesterday' },
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
-    { id: 'custom', label: 'Custom' },
+    { id: 'custom', label: 'Custom Date' },
   ];
-
-  const renderFilterBar = () => (
-    <div style={{ 
-      display: 'flex', 
-      flexWrap: 'wrap',
-      justifyContent: 'space-between', 
-      alignItems: 'center', 
-      gap: '20px',
-      background: 'var(--bg-card)',
-      padding: '20px 24px',
-      borderRadius: '24px',
-      border: '1px solid var(--border-color)',
-      marginBottom: '8px',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        gap: '4px', 
-        background: 'var(--bg-input)', 
-        padding: '4px', 
-        borderRadius: '14px', 
-        border: '1px solid var(--border-color)' 
-      }}>
-        {periods.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setPeriod(p.id)}
-            style={{
-              padding: '8px 20px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: 700,
-              border: 'none',
-              background: period === p.id ? 'var(--bg-card)' : 'transparent',
-              color: period === p.id ? 'hsl(var(--primary))' : 'var(--text-muted)',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: period === p.id ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
-            }}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, background: 'var(--bg-input)', padding: '8px 16px', borderRadius: '12px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></div>
-          Last synced: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-        </div>
-        {period === 'custom' && (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <Input type="date" value={customRange.start} onChange={e => setCustomRange({...customRange, start: e.target.value})} style={{ marginBottom: 0 }} />
-            <span style={{ color: 'var(--text-muted)' }}>to</span>
-            <Input type="date" value={customRange.end} onChange={e => setCustomRange({...customRange, end: e.target.value})} style={{ marginBottom: 0 }} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
       
+      {/* Top Header Row with Title, Show Guide, and Period Selector */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
+        <div id="supervisor-dashboard-title">
+          <h1 style={{ fontSize: '32px', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '8px' }}>
+            Supervisor <span className="premium-gradient-text">Dashboard</span>
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '15px', fontWeight: 500 }}>
+            Real-time agent monitoring and team performance overview.
+          </p>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', width: window.innerWidth <= 768 ? '100%' : 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, background: 'var(--bg-card)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }}></div>
+              Last synced: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={startSupervisorTour}
+              icon={HelpCircle}
+              style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
+            >
+              Show Guide
+            </Button>
+          </div>
+
+          <div id="supervisor-period-selector" style={{ 
+            display: 'flex', 
+            gap: '4px', 
+            background: 'var(--bg-input)', 
+            padding: '4px', 
+            borderRadius: '14px', 
+            border: '1px solid var(--border-color)' 
+          }}>
+            {periods.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPeriod(p.id)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  border: 'none',
+                  background: period === p.id ? 'var(--bg-card)' : 'transparent',
+                  color: period === p.id ? 'hsl(var(--primary))' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: period === p.id ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {period === 'custom' && (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)', width: '100%', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <Input type="date" value={customRange.start} onChange={e => setCustomRange({...customRange, start: e.target.value})} style={{ marginBottom: 0 }} />
+              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>to</span>
+              <Input type="date" value={customRange.end} onChange={e => setCustomRange({...customRange, end: e.target.value})} style={{ marginBottom: 0 }} />
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Premium Welcome Hero */}
       <MotionDiv 
         initial={{ opacity: 0, y: 20 }}
@@ -251,9 +309,7 @@ const SupervisorDashboard = () => {
         }} />
       </MotionDiv>
 
-      {renderFilterBar()}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+      <div id="supervisor-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
         <Card title="Team Total" icon={TrendingUp}>
           <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-main)' }}>
             {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.total_revenue || 0)}
@@ -276,56 +332,104 @@ const SupervisorDashboard = () => {
         </Card>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
-        <Card title="Agent Performance Breakdown" icon={Users} subtitle="Revenue contribution per agent">
-          <div style={{ height: '400px', width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.agent_performance} layout="vertical" margin={{ left: 40, right: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" opacity={0.5} />
-                <XAxis type="number" hide />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false}
-                  tick={{ fontSize: 12, fontWeight: 600, fill: 'var(--text-main)' }}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'var(--bg-input)', opacity: 0.4 }}
-                  contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}
-                  formatter={(value) => [`$${value}`, 'Revenue']}
-                />
-                <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
-                  {stats.agent_performance?.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={`hsl(var(--primary), ${1 - (index * 0.1)})`} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      <div id="supervisor-charts-container" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', alignItems: 'start' }}>
+        <Card id="supervisor-agent-performance-card" title="Agent Performance Breakdown" icon={Users} subtitle="Revenue contribution per agent">
+          {(!stats.agent_performance || stats.agent_performance.length === 0) ? (
+            <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+              No agent performance data available for this period.
+            </div>
+          ) : (
+            <div style={{ width: '100%', overflowX: 'auto' }}>
+              <div style={{ width: '100%' }}>
+                <ResponsiveContainer width="100%" height={Math.max(180, stats.agent_performance.length * 64 + 60)}>
+                  <BarChart
+                    data={stats.agent_performance}
+                    layout="vertical"
+                    margin={{ top: 8, right: 80, left: 16, bottom: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" opacity={0.4} />
+                    <XAxis
+                      type="number"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                      tickFormatter={(v) => v === 0 ? '$0' : `$${(v / 1000).toFixed(0)}k`}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={90}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fontWeight: 700, fill: 'var(--text-main)' }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: 'var(--bg-input)', opacity: 0.5 }}
+                      contentStyle={{
+                        backgroundColor: 'var(--bg-card)',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border-color)',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: 'var(--text-main)'
+                      }}
+                      itemStyle={{ color: 'var(--text-main)' }}
+                      labelStyle={{ color: 'var(--text-muted)', marginBottom: '4px' }}
+                      formatter={(value) => [
+                        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value),
+                        'Revenue'
+                      ]}
+                    />
+                    <Bar dataKey="revenue" radius={[0, 6, 6, 0]} maxBarSize={32}>
+                      {stats.agent_performance.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                      ))}
+                      <LabelList
+                        dataKey="revenue"
+                        position="right"
+                        fontSize={12}
+                        fontWeight={700}
+                        fill="var(--text-main)"
+                        formatter={(v) => v > 0 ? `$${Number(v).toLocaleString()}` : '$0'}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </Card>
 
-        <Card title="Performance Distribution" icon={PieChartIcon} subtitle="By Booking Type">
-           <div style={{ height: '400px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {stats.performance_metrics?.map((item, idx) => (
-                <div key={idx} style={{ padding: '20px', background: 'var(--bg-input)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700 }}>{item.label}</span>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{item.value}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-card)', borderRadius: '100px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${item.value}%`, background: 'hsl(var(--primary))' }} />
-                  </div>
-                </div>
-              ))}
-              {(!stats.performance_metrics || stats.performance_metrics.length === 0) && (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '100px' }}>No distribution data available</div>
-              )}
+        <Card id="supervisor-performance-distribution-card" title="Performance Distribution" icon={PieChartIcon} subtitle="By Booking Type">
+           <div style={{ height: '400px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', paddingRight: '4px' }}>
+              {(() => {
+                 const breakdown = stats.status_breakdown || [];
+                 if (breakdown.length === 0) {
+                    return <div style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '100px' }}>No distribution data available</div>;
+                 }
+                 const total = breakdown.reduce((sum, item) => sum + (Number(item.count) || 0), 0);
+                 
+                 return breakdown.map((item, idx) => {
+                    const percentage = total > 0 ? Math.round((item.count / total) * 100) : 0;
+                    return (
+                      <div key={idx} style={{ padding: '16px', background: 'var(--bg-input)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700 }}>{item.status}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 800, color: 'hsl(var(--primary))' }}>{item.count} ({percentage}%)</span>
+                        </div>
+                        <div style={{ height: '6px', background: 'var(--bg-card)', borderRadius: '100px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${percentage}%`, background: 'hsl(var(--primary))', borderRadius: '100px' }} />
+                        </div>
+                      </div>
+                    );
+                 });
+              })()}
            </div>
         </Card>
       </div>
 
-      <Card title="Team Monitoring" icon={BadgeAlert} subtitle="Real-time agent status & activity">
+      <Card titleId="supervisor-team-monitoring-title" title="Team Monitoring" icon={BadgeAlert} subtitle="Real-time agent status & activity">
          <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
                <thead>

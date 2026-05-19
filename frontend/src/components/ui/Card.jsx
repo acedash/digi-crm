@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const Card = ({ children, className, title, subtitle, icon: Icon, delay = 0, style, id }) => {
+const Card = ({ children, className, title, subtitle, icon: Icon, delay = 0, style, id, titleId }) => {
   return (
     <motion.div
       id={id}
@@ -20,7 +20,7 @@ const Card = ({ children, className, title, subtitle, icon: Icon, delay = 0, sty
       {(title || Icon) && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
-            {title && <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>{title}</h3>}
+            {title && <h3 id={titleId} style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>{title}</h3>}
             {subtitle && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{subtitle}</p>}
           </div>
           {Icon && (
