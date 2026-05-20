@@ -38,7 +38,7 @@ const CallLoggingPage = () => {
     lead_source: '',
     call_type: ['Flight'],
     airline_inquiry: {},
-    customer_outcome: 'Inquiry only',
+    customer_outcome_map: {},
     notes: '',
     callback_required: false,
     callback_datetime: ''
@@ -87,36 +87,40 @@ const CallLoggingPage = () => {
     ]
   };
 
-  const getAvailableOutcomes = () => {
-    let options = [];
-    
+  useEffect(() => {
+    const updatedMap = { ...formData.customer_outcome_map };
+    let changed = false;
+
     formData.call_type.forEach(type => {
       const mapKey = type === 'General Inquiry' ? 'General / Support' : type;
-      if (outcomeMap[mapKey]) {
-        options = [...options, ...outcomeMap[mapKey]];
-      }
+      let outcomesForType = outcomeMap[mapKey] || [];
       if (type === 'General Inquiry') {
-        options = [...options, ...outcomeMap['Call Outcome / Disposition']];
+        outcomesForType = [...outcomesForType, ...outcomeMap['Call Outcome / Disposition']];
+      }
+      if (outcomesForType.length === 0) {
+        outcomesForType = [
+          ...outcomeMap['General / Support'],
+          ...outcomeMap['Call Outcome / Disposition']
+        ];
+      }
+      outcomesForType = Array.from(new Set(outcomesForType));
+
+      if (!updatedMap[type] && outcomesForType.length > 0) {
+        updatedMap[type] = outcomesForType[0];
+        changed = true;
       }
     });
 
-    if (options.length === 0) {
-      options = [
-        ...outcomeMap['General / Support'],
-        ...outcomeMap['Call Outcome / Disposition']
-      ];
-    }
+    // Remove keys from updatedMap that are no longer in formData.call_type
+    Object.keys(updatedMap).forEach(key => {
+      if (!formData.call_type.includes(key)) {
+        delete updatedMap[key];
+        changed = true;
+      }
+    });
 
-    return Array.from(new Set(options));
-  };
-
-  const availableOutcomes = getAvailableOutcomes();
-
-  useEffect(() => {
-    if (!formData.customer_outcome && availableOutcomes.length > 0) {
-      setFormData(prev => ({ ...prev, customer_outcome: availableOutcomes[0] }));
-    } else if (formData.customer_outcome && !availableOutcomes.includes(formData.customer_outcome)) {
-      setFormData(prev => ({ ...prev, customer_outcome: availableOutcomes[0] }));
+    if (changed) {
+      setFormData(prev => ({ ...prev, customer_outcome_map: updatedMap }));
     }
   }, [formData.call_type]);
 
@@ -217,7 +221,22 @@ const CallLoggingPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await callLogService.logCall(formData);
+      const outcomeParts = [];
+      formData.call_type.forEach(type => {
+        const outcome = formData.customer_outcome_map?.[type];
+        if (outcome) {
+          outcomeParts.push(`${type}: ${outcome}`);
+        }
+      });
+      const customerOutcomeString = outcomeParts.join(' | ') || 'Inquiry only';
+
+      const { customer_outcome_map, ...submitData } = formData;
+
+      await callLogService.logCall({
+        ...submitData,
+        customer_outcome: customerOutcomeString
+      });
+
       setFormData({
         log_scope: 'general',
         client_id: '',
@@ -227,7 +246,7 @@ const CallLoggingPage = () => {
         lead_source: '',
         call_type: ['Flight'],
         airline_inquiry: {},
-        customer_outcome: 'Inquiry only',
+        customer_outcome_map: {},
         notes: '',
         callback_required: false,
         callback_datetime: ''
@@ -767,6 +786,7 @@ const CallLoggingPage = () => {
                 <input 
                   type="text"
                   placeholder={`Select or type ${t.toLowerCase()} name...`}
+                  list={t === 'Flight' ? 'airline-list' : (t === 'Hotel' ? 'hotel-list' : (t === 'Cruise' ? 'cruise-list' : (t === 'Car Rental' ? 'car-list' : undefined)))}
                   value={formData.airline_inquiry[t] || ''}
                   onChange={(e) => setFormData({
                     ...formData,
@@ -774,19 +794,99 @@ const CallLoggingPage = () => {
                   })}
                   style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
                 />
+                {t === 'Flight' && (
+                  <datalist id="airline-list">
+                    {[
+                      'American Airlines', 'Air France', 'KLM', 'United Airlines', 'Delta Airlines',
+                      'Alaska Airlines', 'Hawaiian Airlines', 'JetBlue Airways', 'Southwest Airlines',
+                      'Frontier Airlines', 'Spirit Airlines', 'Allegiant Air', 'Lufthansa', 'Latam',
+                      'Copa Airlines', 'Volaris', 'Viva Aerobus', 'Avelo air', 'Breeze Airways',
+                      'Sky Airline', 'Sun Countries Airlines', 'Air Canada', 'West Jet Airways',
+                      'Flair Airlines', 'British Airways', 'Iberia', 'All Nippon Airlines', 'Ryan Air',
+                      'Avianca', 'Air Europa', 'Aeromexico', 'clic Air', 'Jetsmart', 'Plus Ultra',
+                      'Tap Portugal', 'Emirates', 'Etihad Airways', 'Qatar Airways', 'Royal Jordanian',
+                      'Royal Air Maroc', 'Saudi Airlines', 'Turkish Airline', 'Expedia', 'Booking.com',
+                      'Priceline', 'Edreams', 'Despegar Travel Agency', 'Others'
+                    ].map(airline => (
+                      <option key={airline} value={airline} />
+                    ))}
+                  </datalist>
+                )}
+                {t === 'Hotel' && (
+                  <datalist id="hotel-list">
+                    {[
+                      'Expedia', 'Booking.com', 'Priceline', 'Edreams', 'Hotels.com', 'Others'
+                    ].map(hotel => (
+                      <option key={hotel} value={hotel} />
+                    ))}
+                  </datalist>
+                )}
+                {t === 'Cruise' && (
+                  <datalist id="cruise-list">
+                    {[
+                      'Royal Caribbean', 'Carnival Cruises', 'Norwegian', 'MSC Cruises', 
+                      'Virgin Voyages', 'Disney Cruises', 'Holland America', 'Princess Cruises', 
+                      'Celebrity Cruises', 'Others'
+                    ].map(cruise => (
+                      <option key={cruise} value={cruise} />
+                    ))}
+                  </datalist>
+                )}
+                {t === 'Car Rental' && (
+                  <datalist id="car-list">
+                    {[
+                      'Alamo Rent A Car', 'Avis', 'Budget', 'Carwiz', 'Dollar Rent A Car', 
+                      'Drive Rental Cars', 'Economy Rent a Car', 'Enterprise', 'Europcar Car Rental', 
+                      'Fox', 'Hertz', 'National Car Rental', 'Nextcar', 'Payless', 'Sixt', 
+                      'Thrifty Car Rental', 'Others'
+                    ].map(car => (
+                      <option key={car} value={car} />
+                    ))}
+                  </datalist>
+                )}
               </div>
             ))}
 
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Outcome</label>
-              <select
-                value={formData.customer_outcome}
-                onChange={(e) => setFormData({ ...formData, customer_outcome: e.target.value })}
-                style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
-              >
-                {availableOutcomes.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
+            {formData.call_type.map(type => {
+              const mapKey = type === 'General Inquiry' ? 'General / Support' : type;
+              let outcomesForType = outcomeMap[mapKey] || [];
+              if (type === 'General Inquiry') {
+                outcomesForType = [...outcomesForType, ...outcomeMap['Call Outcome / Disposition']];
+              }
+              if (outcomesForType.length === 0) {
+                outcomesForType = [
+                  ...outcomeMap['General / Support'],
+                  ...outcomeMap['Call Outcome / Disposition']
+                ];
+              }
+              outcomesForType = Array.from(new Set(outcomesForType));
+
+              const selectedOutcome = formData.customer_outcome_map?.[type] || outcomesForType[0] || '';
+
+              return (
+                <div key={type}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    {type} Outcome
+                  </label>
+                  <select
+                    value={selectedOutcome}
+                    onChange={(e) => {
+                      const newMap = {
+                        ...formData.customer_outcome_map,
+                        [type]: e.target.value
+                      };
+                      setFormData({
+                        ...formData,
+                        customer_outcome_map: newMap
+                      });
+                    }}
+                    style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
+                  >
+                    {outcomesForType.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+              );
+            })}
 
             <textarea
               placeholder="Detailed notes..."

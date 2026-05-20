@@ -314,9 +314,9 @@ const AgentMonitorPage = () => {
   );
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div id="team-monitor-title-area" style={{ marginBottom: '12px' }}>
+    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
+        <div id="team-monitor-title-area">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
             <Activity size={32} style={{ color: '#06B68A' }} />
             <h1 style={{ fontSize: '32px', fontWeight: 800, margin: 0 }}>
@@ -327,27 +327,9 @@ const AgentMonitorPage = () => {
           <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '15px', fontWeight: 500 }}>
             Monitor activity and performance in real time.
           </p>
-
-          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', opacity: 0.9 }}>
-              <span style={{ fontSize: '16px' }}>{monitoringSummary.supActive}</span> Active Supervisors
-            </div>
-            <div style={{ color: 'var(--border-color)' }}>|</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', opacity: 0.9 }}>
-              <span style={{ fontSize: '16px' }}>{monitoringSummary.supBreak}</span> Supervisors On Break
-            </div>
-            <div style={{ color: 'var(--border-color)' }}>|</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}>
-              <span style={{ fontSize: '16px' }}>{monitoringSummary.active}</span> Active Agents
-            </div>
-            <div style={{ color: 'var(--border-color)' }}>|</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
-              <span style={{ fontSize: '16px' }}>{monitoringSummary.break}</span> Agents On Break
-            </div>
-          </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', marginLeft: 'auto' }}>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <Button 
               variant="ghost" 
@@ -379,6 +361,24 @@ const AgentMonitorPage = () => {
               section="stats"
             />
           )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '16px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', flexWrap: 'wrap', background: 'rgba(255, 255, 255, 0.02)', padding: '12px 24px', borderRadius: '16px', border: '1px solid var(--border-color)', width: 'fit-content' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', opacity: 0.9 }}>
+          <span style={{ fontSize: '16px' }}>{monitoringSummary.supActive}</span> Active Supervisors
+        </div>
+        <div style={{ color: 'var(--border-color)' }}>|</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', opacity: 0.9 }}>
+          <span style={{ fontSize: '16px' }}>{monitoringSummary.supBreak}</span> Supervisors On Break
+        </div>
+        <div style={{ color: 'var(--border-color)' }}>|</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}>
+          <span style={{ fontSize: '16px' }}>{monitoringSummary.active}</span> Active Agents
+        </div>
+        <div style={{ color: 'var(--border-color)' }}>|</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
+          <span style={{ fontSize: '16px' }}>{monitoringSummary.break}</span> Agents On Break
         </div>
       </div>
 

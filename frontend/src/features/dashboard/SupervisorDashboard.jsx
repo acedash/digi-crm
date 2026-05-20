@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../auth/useAuthStore';
 import dashboardService from './dashboardService';
+import api from '../../services/api';
 import userService from '../users/userService';
 import { motion } from 'framer-motion';
 import { 
@@ -119,14 +120,26 @@ const SupervisorDashboard = () => {
   }, [period, customRange.start, customRange.end]);
 
   const fetchData = async (isPolling = false) => {
-    if (!isPolling) setLoading(true);
+    if (!isPolling) {
+      const start = period === 'custom' ? customRange.start : null;
+      const end = period === 'custom' ? customRange.end : null;
+      let url = `/dashboard/stats?period=${period}`;
+      if (start) url += `&start_date=${start}`;
+      if (end) url += `&end_date=${end}`;
+      url += `&mode=supervisor`;
+
+      const isCached = api.hasCached?.(url);
+      if (!isCached) {
+        setLoading(true);
+      }
+    }
     try {
       const start = period === 'custom' ? customRange.start : null;
       const end = period === 'custom' ? customRange.end : null;
 
       const [agentsRes, statsRes] = await Promise.all([
-        userService.getMyAgents(),
-        dashboardService.getStats(period, start, end, 'supervisor')
+        userService.getMyAgents({ bypassCache: isPolling }),
+        dashboardService.getStats(period, start, end, 'supervisor', { bypassCache: isPolling })
       ]);
       
       const newStats = statsRes.data.data;
@@ -334,9 +347,10 @@ const SupervisorDashboard = () => {
 
       <div id="supervisor-charts-container" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', alignItems: 'start' }}>
         <Card id="supervisor-agent-performance-card" title="Agent Performance Breakdown" icon={Users} subtitle="Revenue contribution per agent">
-          {(!stats.agent_performance || stats.agent_performance.length === 0) ? (
-            <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-              No agent performance data available for this period.
+          {(!stats.agent_performance || stats.agent_performance.length === 0 || stats.agent_performance.every(e => e.revenue === 0)) ? (
+            <div style={{ height: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '12px' }}>
+              <TrendingUp size={48} style={{ opacity: 0.3, color: 'hsl(var(--primary))' }} />
+              <p style={{ fontSize: '14px', fontWeight: 600 }}>there is no data yet to be shown</p>
             </div>
           ) : (
             <div style={{ width: '100%', overflowX: 'auto' }}>
@@ -405,8 +419,13 @@ const SupervisorDashboard = () => {
            <div style={{ height: '400px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', paddingRight: '4px' }}>
               {(() => {
                  const breakdown = stats.status_breakdown || [];
-                 if (breakdown.length === 0) {
-                    return <div style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '100px' }}>No distribution data available</div>;
+                 if (breakdown.length === 0 || breakdown.every(item => item.count === 0)) {
+                    return (
+                      <div style={{ height: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '12px' }}>
+                        <PieChartIcon size={48} style={{ opacity: 0.3, color: 'hsl(var(--primary))' }} />
+                        <p style={{ fontSize: '14px', fontWeight: 600 }}>there is no data yet to be shown</p>
+                      </div>
+                    );
                  }
                  const total = breakdown.reduce((sum, item) => sum + (Number(item.count) || 0), 0);
                  
@@ -425,7 +444,43 @@ const SupervisorDashboard = () => {
                     );
                  });
               })()}
-           </div>
+            </div>
+         </Card>
+      </div>
+
+      <div style={{ marginBottom: '32px' }}>
+        <Card title="Pending vs Confirmed Booking" icon={TrendingUp} subtitle="Monthly status trends">
+          {(!stats.booking_status_trends || stats.booking_status_trends.length === 0 || stats.booking_status_trends.every(e => !e.Confirmed && !e.Pending)) ? (
+            <div style={{ height: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '12px' }}>
+              <TrendingUp size={48} style={{ opacity: 0.3, color: 'hsl(var(--primary))' }} />
+              <p style={{ fontSize: '14px', fontWeight: 600 }}>there is no data yet to be shown</p>
+            </div>
+          ) : (
+            <div style={{ height: '300px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.booking_status_trends} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 600 }} 
+                    dy={10}
+                    padding={{ left: 20, right: 20 }}
+                  />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 600 }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}
+                    itemStyle={{ fontWeight: 700 }}
+                    cursor={{ fill: 'var(--bg-input)', opacity: 0.5 }}
+                  />
+                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px', fontSize: '12px', fontWeight: 600 }} />
+                  <Bar dataKey="Confirmed" fill="#06B68A" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Pending" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
       </div>
 

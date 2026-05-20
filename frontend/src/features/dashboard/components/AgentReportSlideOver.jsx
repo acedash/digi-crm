@@ -14,7 +14,8 @@ import {
   FileText,
   FileSpreadsheet,
   FileJson,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 import ExportDropdown from '../../../components/ui/ExportDropdown';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -468,19 +469,26 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                   <CircleDollarSign size={18} style={{ color: '#10b981' }} /> Yearly Revenue Trend
                 </h3>
                 <div style={{ height: '220px', width: '100%' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data.revenue_trends}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.3} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickFormatter={(val) => `$${val >= 1000 ? val/1000 + 'k' : val}`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', padding: '8px' }}
-                        itemStyle={{ fontSize: '12px', fontWeight: 800, color: '#10b981' }}
-                        labelStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}
-                      />
-                      <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={{ r: 3, fill: '#10b981' }} filter="drop-shadow(0px 4px 4px rgba(16, 185, 129, 0.2))" />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {(!data.revenue_trends || data.revenue_trends.length === 0 || data.revenue_trends.every(e => e.revenue === 0)) ? (
+                    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '12px' }}>
+                      <TrendingUp size={48} style={{ opacity: 0.3, color: 'hsl(var(--primary))' }} />
+                      <p style={{ fontSize: '14px', fontWeight: 600 }}>there is no data yet to be shown</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={data.revenue_trends}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.3} />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickFormatter={(val) => `$${val >= 1000 ? val/1000 + 'k' : val}`} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', padding: '8px' }}
+                          itemStyle={{ fontSize: '12px', fontWeight: 800, color: '#10b981' }}
+                          labelStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}
+                        />
+                        <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={{ r: 3, fill: '#10b981' }} filter="drop-shadow(0px 4px 4px rgba(16, 185, 129, 0.2))" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 
@@ -489,25 +497,32 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                 <div className="glass-panel hide-on-print" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '16px' }}>Status Split</h3>
                   <div style={{ height: '180px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={data.status_distribution}
-                          innerRadius={45}
-                          outerRadius={60}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {data.status_distribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    {(!data.status_distribution || data.status_distribution.length === 0 || data.status_distribution.every(e => e.value === 0)) ? (
+                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '12px' }}>
+                        <PieChartIcon size={48} style={{ opacity: 0.3, color: 'hsl(var(--primary))' }} />
+                        <p style={{ fontSize: '14px', fontWeight: 600 }}>there is no data yet to be shown</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data.status_distribution}
+                            innerRadius={45}
+                            outerRadius={60}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {data.status_distribution.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                    {data.status_distribution.slice(0, 4).map((status, idx) => (
+                    {(data.status_distribution || []).slice(0, 4).map((status, idx) => (
                       <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>
                         <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: COLORS[idx % COLORS.length] }} />
                         {status.name} ({status.value})
@@ -522,11 +537,11 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Success Rate</span>
                       <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>
-                        {data.stats.total_bookings > 0 ? ((data.status_distribution.find(s => s.name === 'Confirmed')?.value || 0) / data.stats.total_bookings * 100).toFixed(1) : 0}%
+                        {data.stats.total_bookings > 0 ? (((data.status_distribution || []).find(s => s.name === 'Confirmed')?.value || 0) / data.stats.total_bookings * 100).toFixed(1) : 0}%
                       </span>
                     </div>
                     <div style={{ height: '4px', background: 'var(--bg-input)', borderRadius: '2px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', background: '#10b981', width: `${data.stats.total_bookings > 0 ? ((data.status_distribution.find(s => s.name === 'Confirmed')?.value || 0) / data.stats.total_bookings * 100) : 0}%` }} />
+                      <div style={{ height: '100%', background: '#10b981', width: `${data.stats.total_bookings > 0 ? (((data.status_distribution || []).find(s => s.name === 'Confirmed')?.value || 0) / data.stats.total_bookings * 100) : 0}%` }} />
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
@@ -548,7 +563,7 @@ const AgentReportSlideOver = ({ isOpen, onClose, agentId, initialPeriod = 'daily
                    <div>
                       <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Success Rate</div>
                       <div style={{ fontSize: '24px', fontWeight: 900, color: '#06B68A' }}>
-                         {data.stats.total_bookings > 0 ? ((data.status_distribution.find(s => s.name === 'Confirmed')?.value || 0) / data.stats.total_bookings * 100).toFixed(1) : 0}%
+                         {data.stats.total_bookings > 0 ? (((data.status_distribution || []).find(s => s.name === 'Confirmed')?.value || 0) / data.stats.total_bookings * 100).toFixed(1) : 0}%
                       </div>
                    </div>
                    <div>

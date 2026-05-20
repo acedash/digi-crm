@@ -14,6 +14,51 @@ const api = axios.create({
     },
 });
 
+const originalGet = api.get;
+const getCache = new Map();
+
+api.hasCached = (url, config = {}) => {
+    const cacheKey = JSON.stringify({ url, params: config.params || {} });
+    if (getCache.has(cacheKey)) {
+        const cached = getCache.get(cacheKey);
+        const ttl = 30000; // 30 seconds
+        if (Date.now() - cached.timestamp < ttl) {
+            return true;
+        } else {
+            getCache.delete(cacheKey);
+        }
+    }
+    return false;
+};
+
+api.get = function (url, config = {}) {
+    const { bypassCache, ...axiosConfig } = config;
+    
+    if (bypassCache) {
+        return originalGet.call(api, url, axiosConfig);
+    }
+    
+    const cacheKey = JSON.stringify({ url, params: axiosConfig.params || {} });
+    
+    if (getCache.has(cacheKey)) {
+        const cached = getCache.get(cacheKey);
+        const ttl = 30000; // 30 seconds
+        if (Date.now() - cached.timestamp < ttl) {
+            return Promise.resolve(cached.response);
+        } else {
+            getCache.delete(cacheKey);
+        }
+    }
+    
+    return originalGet.call(api, url, axiosConfig).then((response) => {
+        getCache.set(cacheKey, {
+            response,
+            timestamp: Date.now(),
+        });
+        return response;
+    });
+};
+
 api.interceptors.request.use((config) => {
     const token = useAuthStore.getState().token;
     if (token) {
@@ -23,7 +68,13 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const method = response.config?.method?.toLowerCase();
+        if (['post', 'put', 'patch', 'delete'].includes(method)) {
+            getCache.clear();
+        }
+        return response;
+    },
     (error) => {
         if (error.response?.status === 401) {
             useAuthStore.getState().logout();

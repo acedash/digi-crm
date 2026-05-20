@@ -94,8 +94,43 @@ const BookingList = ({ onCreate, onEdit }) => {
     per_page: 15,
     total: 0
   });
+  const [globalPeriod, setGlobalPeriod] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  const handleQuickFilter = (type) => {
+    setGlobalPeriod(type);
+    const today = new Date().toISOString().split('T')[0];
+    
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+    const weeklyDate = new Date();
+    weeklyDate.setDate(weeklyDate.getDate() - 7);
+    const lastWeek = weeklyDate.toISOString().split('T')[0];
+
+    const monthlyDate = new Date();
+    monthlyDate.setMonth(monthlyDate.getMonth() - 1);
+    const lastMonth = monthlyDate.toISOString().split('T')[0];
+
+    if (type === 'daily') {
+      setStartDate(today);
+      setEndDate(today);
+    } else if (type === 'yesterday') {
+      setStartDate(yesterday);
+      setEndDate(yesterday);
+    } else if (type === 'weekly') {
+      setStartDate(lastWeek);
+      setEndDate(today);
+    } else if (type === 'monthly') {
+      setStartDate(lastMonth);
+      setEndDate(today);
+    } else if (type === 'all') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
   const [stats, setStats] = useState({
     Total: 0,
     Approved: 0,
@@ -182,21 +217,27 @@ const BookingList = ({ onCreate, onEdit }) => {
     ]);
   };
 
-  const fetchBookings = useCallback(async (page = 1) => {
+  const fetchBookings = useCallback(async (page = 1, bypassCache = false) => {
     if (isFetchingRef.current) return;
-    try {
-      isFetchingRef.current = true;
-      setLoading(true);
-      const response = await bookingService.getBookings({ 
-        page, 
-        per_page: pagination.per_page,
-        search: debouncedSearchTerm,
-        start_date: startDate,
-        end_date: endDate,
-        filter: filterType === 'deleted' ? 'deleted' : undefined,
-        charge_status: chargeStatus
-      });
+    isFetchingRef.current = true;
 
+    const params = { 
+      page, 
+      per_page: pagination.per_page,
+      search: debouncedSearchTerm,
+      start_date: startDate,
+      end_date: endDate,
+      filter: filterType === 'deleted' ? 'deleted' : undefined,
+      charge_status: chargeStatus
+    };
+
+    const isCached = api.hasCached?.('/bookings', { params });
+    if (!isCached || bypassCache) {
+      setLoading(true);
+    }
+
+    try {
+      const response = await bookingService.getBookings(params, { bypassCache });
       const result = response.data.data;
       
       if (result && result.data) {
@@ -902,34 +943,68 @@ const BookingList = ({ onCreate, onEdit }) => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)', width: window.innerWidth <= 768 ? '100%' : 'auto', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: '140px' }}>
-              <Input 
-                type="date"
-                icon={Calendar}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{ marginBottom: 0 }}
-                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
-              />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '0 1 auto', width: window.innerWidth <= 768 ? '100%' : 'auto' }}>
+            <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-input)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', label: 'All Time' },
+                { id: 'daily', label: 'Daily' },
+                { id: 'yesterday', label: 'Yesterday' },
+                { id: 'weekly', label: 'Weekly' },
+                { id: 'monthly', label: 'Monthly' },
+                { id: 'custom', label: 'Custom Date' },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleQuickFilter(p.id)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: globalPeriod === p.id ? 'var(--bg-card)' : 'transparent',
+                    color: globalPeriod === p.id ? 'var(--text-main)' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: globalPeriod === p.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
-            <div style={{ flex: 1, minWidth: '140px' }}>
-              <Input 
-                type="date"
-                icon={Calendar}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{ marginBottom: 0 }}
-                inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
-              />
-            </div>
+
+            {globalPeriod === 'custom' && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)', width: 'fit-content' }}>
+                <div style={{ width: '150px' }}>
+                  <Input 
+                    type="date" 
+                    icon={Calendar}
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    style={{ marginBottom: 0 }}
+                    inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+                  />
+                </div>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
+                <div style={{ width: '150px' }}>
+                  <Input 
+                    type="date" 
+                    icon={Calendar}
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    style={{ marginBottom: 0 }}
+                    inputStyle={{ padding: '8px 12px', paddingLeft: '44px', fontSize: '13px', background: 'var(--bg-input)', borderRadius: '10px' }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: window.innerWidth <= 768 ? '0' : 'auto', width: window.innerWidth <= 768 ? '100%' : 'auto', justifyContent: window.innerWidth <= 768 ? 'space-between' : 'flex-end' }}>
             <Button 
               variant="glass" 
               icon={RefreshCw} 
-              onClick={() => fetchBookings(pagination.current_page)}
+              onClick={() => fetchBookings(pagination.current_page, true)}
               isLoading={loading}
               title="Refresh List"
             />

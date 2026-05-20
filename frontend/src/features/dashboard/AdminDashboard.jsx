@@ -25,6 +25,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import dashboardService from './dashboardService';
+import api from '../../services/api';
 import AdminMonitoringTable from './AdminMonitoringTable';
 import { AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { getStatusLabel, getAuthorizationTypeLabel } from '../bookings/bookingUtils';
@@ -86,11 +87,18 @@ const AdminDashboard = () => {
     }
   }, [period, customStart, customEnd]);
 
-  const fetchStats = async () => {
-    setLoading(true);
+  const fetchStats = async (bypassCache = false) => {
+    let url = `/dashboard/stats?period=${period}`;
+    if (customStart) url += `&start_date=${customStart}`;
+    if (customEnd) url += `&end_date=${customEnd}`;
+    
+    const isCached = api.hasCached?.(url);
+    if (!isCached || bypassCache) {
+      setLoading(true);
+    }
     setError(null);
     try {
-      const response = await dashboardService.getStats(period, customStart, customEnd);
+      const response = await dashboardService.getStats(period, customStart, customEnd, null, { bypassCache });
       if (response.data?.data) {
         setStats(response.data.data);
       } else {
@@ -212,7 +220,7 @@ const AdminDashboard = () => {
       value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(stats.revenue?.refunded?.period_total) || 0),
       growth: stats.revenue?.refunded?.growth,
       icon: RefreshCw,
-      color: '#3b82f6',
+      color: '#06B68A',
     },
     {
       title: 'Chargeback Amount',

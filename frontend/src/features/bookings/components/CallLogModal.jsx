@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { PhoneCall, XCircle, CheckCircle2 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import api from '../../../services/api';
 import Toast from '../../../components/ui/Toast';
@@ -46,7 +47,7 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     call_type: getInitialCallTypes(),
     airline_inquiry: getInitialInquiryData(),
-    customer_outcome: '', // Will be set by useEffect or first option
+    customer_outcome_map: {},
     notes: '',
     callback_required: false,
     callback_datetime: ''
@@ -95,41 +96,41 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
     ]
   };
 
-  const getAvailableOutcomes = () => {
-    let options = [];
-    
-    // Add selected types
+  // Set initial outcomes for each selected type if empty
+  React.useEffect(() => {
+    const updatedMap = { ...formData.customer_outcome_map };
+    let changed = false;
+
     formData.call_type.forEach(type => {
       const mapKey = type === 'General Inquiry' ? 'General / Support' : type;
-      if (outcomeMap[mapKey]) {
-        options = [...options, ...outcomeMap[mapKey]];
-      }
-      // If General Inquiry is selected, ALSO add the disposition options
+      let outcomesForType = outcomeMap[mapKey] || [];
       if (type === 'General Inquiry') {
-        options = [...options, ...outcomeMap['Call Outcome / Disposition']];
+        outcomesForType = [...outcomesForType, ...outcomeMap['Call Outcome / Disposition']];
+      }
+      if (outcomesForType.length === 0) {
+        outcomesForType = [
+          ...outcomeMap['General / Support'],
+          ...outcomeMap['Call Outcome / Disposition']
+        ];
+      }
+      outcomesForType = Array.from(new Set(outcomesForType));
+
+      if (!updatedMap[type] && outcomesForType.length > 0) {
+        updatedMap[type] = outcomesForType[0];
+        changed = true;
       }
     });
 
-    // If nothing selected, fallback to General Inquiry + Disposition
-    if (options.length === 0) {
-      options = [
-        ...outcomeMap['General / Support'],
-        ...outcomeMap['Call Outcome / Disposition']
-      ];
-    }
+    // Remove keys from updatedMap that are no longer in formData.call_type
+    Object.keys(updatedMap).forEach(key => {
+      if (!formData.call_type.includes(key)) {
+        delete updatedMap[key];
+        changed = true;
+      }
+    });
 
-    // Remove duplicates
-    return Array.from(new Set(options));
-  };
-
-  const availableOutcomes = getAvailableOutcomes();
-  
-  // Set initial outcome if empty
-  React.useEffect(() => {
-    if (!formData.customer_outcome && availableOutcomes.length > 0) {
-      setFormData(prev => ({ ...prev, customer_outcome: availableOutcomes[0] }));
-    } else if (formData.customer_outcome && !availableOutcomes.includes(formData.customer_outcome)) {
-      setFormData(prev => ({ ...prev, customer_outcome: availableOutcomes[0] }));
+    if (changed) {
+      setFormData(prev => ({ ...prev, customer_outcome_map: updatedMap }));
     }
   }, [formData.call_type]);
 
@@ -137,8 +138,20 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const outcomeParts = [];
+      formData.call_type.forEach(type => {
+        const outcome = formData.customer_outcome_map?.[type];
+        if (outcome) {
+          outcomeParts.push(`${type}: ${outcome}`);
+        }
+      });
+      const customerOutcomeString = outcomeParts.join(' | ') || 'Inquiry only';
+
+      const { customer_outcome_map, ...submitData } = formData;
+
       await api.post('/call-logs', {
-        ...formData,
+        ...submitData,
+        customer_outcome: customerOutcomeString,
         client_id: client?.id,
         log_scope: 'booking',
       });
@@ -291,20 +304,50 @@ const CallLogModal = ({ client, booking, onClose, onSuccess }) => {
               </motion.div>
             ))}
 
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Call Outcome</label>
-              <select
-                value={formData.customer_outcome}
-                onChange={(e) => setFormData({ ...formData, customer_outcome: e.target.value })}
-                style={{
-                  width: '100%', padding: '12px', borderRadius: '12px',
-                  background: 'var(--bg-input)', border: '1px solid var(--border-color)',
-                  color: 'var(--text-main)', outline: 'none'
-                }}
-              >
-                {availableOutcomes.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
+            {formData.call_type.map(type => {
+              const mapKey = type === 'General Inquiry' ? 'General / Support' : type;
+              let outcomesForType = outcomeMap[mapKey] || [];
+              if (type === 'General Inquiry') {
+                outcomesForType = [...outcomesForType, ...outcomeMap['Call Outcome / Disposition']];
+              }
+              if (outcomesForType.length === 0) {
+                outcomesForType = [
+                  ...outcomeMap['General / Support'],
+                  ...outcomeMap['Call Outcome / Disposition']
+                ];
+              }
+              outcomesForType = Array.from(new Set(outcomesForType));
+
+              const selectedOutcome = formData.customer_outcome_map?.[type] || outcomesForType[0] || '';
+
+              return (
+                <div key={type}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>
+                    {type} Outcome
+                  </label>
+                  <select
+                    value={selectedOutcome}
+                    onChange={(e) => {
+                      const newMap = {
+                        ...formData.customer_outcome_map,
+                        [type]: e.target.value
+                      };
+                      setFormData({
+                        ...formData,
+                        customer_outcome_map: newMap
+                      });
+                    }}
+                    style={{
+                      width: '100%', padding: '12px', borderRadius: '12px',
+                      background: 'var(--bg-input)', border: '1px solid var(--border-color)',
+                      color: 'var(--text-main)', outline: 'none'
+                    }}
+                  >
+                    {outcomesForType.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+              );
+            })}
 
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>Notes (Optional)</label>

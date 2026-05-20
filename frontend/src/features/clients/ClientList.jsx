@@ -17,12 +17,18 @@ import {
   FileJson,
   Calendar as CalendarIcon,
   Download,
-  HelpCircle
+  HelpCircle,
+  Plane,
+  Hotel,
+  Car,
+  Ship,
+  Package
 } from 'lucide-react';
 import { useWalkthroughStore } from '../../store/walkthroughStore';
 import ExportDropdown from '../../components/ui/ExportDropdown';
 import Toast from '../../components/ui/Toast';
 import clientService from './clientService';
+import api from '../../services/api';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -68,19 +74,25 @@ const ClientList = ({ isEmbedded = false }) => {
     return () => window.clearTimeout(timeout);
   }, [search]);
 
-  const fetchClients = useCallback(async (searchTerm = debouncedSearch, advancedFilters = filters) => {
+  const fetchClients = useCallback(async (searchTerm = debouncedSearch, advancedFilters = filters, bypassCache = false) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    setLoading(true);
+    
+    const params = { 
+      per_page: 25,
+      client_name: searchTerm,
+      start_date: startDate,
+      end_date: endDate,
+      ...Object.fromEntries(Object.entries(advancedFilters).filter(([, v]) => v !== ''))
+    };
+
+    const isCached = api.hasCached?.('/admin/clients', { params });
+    if (!isCached || bypassCache) {
+      setLoading(true);
+    }
+
     try {
-      const params = { 
-        per_page: 25,
-        client_name: searchTerm,
-        start_date: startDate,
-        end_date: endDate,
-        ...Object.fromEntries(Object.entries(advancedFilters).filter(([, v]) => v !== ''))
-      };
-      const response = await clientService.getClients(params);
+      const response = await clientService.getClients(params, { bypassCache });
       const result = response.data.data;
 
       if (result && result.data) {
@@ -184,7 +196,7 @@ const ClientList = ({ isEmbedded = false }) => {
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF('l', 'mm', 'a4'); // Use landscape for more columns
-      const tableColumn = ["ID", "Name", "Email", "Phone", "Address", "Latest Booking", "Date", "Spend"];
+      const tableColumn = ["ID", "Name", "Email", "Phone", "Address", "Latest Booking", "Date", "Spend", "Created By"];
       const tableRows = clients.map(client => {
         const booking = client.latestBooking || client.latest_booking;
         const bookingStr = booking ? `${booking.booking_reference}\n${(booking.services || []).map(s => {
@@ -205,7 +217,8 @@ const ClientList = ({ isEmbedded = false }) => {
           client.address || '--',
           bookingStr,
           dateStr,
-          `$${Number(client.bookings_sum_total_amount || 0).toLocaleString()}`
+          `$${Number(client.bookings_sum_total_amount || 0).toLocaleString()}`,
+          client.creator?.name || 'Admin'
         ];
       });
       
@@ -273,11 +286,100 @@ const ClientList = ({ isEmbedded = false }) => {
   };
 
 
+  const getChargeStatusStyle = (status) => {
+    const s = String(status || '').toLowerCase();
+    if (s.includes('capture') || (s.includes('charge') && !s.includes('back'))) {
+      return {
+        label: 'Captured',
+        color: '#06B68A',
+        bg: 'rgba(6, 182, 138, 0.04)',
+        border: 'rgba(6, 182, 138, 0.15)'
+      };
+    } else if (s.includes('pending')) {
+      return {
+        label: 'Pending',
+        color: '#f59e0b',
+        bg: 'rgba(245, 158, 11, 0.04)',
+        border: 'rgba(245, 158, 11, 0.15)'
+      };
+    } else if (s.includes('decline')) {
+      return {
+        label: 'Declined',
+        color: '#ef4444',
+        bg: 'rgba(239, 68, 68, 0.04)',
+        border: 'rgba(239, 68, 68, 0.15)'
+      };
+    } else if (s.includes('chargeback')) {
+      return {
+        label: 'Chargeback',
+        color: '#ec4899',
+        bg: 'rgba(236, 72, 153, 0.04)',
+        border: 'rgba(236, 72, 153, 0.15)'
+      };
+    } else if (s.includes('refund')) {
+      return {
+        label: 'Refunded',
+        color: '#3b82f6',
+        bg: 'rgba(59, 130, 246, 0.04)',
+        border: 'rgba(59, 130, 246, 0.15)'
+      };
+    } else {
+      return {
+        label: status,
+        color: '#94a3b8',
+        bg: 'rgba(148, 163, 184, 0.04)',
+        border: 'rgba(148, 163, 184, 0.15)'
+      };
+    }
+  };
+
   const renderCategoryDetails = (client) => {
     const booking = client.latestBooking || client.latest_booking;
     if (!booking) return <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>No bookings</span>;
     const services = Array.isArray(booking.services) ? booking.services : [];
     const bookingRef = booking.booking_reference || `BK-${booking.id}`;
+
+    const getServicePalette = (serviceType) => {
+      switch (serviceType) {
+        case 'Flight':
+          return {
+            icon: Plane,
+            color: '#8b5cf6',
+            bg: 'rgba(139, 92, 246, 0.04)',
+            border: 'rgba(139, 92, 246, 0.15)'
+          };
+        case 'Hotel':
+          return {
+            icon: Hotel,
+            color: '#3b82f6',
+            bg: 'rgba(59, 130, 246, 0.04)',
+            border: 'rgba(59, 130, 246, 0.15)'
+          };
+        case 'Car':
+        case 'CarRental':
+        case 'Car Rental':
+          return {
+            icon: Car,
+            color: '#d97706',
+            bg: 'rgba(217, 119, 6, 0.04)',
+            border: 'rgba(217, 119, 6, 0.15)'
+          };
+        case 'Cruise':
+          return {
+            icon: Ship,
+            color: '#ec4899',
+            bg: 'rgba(236, 72, 153, 0.04)',
+            border: 'rgba(236, 72, 153, 0.15)'
+          };
+        default:
+          return {
+            icon: Package,
+            color: '#10b981',
+            bg: 'rgba(16, 185, 129, 0.04)',
+            border: 'rgba(16, 185, 129, 0.15)'
+          };
+      }
+    };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -296,39 +398,83 @@ const ClientList = ({ isEmbedded = false }) => {
             {bookingRef}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
             {services.length === 0 ? (
               <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Empty Booking</span>
             ) : services.slice(0, 3).map((srv, idx) => {
                const typeRaw = srv.serviceable_type || '';
                const type = typeRaw.split('\\').pop() || 'Service';
                const data = srv.serviceable || {};
+               const palette = getServicePalette(type);
+               const Icon = palette.icon;
                
-               // Robust name extraction
-               let name = data.name || data.cruise_name || data.airline_code || data.operator || 'Service';
-               if (type === 'Flight' && data.flight_number) {
-                 name = `${data.airline_code}${data.flight_number}`;
+               // Smart description extraction
+               let name = 'Service';
+               let subText = '';
+               
+               if (type === 'Flight') {
+                 const carrier = data.airline_code || '';
+                 const fn = data.flight_number || '';
+                 name = carrier ? `${carrier}${fn}` : 'Flight';
+                 if (data.departure_city && data.arrival_city) {
+                   subText = `${data.departure_city} → ${data.arrival_city}`;
+                 }
+               } else if (type === 'Hotel') {
+                 name = data.name || 'Hotel';
+                 subText = data.city || '';
+               } else if (type === 'Car' || type === 'CarRental' || type === 'Car Rental') {
+                 name = data.company || 'Car Rental';
+                 subText = data.car_type || data.pickup_city || '';
+               } else if (type === 'Cruise') {
+                 name = data.cruise_name || 'Cruise';
+                 subText = data.operator || '';
+               } else {
+                 name = data.name || 'Service';
                }
                
-               let code = data.pnr || data.booking_confirmation || '';
+               const code = data.pnr || data.booking_confirmation || '';
 
                return (
                  <div key={idx} style={{ 
                    fontSize: '11px', 
-                   background: 'rgba(255,255,255,0.03)', 
-                   padding: '4px 8px', 
-                   borderRadius: '6px', 
-                   border: '1px solid var(--border-color)',
+                   background: palette.bg, 
+                   padding: '6px 10px', 
+                   borderRadius: '8px', 
+                   border: `1px solid ${palette.border}`,
                    display: 'flex',
                    flexDirection: 'column',
-                   gap: '2px'
+                   gap: '3px'
                  }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                     <span style={{ fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-                     <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{type}</span>
-                   </div>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                        <Icon size={12} style={{ color: palette.color, flexShrink: 0 }} />
+                        <span style={{ fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {name}
+                        </span>
+                      </div>
+                      <span style={{ 
+                        fontSize: '8px', 
+                        color: palette.color, 
+                        fontWeight: 800, 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.5px',
+                        background: palette.border,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        flexShrink: 0
+                      }}>
+                        {type}
+                      </span>
+                    </div>
+                   
+                   {subText && (
+                     <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500, paddingLeft: '18px' }}>
+                       {subText}
+                     </div>
+                   )}
+
                    {code && (
-                     <div style={{ fontSize: '10px', color: '#06B68A', fontWeight: 700, fontFamily: 'monospace' }}>
+                     <div style={{ fontSize: '9px', color: '#06B68A', fontWeight: 800, fontFamily: 'monospace', paddingLeft: '18px', textTransform: 'uppercase' }}>
                        REF: {code}
                      </div>
                    )}
@@ -523,7 +669,7 @@ const ClientList = ({ isEmbedded = false }) => {
               variant="glass" 
               icon={RefreshCw} 
               size="md" 
-              onClick={() => fetchClients()}
+              onClick={() => fetchClients(debouncedSearch, filters, true)}
               isLoading={loading}
             />
           </div>
@@ -580,34 +726,34 @@ const ClientList = ({ isEmbedded = false }) => {
               style={{ borderRadius: 'var(--radius)', overflow: 'hidden', overflowX: 'auto' }}
             >
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
-                <thead>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-input)' }}>
                   <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '15%' }}>Client Details</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '22%' }}>Contact & Billing</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '22%' }}>Booking Details</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '8%' }}>Date</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '9%' }}>Total Spend</th>
-                    <th style={{ padding: '16px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '9%' }}>Travelers</th>
-                    <th style={{ padding: '16px 20px 16px 12px', textAlign: 'right', width: '15%' }}></th>
+                    <th style={{ padding: '16px 16px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '16%' }}>Client Details</th>
+                    <th style={{ padding: '16px 16px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '18%' }}>Contact & Billing</th>
+                    <th style={{ padding: '16px 16px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '26%' }}>Booking Details</th>
+                    <th style={{ padding: '16px 16px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '9%' }}>Date</th>
+                    <th style={{ padding: '16px 16px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '12%' }}>Total Spend</th>
+                    <th style={{ padding: '16px 16px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', width: '7%' }}>Travelers</th>
+                    <th style={{ padding: '16px 24px 16px 16px', textAlign: 'right', width: '12%' }}></th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {clients?.length > 0 ? clients.map((client, idx) => (
                     <MotionTr 
-                      key={client.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      style={{ 
-                        borderBottom: '1px solid var(--border-color)',
-                        transition: 'var(--transition-smooth)',
-                        cursor: 'default'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-input)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                       key={client.id}
+                       initial={{ opacity: 0, x: -10 }}
+                       animate={{ opacity: 1, x: 0 }}
+                       transition={{ delay: idx * 0.05 }}
+                       style={{ 
+                         borderBottom: '1px solid var(--border-color)',
+                         transition: 'var(--transition-smooth)',
+                         cursor: 'default'
+                       }}
+                       onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-input)'}
+                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
-                      <td style={{ padding: '16px 12px' }}>
+                      <td style={{ padding: '16px 16px', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{ 
                             width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
@@ -616,7 +762,7 @@ const ClientList = ({ isEmbedded = false }) => {
                             <UserIcon size={16} />
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                            <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13px', lineHeight: '1.4' }}>
                               {client.first_name} {client.last_name}
                             </p>
                             <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -625,7 +771,7 @@ const ClientList = ({ isEmbedded = false }) => {
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '16px 12px' }}>
+                      <td style={{ padding: '16px 16px', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             <Phone size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
@@ -645,33 +791,62 @@ const ClientList = ({ isEmbedded = false }) => {
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '16px 12px' }}>
+                      <td style={{ padding: '16px 16px', verticalAlign: 'middle' }}>
                         {renderCategoryDetails(client)}
                       </td>
-                      <td style={{ padding: '16px 12px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <td style={{ padding: '16px 16px', fontSize: '12px', color: 'var(--text-muted)', verticalAlign: 'middle' }}>
                         {(client.latestBooking || client.latest_booking) 
                           ? new Date((client.latestBooking || client.latest_booking).created_at).toLocaleDateString() 
                           : new Date(client.created_at).toLocaleDateString()}
                       </td>
 
-                      <td style={{ padding: '16px 12px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <td style={{ padding: '16px 16px', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <div style={{ fontWeight: 800, color: '#06B68A', fontSize: '15px', letterSpacing: '-0.5px' }}>
                             ${Number(client.bookings_sum_total_amount || 0).toLocaleString()}
                           </div>
+                          
+                          {(() => {
+                            const latestBooking = client.latestBooking || client.latest_booking;
+                            const auths = latestBooking?.paymentAuthorizations || latestBooking?.payment_authorizations || [];
+                            const latestAuth = [...auths].sort((a, b) => b.id - a.id).find(a => a.charge_status);
+                            if (latestAuth && latestAuth.charge_status) {
+                              const badge = getChargeStatusStyle(latestAuth.charge_status);
+                              return (
+                                <div style={{ 
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  width: 'fit-content',
+                                  gap: '4px',
+                                  padding: '2px 8px',
+                                  borderRadius: '100px',
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  textTransform: 'uppercase',
+                                  color: badge.color,
+                                  background: badge.bg,
+                                  border: `1px solid ${badge.border}`
+                                }}>
+                                  {badge.label}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+
                           <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 600 }}>
                              By: {client.creator?.name || 'Admin'}
                           </div>
                         </div>
                       </td>
 
-                      <td style={{ padding: '16px 12px' }}>
+                      <td style={{ padding: '16px 16px', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Users size={12} style={{ color: 'var(--text-muted)' }}/>
                           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>{client.passengers_count || 0}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '16px 20px 16px 12px', textAlign: 'right' }}>
+                      <td style={{ padding: '16px 24px 16px 16px', textAlign: 'right', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                           <Button variant="glass" size="sm" icon={Edit} onClick={() => handleEditClient(client)} style={{ padding: '6px' }} />
                           <Button variant="ghost" size="sm" icon={Trash2} onClick={() => handleDeleteClient(client)} style={{ color: '#f87171', padding: '6px' }} />

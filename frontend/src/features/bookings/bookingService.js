@@ -1,8 +1,8 @@
 import api from '../../services/api';
 
 export const bookingService = {
-  getBookings: (params = {}) => api.get('/bookings', { params }),
-  getBooking: (id) => api.get(`/bookings/${id}`),
+  getBookings: (params = {}, config = {}) => api.get('/bookings', { params, ...config }),
+  getBooking: (id, config = {}) => api.get(`/bookings/${id}`, config),
   createBooking: (data) => api.post('/bookings', data),
   updateBooking: (id, data) => api.put(`/bookings/${id}`, data),
   deleteBooking: (id) => api.delete(`/bookings/${id}`),

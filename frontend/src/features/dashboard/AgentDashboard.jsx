@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../auth/useAuthStore';
 import dashboardService from './dashboardService';
+import api from '../../services/api';
 import { motion } from 'framer-motion';
 import { 
   UserPlus, 
@@ -133,9 +134,25 @@ const AgentDashboard = () => {
   }, []);
 
   const fetchStats = async (isPolling = false) => {
-    if (!isPolling) setLoading(true);
+    if (!isPolling) {
+      let url = `/dashboard/stats?period=${period}`;
+      if (customRange.start) url += `&start_date=${customRange.start}`;
+      if (customRange.end) url += `&end_date=${customRange.end}`;
+      url += `&mode=agent`;
+
+      const isCached = api.hasCached?.(url);
+      if (!isCached) {
+        setLoading(true);
+      }
+    }
     try {
-      const response = await dashboardService.getStats(period, customRange.start, customRange.end, 'agent');
+      const response = await dashboardService.getStats(
+        period, 
+        customRange.start, 
+        customRange.end, 
+        'agent', 
+        { bypassCache: isPolling }
+      );
       const newStats = response.data.data;
       
       prevChargesRef.current = newStats.recent_charges || [];
@@ -406,7 +423,16 @@ const AgentDashboard = () => {
               <h1 style={{ fontSize: '42px', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '12px', color: 'var(--text-main)' }}>
                 {greeting}, <span className="premium-gradient-text">{userName}</span>
               </h1>
-              <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '500px', lineHeight: '1.6' }}>
+              {stats.total_bookings_all_time > 0 ? (
+                <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '600px', lineHeight: '1.6', marginBottom: '16px' }}>
+                  You’ve created <strong style={{ color: 'hsl(var(--primary))' }}>{stats.total_bookings_all_time}</strong> bookings, with <strong style={{ color: '#06B68A' }}>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.today_bookings_amount || 0)}</strong> today and <strong style={{ color: 'var(--text-main)' }}>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.total_revenue_all_time || 0)}</strong> overall.
+                </p>
+              ) : (
+                <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '600px', lineHeight: '1.6', marginBottom: '16px' }}>
+                  No bookings yet. Start by creating your first one.
+                </p>
+              )}
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '500px', lineHeight: '1.6' }}>
                 Personal Performance Overview for <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{period === 'all' ? 'All Time' : (period === 'monthly' ? 'this Month' : (period === 'weekly' ? 'this Week' : (period === 'daily' ? 'Today' : 'selected period')))}</span>.
               </p>
             </div>
@@ -475,7 +501,7 @@ const AgentDashboard = () => {
           </div>
           <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
             <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Refunded</p>
-            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>
+            <h4 style={{ fontSize: '24px', fontWeight: 800, color: '#06B68A' }}>
               {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.revenue?.refunded || 0)}
             </h4>
           </div>
@@ -491,92 +517,106 @@ const AgentDashboard = () => {
       {/* Charts Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '32px' }}>
         <Card titleId="agent-charts-section" title="Revenue Trend" icon={TrendingUp} subtitle="Last 6 months performance">
-          <div style={{ height: '300px', width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.revenue_trends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#06B68A" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#06B68A" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 600 }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 600 }}
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'var(--bg-card)', 
-                    borderRadius: '12px', 
-                    border: '1px solid var(--border-color)',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                  }}
-                  itemStyle={{ color: '#06B68A', fontWeight: 800 }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#06B68A" 
-                  strokeWidth={3}
-                  fillOpacity={1} 
-                  fill="url(#colorRev)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {(!stats.revenue_trends || stats.revenue_trends.length === 0 || stats.revenue_trends.every(e => e.revenue === 0)) ? (
+            <div style={{ height: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '12px' }}>
+              <TrendingUp size={48} style={{ opacity: 0.3, color: 'hsl(var(--primary))' }} />
+              <p style={{ fontSize: '14px', fontWeight: 600 }}>there is no data yet to be shown</p>
+            </div>
+          ) : (
+            <div style={{ height: '300px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stats.revenue_trends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06B68A" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#06B68A" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 600 }}
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 600 }}
+                    tickFormatter={(value) => `$${value}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'var(--bg-card)', 
+                      borderRadius: '12px', 
+                      border: '1px solid var(--border-color)',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                    }}
+                    itemStyle={{ color: '#06B68A', fontWeight: 800 }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stroke="#06B68A" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorRev)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
 
         <Card title="Booking Overview" icon={PieChartIcon} subtitle={`Based on ${period} data`}>
-          <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats.booking_distribution || []}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {(stats.booking_distribution || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={[
-                      '#06B68A', // Emerald
-                      '#3b82f6', // Blue
-                      '#f59e0b', // Amber
-                      '#ef4444', // Red
-                      '#8b5cf6', // Violet
-                      '#10b981', // Teal
-                      '#ec4899', // Pink
-                    ][index % 7]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'var(--bg-card)', 
-                    borderRadius: '12px', 
-                    border: '1px solid var(--border-color)' 
-                  }}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  align="center"
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: '11px', fontWeight: 600, paddingTop: '20px' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          {(!stats.booking_distribution || stats.booking_distribution.length === 0 || stats.booking_distribution.every(e => e.value === 0)) ? (
+            <div style={{ height: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '12px' }}>
+              <PieChartIcon size={48} style={{ opacity: 0.3, color: 'hsl(var(--primary))' }} />
+              <p style={{ fontSize: '14px', fontWeight: 600 }}>there is no data yet to be shown</p>
+            </div>
+          ) : (
+            <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.booking_distribution || []}
+                    cx="50%"
+                    cy="45%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {(stats.booking_distribution || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={[
+                        '#06B68A', // Emerald
+                        '#3b82f6', // Blue
+                        '#f59e0b', // Amber
+                        '#ef4444', // Red
+                        '#8b5cf6', // Violet
+                        '#10b981', // Teal
+                        '#ec4899', // Pink
+                      ][index % 7]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'var(--bg-card)', 
+                      borderRadius: '12px', 
+                      border: '1px solid var(--border-color)' 
+                    }}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    align="center"
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: '11px', fontWeight: 600, paddingTop: '20px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '32px' }}>

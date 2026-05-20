@@ -692,6 +692,16 @@ class DashboardController extends Controller
             $totalBookingsCount = Booking::where('agent_id', $user->id)->count();
             $totalRevenueAllTime = (float) Booking::where('agent_id', $user->id)->sum('total_amount');
 
+            // Today's bookings count and revenue
+            $todayStart = now()->startOfDay()->toDateTimeString();
+            $todayEnd = now()->endOfDay()->toDateTimeString();
+            $todayBookings = Booking::where('agent_id', $user->id)
+                ->whereBetween('created_at', [$todayStart, $todayEnd])
+                ->selectRaw('COUNT(*) as count, SUM(total_amount) as revenue')
+                ->first();
+            $todayBookingsCount = (int) ($todayBookings->count ?? 0);
+            $todayBookingsAmount = (float) ($todayBookings->revenue ?? 0);
+
             // Calls and Inquiries
             $calls = CallLog::where('agent_id', $user->id)
                 ->where('log_scope', 'booking')
@@ -759,6 +769,8 @@ class DashboardController extends Controller
                 'my_revenue' => (float) ($bookings->revenue ?? 0),
                 'total_bookings_all_time' => $totalBookingsCount,
                 'total_revenue_all_time' => $totalRevenueAllTime,
+                'today_bookings_count' => $todayBookingsCount,
+                'today_bookings_amount' => $todayBookingsAmount,
                 'daily_revenue' => (float) $netRevenue, // This is net for the period
                 'revenue' => [
                     'charged' => (float) ($paymentStats->charged ?? 0),
