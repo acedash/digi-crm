@@ -41,9 +41,16 @@ class ClientRepository extends BaseRepository
             ->with([
                 'creator:id,name',
                 'agent:id,name',
-                'latestBooking',
+                'latestBooking' => function ($query) {
+                    $query->select(['id', 'client_id', 'booking_reference', 'status', 'total_amount', 'currency', 'created_at']);
+                },
+                'latestBooking.services' => function ($query) {
+                    $query->select(['id', 'booking_id', 'serviceable_id', 'serviceable_type', 'status']);
+                },
                 'latestBooking.services.serviceable',
-                'latestBooking.paymentAuthorizations',
+                'latestBooking.paymentAuthorizations' => function ($query) {
+                    $query->select(['payment_authorizations.id', 'payment_authorizations.charge_status', 'payment_authorizations.status']);
+                },
             ]);
 
 
