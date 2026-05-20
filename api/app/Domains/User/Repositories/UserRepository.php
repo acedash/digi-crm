@@ -29,7 +29,7 @@ class UserRepository extends BaseRepository
     {
         return $this->model
             ->whereHas('supervisors', function ($query) use ($supervisorId) {
-                $query->where('users.id', $supervisorId);
+                $query->where('user_supervisor.supervisor_id', $supervisorId);
             })
             ->get();
     }

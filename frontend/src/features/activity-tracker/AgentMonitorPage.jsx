@@ -464,6 +464,7 @@ const AgentMonitorPage = () => {
                 period={teamPeriod}
                 startDate={teamStart}
                 endDate={teamEnd}
+                onSummaryChange={!isAdmin ? setMonitoringSummary : null}
               />
             </div>
 

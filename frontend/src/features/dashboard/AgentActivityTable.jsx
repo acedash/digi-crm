@@ -8,7 +8,7 @@ import html2canvas from 'html2canvas';
 import ExportDropdown from '../../components/ui/ExportDropdown';
 import { FileText, FileSpreadsheet } from 'lucide-react';
 
-const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
+const AgentActivityTable = ({ onViewReport, period, startDate, endDate, onSummaryChange }) => {
   const MotionTr = motion.tr;
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,20 @@ const AgentActivityTable = ({ onViewReport, period, startDate, endDate }) => {
       setLoading(true);
       const res = await dashboardService.getAgentMonitor(period, startDate, endDate);
       if (res.data?.success) {
-        setAgents(res.data.data);
+        const loadedAgents = res.data.data;
+        setAgents(loadedAgents);
+        
+        if (onSummaryChange) {
+          const active = loadedAgents.filter(a => ['active', 'on call', 'idle'].includes(a.status?.toLowerCase())).length;
+          const onBreak = loadedAgents.filter(a => a.status?.toLowerCase() === 'break').length;
+          onSummaryChange({
+            supervisors: 0,
+            supActive: 0,
+            supBreak: 0,
+            active,
+            break: onBreak
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to fetch agent activity:', error);

@@ -18,7 +18,8 @@ import {
   ReceiptText,
   CheckCircle2,
   ArrowDownLeft,
-  AlertTriangle
+  AlertTriangle,
+  XCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Card from '../../components/ui/Card';
@@ -643,13 +644,15 @@ const AdminDashboard = () => {
         <Card title="Global Payment Activity" icon={ReceiptText} subtitle="Latest Captured · Refunded · Chargeback transactions across all agents">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
             {(stats.recent_charges || []).map((charge, idx) => {
-              const isCapture   = charge.charge_status === 'Charged/Captured';
-              const isRefund    = charge.charge_status === 'Refunded';
+              const isCapture    = charge.charge_status === 'Charged/Captured';
+              const isRefund     = charge.charge_status === 'Refunded';
               const isChargeback = charge.charge_status === 'Chargeback';
-              const color  = isCapture ? '#059669' : isRefund ? '#3b82f6' : '#ef4444';
-              const bg     = isCapture ? 'rgba(5,150,105,0.10)' : isRefund ? 'rgba(59,130,246,0.10)' : 'rgba(239,68,68,0.10)';
-              const label  = isCapture ? 'Captured' : isRefund ? 'Refunded' : 'Chargeback';
-              const Icon   = isCapture ? CheckCircle2 : isRefund ? ArrowDownLeft : AlertTriangle;
+              const isDecline    = charge.charge_status === 'Decline';
+              
+              const color  = isCapture ? '#059669' : isRefund ? '#10b981' : isDecline ? '#f43f5e' : '#ef4444';
+              const bg     = isCapture ? 'rgba(5,150,105,0.10)' : isRefund ? 'rgba(16,185,129,0.10)' : isDecline ? 'rgba(244,63,94,0.10)' : 'rgba(239,68,68,0.10)';
+              const label  = isCapture ? 'Captured' : isRefund ? 'Refunded' : isDecline ? 'Declined' : 'Chargeback';
+              const Icon   = isCapture ? CheckCircle2 : isRefund ? ArrowDownLeft : isDecline ? XCircle : AlertTriangle;
               return (
                 <div key={idx} style={{
                   display: 'flex',

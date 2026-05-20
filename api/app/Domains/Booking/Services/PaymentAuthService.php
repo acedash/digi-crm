@@ -189,7 +189,7 @@ class PaymentAuthService
             }
         }
     
-        return DB::transaction(function () use ($auth, $data, $cards) {
+        $result = DB::transaction(function () use ($auth, $data, $cards) {
             $collectedCardIds = [];
             $allocations = [];
             $maskedCards = [];
@@ -261,6 +261,10 @@ class PaymentAuthService
     
             return $auth;
         });
+    
+        $this->clearDashboardCaches($auth);
+    
+        return $result;
     }
 
     public function markCharged(int $paymentAuthId, array $data = [])
@@ -336,6 +340,8 @@ class PaymentAuthService
             ]);
         }
 
+        $this->clearDashboardCaches($auth);
+
         return $this->repository->findByIdForCollection($paymentAuthId);
     }
 
@@ -380,6 +386,8 @@ class PaymentAuthService
             }
         });
 
+        $this->clearDashboardCaches($auth);
+
         return $this->repository->findByToken($token);
     }
 
@@ -419,6 +427,8 @@ class PaymentAuthService
                 $this->recordChangeChargeStatus($auth, 'Rejected');
             }
         });
+
+        $this->clearDashboardCaches($auth);
 
         return $this->repository->findByToken($token);
     }
@@ -707,5 +717,54 @@ class PaymentAuthService
         }
 
         $this->authorizationMailer->send($auth);
+    }
+
+    protected function clearDashboardCaches($auth): void
+    {
+        try {
+            $agentIds = [];
+            foreach ($auth->bookings as $booking) {
+                if ($booking->agent_id) {
+                    $agentIds[] = $booking->agent_id;
+                }
+            }
+            $agentIds = array_unique($agentIds);
+
+            $supervisorIds = [];
+            if (!empty($agentIds)) {
+                $agents = \App\Models\User::with(['supervisors'])->whereIn('id', $agentIds)->get();
+                foreach ($agents as $agent) {
+                    if ($agent->supervisor_id) {
+                        $supervisorIds[] = $agent->supervisor_id;
+                    }
+                    foreach ($agent->supervisors as $sup) {
+                        $supervisorIds[] = $sup->id;
+                    }
+                }
+            }
+            $supervisorIds = array_unique($supervisorIds);
+
+            $periods = ['all', 'daily', 'yesterday', 'weekly', 'monthly', 'custom', 'yearly'];
+
+            foreach ($periods as $period) {
+                // Clear Admin stats cache
+                \Illuminate\Support\Facades\Cache::forget('dashboard.admin.stats.v4.' . $period);
+                
+                // Clear Agent stats cache
+                foreach ($agentIds as $agentId) {
+                    \Illuminate\Support\Facades\Cache::forget('dashboard.agent.stats.v5.' . $agentId . '.' . $period);
+                }
+
+                // Clear Supervisor stats cache
+                foreach ($supervisorIds as $supervisorId) {
+                    \Illuminate\Support\Facades\Cache::forget('dashboard.supervisor.stats.v4.' . $supervisorId . '.' . $period);
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to clear dashboard stats cache', [
+                'auth_id' => $auth->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

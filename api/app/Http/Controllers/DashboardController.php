@@ -290,7 +290,7 @@ class DashboardController extends Controller
                             ->from('booking_payment_auth')
                             ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id');
                     })
-                    ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback'])
+                    ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback', 'Decline'])
                     ->with([
                         'client:id,first_name,last_name,name',
                         'bookings:id,booking_reference'
@@ -547,7 +547,28 @@ class DashboardController extends Controller
                     'period_bookings' => (int) ($teamKpi['total_count'] ?? 0),
                     'total_calls' => (int) $callStats->sum('total_calls'),
                     'total_inquiries' => (int) $callStats->sum('total_inquiries'),
+
+                    // Root keys for SupervisorDashboard.jsx
+                    'total_revenue' => (float) $netRevenue,
+                    'total_bookings' => (int) ($teamKpi['total_count'] ?? 0),
+                    'avg_booking_value' => ($teamKpi['total_count'] ?? 0) > 0 ? (float) ($netRevenue / $teamKpi['total_count']) : 0.0,
+                    'team_calls' => (int) $callStats->sum('total_calls'),
+
+                    // Nested structures for AgentMonitorPage.jsx
+                    'bookings' => [
+                        'total' => (int) ($teamKpi['total_count'] ?? 0),
+                        'period_count' => (int) ($teamKpi['total_count'] ?? 0),
+                        'growth' => 0.0,
+                    ],
+                    'calls' => [
+                        'total' => (int) $callStats->sum('total_calls'),
+                        'period_count' => (int) $callStats->sum('total_calls'),
+                        'growth' => 0.0,
+                    ],
                     'revenue' => [
+                        'daily' => (float) $netRevenue,
+                        'period_total' => (float) $netRevenue,
+                        'growth' => 0.0,
                         'charged' => (float) ($paymentStats->charged ?? 0),
                         'charged_count' => (int) ($paymentStats->charged_count ?? 0),
                         'refunded' => (float) ($paymentStats->refunded ?? 0),
@@ -612,7 +633,7 @@ class DashboardController extends Controller
                                 ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id')
                                 ->whereIn('bookings.agent_id', $teamIds);
                         })
-                        ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback'])
+                        ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback', 'Decline'])
                         ->with([
                             'client:id,first_name,last_name,name',
                             'bookings:id,booking_reference'
@@ -809,7 +830,7 @@ class DashboardController extends Controller
                             ->whereColumn('booking_payment_auth.payment_auth_id', 'payment_authorizations.id')
                             ->where('bookings.agent_id', $user->id);
                     })
-                    ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback'])
+                    ->whereIn('charge_status', ['Charged/Captured', 'Refunded', 'Chargeback', 'Decline'])
                     ->with([
                         'client:id,first_name,last_name,name',
                         'bookings:id,booking_reference'
@@ -849,8 +870,6 @@ class DashboardController extends Controller
             })->get();
         } elseif ($user->hasRole('supervisor')) {
             $agents = $user->supervisedAgents()->get();
-            // Include themselves in the list
-            $agents->push($user);
         } else {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
@@ -967,10 +986,6 @@ class DashboardController extends Controller
                     }
                 }
 
-                if ($logoutActivity) {
-                    $logoutTime = $logoutActivity->created_at->timezone($tz)->format('h:i A');
-                }
-
                 $currentSegmentStart = $isLoggedInAtStart ? $start : null;
                 $currentSegmentType = $isLoggedInAtStart ? ($lastActivityBefore->activity_type === 'break_start' ? 'break' : 'active') : null;
 
@@ -1029,6 +1044,10 @@ class DashboardController extends Controller
                             $displayStatus = 'Offline';
                         }
                     }
+                }
+
+                if ($displayStatus === 'Offline' && $logoutActivity) {
+                    $logoutTime = $logoutActivity->created_at->timezone($tz)->format('h:i A');
                 }
 
                 return [
