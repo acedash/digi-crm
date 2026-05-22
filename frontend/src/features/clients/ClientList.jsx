@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Users, 
-  Search, 
-  Phone, 
-  Mail, 
+import {
+  Users,
+  Search,
+  Phone,
+  Mail,
   ArrowRight,
   Filter,
   RefreshCw,
@@ -77,8 +77,8 @@ const ClientList = ({ isEmbedded = false }) => {
   const fetchClients = useCallback(async (searchTerm = debouncedSearch, advancedFilters = filters, bypassCache = false) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    
-    const params = { 
+
+    const params = {
       per_page: 25,
       client_name: searchTerm,
       start_date: startDate,
@@ -117,7 +117,7 @@ const ClientList = ({ isEmbedded = false }) => {
   const handleQuickFilter = (type) => {
     setGlobalPeriod(type);
     const today = new Date().toISOString().split('T')[0];
-    
+
     const yesterdayDate = new Date();
     yesterdayDate.setDate(yesterdayDate.getDate() - 1);
     const yesterday = yesterdayDate.toISOString().split('T')[0];
@@ -207,8 +207,8 @@ const ClientList = ({ isEmbedded = false }) => {
           return `${type}: ${name}${code ? ' (REF: ' + code + ')' : ''}`;
         }).join(', ')}` : 'No Bookings';
 
-        const dateStr = booking 
-          ? new Date(booking.created_at).toLocaleDateString() 
+        const dateStr = booking
+          ? new Date(booking.created_at).toLocaleDateString()
           : new Date(client.created_at).toLocaleDateString();
 
         return [
@@ -223,13 +223,13 @@ const ClientList = ({ isEmbedded = false }) => {
           client.creator?.name || 'Admin'
         ];
       });
-      
-      autoTable(doc, { 
-        head: [tableColumn], 
-        body: tableRows, 
+
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
         startY: 20,
         styles: { fontSize: 7, cellPadding: 2 },
-        columnStyles: { 
+        columnStyles: {
           5: { cellWidth: 50 }, // Booking Details
           4: { cellWidth: 40 }  // Address
         }
@@ -385,61 +385,93 @@ const ClientList = ({ isEmbedded = false }) => {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-            {services.length === 0 ? (
-              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Empty Booking</span>
-            ) : services.map((srv, idx) => {
-               const typeRaw = srv.serviceable_type || '';
-               const type = typeRaw.split('\\').pop() || 'Service';
-               const data = srv.serviceable || {};
-               const palette = getServicePalette(type);
-               const Icon = palette.icon;
-               
-               // Smart description extraction
-               let name = 'Service';
-               
-               if (type === 'Flight') {
-                 name = data.airline_code || 'Flight';
-               } else if (type === 'Hotel') {
-                 name = data.name || 'Hotel';
-               } else if (type === 'Car' || type === 'CarRental' || type === 'Car Rental') {
-                 name = data.company || 'Car Rental';
-               } else if (type === 'Cruise') {
-                 name = data.cruise_name || 'Cruise';
-               } else {
-                 name = data.name || 'Service';
-               }
-               
-               const detailsJson = typeof srv.details_json === 'string' ? JSON.parse(srv.details_json) : (srv.details_json || {});
-               const code = detailsJson.confirmation_code || data.confirmation_code || data.pnr || data.booking_confirmation || '';
-
-               return (
-                 <div key={idx} style={{ 
-                   fontSize: '10px', 
-                   background: palette.bg, 
-                   padding: '4px 8px', 
-                   borderRadius: '100px', 
-                   border: `1px solid ${palette.border}`,
-                   display: 'flex',
-                   alignItems: 'center',
-                   gap: '4px',
-                   whiteSpace: 'nowrap'
-                 }}>
-                   <Icon size={10} style={{ color: palette.color, flexShrink: 0 }} />
-                   <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                     {name}
-                   </span>
-                   {code && (
-                     <span style={{ color: '#06B68A', fontWeight: 800, fontFamily: 'monospace', textTransform: 'uppercase' }}>
-                       ({code})
-                     </span>
-                   )}
-                 </div>
-               );
-            })}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {booking && booking.booking_reference && (
+          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+            ID: <span style={{ color: 'var(--text-main)' }}>{booking.booking_reference}</span>
           </div>
+        )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+          {services.length === 0 ? (
+            <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Empty Booking</span>
+          ) : services.map((srv, idx) => {
+            const typeRaw = srv.serviceable_type || '';
+            const type = typeRaw.split('\\').pop() || 'Service';
+            const data = srv.serviceable || {};
+            const palette = getServicePalette(type);
+            const Icon = palette.icon;
+
+            // Smart description extraction
+            let name = 'Service';
+
+            if (type === 'Flight') {
+              name = data.airline_code || 'Flight';
+            } else if (type === 'Hotel') {
+              name = data.name || 'Hotel';
+            } else if (type === 'Car' || type === 'CarRental' || type === 'Car Rental') {
+              name = data.company || 'Car Rental';
+            } else if (type === 'Cruise') {
+              name = data.cruise_name || 'Cruise';
+            } else {
+              name = data.name || 'Service';
+            }
+
+            const detailsJson = typeof srv.details_json === 'string' ? JSON.parse(srv.details_json) : (srv.details_json || {});
+            const code = detailsJson.confirmation_code || data.confirmation_code || data.pnr || data.booking_confirmation || '';
+
+            return (
+              <div key={idx} style={{
+                display: 'flex',
+                borderRadius: '6px',
+                overflow: 'hidden',
+                border: `1px solid ${palette.border}`,
+                background: 'rgba(255,255,255,0.02)',
+                alignItems: 'stretch'
+              }}>
+                <div style={{
+                  padding: '4px 6px',
+                  background: palette.bg,
+                  borderRight: `1px solid ${palette.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Icon size={12} style={{ color: palette.color, flexShrink: 0 }} />
+                </div>
+                <div style={{
+                  padding: '4px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-main)' }}>
+                    {name}
+                  </span>
+                  {code && (
+                    <span style={{
+                      fontSize: '10px',
+                      color: '#06B68A',
+                      fontFamily: 'monospace',
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      background: 'rgba(6, 182, 138, 0.1)',
+                      borderRadius: '4px',
+                      letterSpacing: '0.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <span style={{ opacity: 0.7, fontSize: '9px', fontWeight: 600 }}>CONF:</span>
+                      {code}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+      </div>
     );
   };
 
@@ -450,15 +482,15 @@ const ClientList = ({ isEmbedded = false }) => {
       {!isEmbedded && (
         <div id="clients-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div id="clients-title-area">
-            <h1 style={{ 
-              fontSize: '32px', 
-              fontWeight: 800, 
+            <h1 style={{
+              fontSize: '32px',
+              fontWeight: 800,
               letterSpacing: '-1px',
               marginBottom: '8px'
             }}>
-              All <span style={{ 
-                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', 
-                WebkitBackgroundClip: 'text', 
+              All <span style={{
+                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 display: 'inline-block'
               }}>Clients</span>
@@ -468,9 +500,9 @@ const ClientList = ({ isEmbedded = false }) => {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={startClientsTour}
               icon={HelpCircle}
               style={{ borderRadius: '100px', fontWeight: 700, color: 'hsl(var(--primary))' }}
@@ -497,11 +529,11 @@ const ClientList = ({ isEmbedded = false }) => {
         ].map((stat, i) => (
           <Card key={i} style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ 
-                padding: '12px', 
-                borderRadius: '12px', 
+              <div style={{
+                padding: '12px',
+                borderRadius: '12px',
                 background: stat.bg,
-                color: stat.color 
+                color: stat.color
               }}>
                 <stat.icon size={24} />
               </div>
@@ -517,8 +549,8 @@ const ClientList = ({ isEmbedded = false }) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div id="clients-search-container" style={{ flex: '1 1 300px', maxWidth: '400px' }}>
-            <Input 
-              placeholder="Search by name, email, phone, or ID..." 
+            <Input
+              placeholder="Search by name, email, phone, or ID..."
               icon={Search}
               value={search}
               onChange={handleSearch}
@@ -561,8 +593,8 @@ const ClientList = ({ isEmbedded = false }) => {
             {globalPeriod === 'custom' && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                 <div style={{ width: '150px' }}>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     icon={CalendarIcon}
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
@@ -572,8 +604,8 @@ const ClientList = ({ isEmbedded = false }) => {
                 </div>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '0 4px' }}>to</span>
                 <div style={{ width: '150px' }}>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     icon={CalendarIcon}
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
@@ -618,13 +650,13 @@ const ClientList = ({ isEmbedded = false }) => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
-             <Button variant={showFilters ? 'primary' : 'glass'} icon={Filter} size="md" onClick={() => setShowFilters(!showFilters)}>
+            <Button variant={showFilters ? 'primary' : 'glass'} icon={Filter} size="md" onClick={() => setShowFilters(!showFilters)}>
               {showFilters ? 'Hide Filters' : 'Filters'}
             </Button>
-            <Button 
-              variant="glass" 
-              icon={RefreshCw} 
-              size="md" 
+            <Button
+              variant="glass"
+              icon={RefreshCw}
+              size="md"
               onClick={() => fetchClients(debouncedSearch, filters, true)}
               isLoading={loading}
             />
@@ -643,10 +675,10 @@ const ClientList = ({ isEmbedded = false }) => {
             >
               <Card style={{ padding: '24px', background: 'var(--bg-input)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                  <Input label="PNR Code" placeholder="e.g. ABCDEF" value={filters.pnr} onChange={(e) => setFilters({...filters, pnr: e.target.value})} />
-                  <Input label="Booking ID / Client ID" placeholder="e.g. BK-1001" value={filters.booking_id} onChange={(e) => setFilters({...filters, booking_id: e.target.value})} />
-                  <Input label="Card Last 4" placeholder="e.g. 1234" maxLength={4} value={filters.card_last_4} onChange={(e) => setFilters({...filters, card_last_4: e.target.value})} />
-                  <Input label="Phone Search" placeholder="e.g. +1..." value={filters.phone} onChange={(e) => setFilters({...filters, phone: e.target.value})} />
+                  <Input label="PNR Code" placeholder="e.g. ABCDEF" value={filters.pnr} onChange={(e) => setFilters({ ...filters, pnr: e.target.value })} />
+                  <Input label="Booking ID / Client ID" placeholder="e.g. BK-1001" value={filters.booking_id} onChange={(e) => setFilters({ ...filters, booking_id: e.target.value })} />
+                  <Input label="Card Last 4" placeholder="e.g. 1234" maxLength={4} value={filters.card_last_4} onChange={(e) => setFilters({ ...filters, card_last_4: e.target.value })} />
+                  <Input label="Phone Search" placeholder="e.g. +1..." value={filters.phone} onChange={(e) => setFilters({ ...filters, phone: e.target.value })} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', gap: '12px' }}>
                   <Button variant="ghost" size="sm" onClick={() => {
@@ -696,22 +728,22 @@ const ClientList = ({ isEmbedded = false }) => {
 
                 <tbody>
                   {clients?.length > 0 ? clients.map((client, idx) => (
-                    <MotionTr 
-                       key={client.id}
-                       initial={{ opacity: 0, x: -10 }}
-                       animate={{ opacity: 1, x: 0 }}
-                       transition={{ delay: idx * 0.05 }}
-                       style={{ 
-                         borderBottom: '1px solid var(--border-color)',
-                         transition: 'var(--transition-smooth)',
-                         cursor: 'default'
-                       }}
-                       onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-input)'}
-                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    <MotionTr
+                      key={client.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      style={{
+                        borderBottom: '1px solid var(--border-color)',
+                        transition: 'var(--transition-smooth)',
+                        cursor: 'default'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-input)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
                       <td style={{ padding: '16px 16px', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{ 
+                          <div style={{
                             width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))', flexShrink: 0
                           }}>
@@ -739,10 +771,10 @@ const ClientList = ({ isEmbedded = false }) => {
                           </div>
                           {client.address && (
                             <div style={{ display: 'flex', gap: '6px', fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                               <FileText size={12} style={{ flexShrink: 0, marginTop: '2px' }} />
-                               <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                 {client.address}
-                               </span>
+                              <FileText size={12} style={{ flexShrink: 0, marginTop: '2px' }} />
+                              <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {client.address}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -751,8 +783,8 @@ const ClientList = ({ isEmbedded = false }) => {
                         {renderCategoryDetails(client)}
                       </td>
                       <td style={{ padding: '16px 16px', fontSize: '12px', color: 'var(--text-muted)', verticalAlign: 'middle' }}>
-                        {(client.latestBooking || client.latest_booking) 
-                          ? new Date((client.latestBooking || client.latest_booking).created_at).toLocaleDateString() 
+                        {(client.latestBooking || client.latest_booking)
+                          ? new Date((client.latestBooking || client.latest_booking).created_at).toLocaleDateString()
                           : new Date(client.created_at).toLocaleDateString()}
                       </td>
 
@@ -761,7 +793,7 @@ const ClientList = ({ isEmbedded = false }) => {
                           <div style={{ fontWeight: 800, color: '#06B68A', fontSize: '15px', letterSpacing: '-0.5px' }}>
                             ${Number(client.bookings_sum_total_amount || 0).toLocaleString()}
                           </div>
-                          
+
                           {(() => {
                             const latestBooking = client.latestBooking || client.latest_booking;
                             const auths = latestBooking?.paymentAuthorizations || latestBooking?.payment_authorizations || [];
@@ -769,7 +801,7 @@ const ClientList = ({ isEmbedded = false }) => {
                             if (latestAuth && latestAuth.charge_status) {
                               const badge = getChargeStatusStyle(latestAuth.charge_status);
                               return (
-                                <div style={{ 
+                                <div style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   width: 'fit-content',
@@ -791,14 +823,14 @@ const ClientList = ({ isEmbedded = false }) => {
                           })()}
 
                           <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 600 }}>
-                             By: {client.creator?.name || 'Admin'}
+                            By: {client.creator?.name || 'Admin'}
                           </div>
                         </div>
                       </td>
 
                       <td style={{ padding: '16px 16px', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Users size={12} style={{ color: 'var(--text-muted)' }}/>
+                          <Users size={12} style={{ color: 'var(--text-muted)' }} />
                           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>{client.passengers_count || 0}</span>
                         </div>
                       </td>
@@ -806,11 +838,11 @@ const ClientList = ({ isEmbedded = false }) => {
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                           <Button variant="glass" size="sm" icon={Edit} onClick={() => handleEditClient(client)} style={{ padding: '6px' }} />
                           <Button variant="ghost" size="sm" icon={Trash2} onClick={() => handleDeleteClient(client)} style={{ color: '#f87171', padding: '6px' }} />
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             id={idx === 0 ? 'client-details-btn-0' : undefined}
-                            icon={ArrowRight} 
+                            icon={ArrowRight}
                             onClick={() => handleViewClient(client)}
                           >
                             Details
@@ -833,10 +865,10 @@ const ClientList = ({ isEmbedded = false }) => {
         </AnimatePresence>
       </div>
       {toast.message && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast({ message: '', type: 'success' })} 
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ message: '', type: 'success' })}
         />
       )}
     </div>

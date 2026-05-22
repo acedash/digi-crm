@@ -176,17 +176,40 @@ const AuthApprovalPage = () => {
   const changeEntries = auth?.consent_snapshot?.change_entries || auth?.metadata?.change_entries || [];
 
   return (
-    <div style={{
+    <div className="auth-container" style={{
       minHeight: '100vh',
       background: '#F2F2F7',
       fontFamily: "'Inter', sans-serif",
-      color: '#1c1c1e',
-      padding: '60px 20px'
+      color: '#1c1c1e'
     }}>
+      <style>{`
+        .auth-container { padding: 60px 20px; }
+        .header-box { margin-bottom: 48px; }
+        .title { font-size: 42px; }
+        .booking-row { display: flex; align-items: center; gap: 20px; padding: 24px; }
+        .booking-amount { text-align: right; }
+        .total-bar { display: flex; justify-content: space-between; align-items: center; padding: 28px 32px; }
+        .card-allocation-row { display: flex; justify-content: space-between; gap: 16px; }
+        .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .consent-box { padding: 40px; }
+        
+        @media (max-width: 600px) {
+          .auth-container { padding: 24px 16px; }
+          .header-box { margin-bottom: 32px; }
+          .title { font-size: 28px !important; line-height: 1.2; }
+          .booking-row { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px; }
+          .booking-amount { text-align: left !important; }
+          .total-bar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px !important; }
+          .card-allocation-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+          .action-buttons { grid-template-columns: 1fr; }
+          .consent-box { padding: 24px !important; }
+          .approve-btn, .reject-btn { padding: 16px !important; font-size: 16px !important; }
+        }
+      `}</style>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+        <div className="header-box" style={{ textAlign: 'center' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -203,7 +226,7 @@ const AuthApprovalPage = () => {
               {authorizationType === 'change_charge' ? 'Secure Change Charge Portal' : 'Secure Authorization Portal'}
             </span>
           </div>
-          <h1 style={{ fontSize: 42, fontWeight: 900, marginBottom: 12, letterSpacing: '-1.5px', color: '#016040' }}>
+          <h1 className="title" style={{ fontWeight: 900, marginBottom: 12, letterSpacing: '-1.5px', color: '#016040' }}>
             {authorizationType === 'change_charge' ? 'Review Update & Approve' : 'Review & Approve'}
           </h1>
           <p style={{ color: '#636366', fontSize: 16 }}>
@@ -221,11 +244,7 @@ const AuthApprovalPage = () => {
           border: '1px solid rgba(0,0,0,0.05)'
         }}>
           {auth?.bookings?.map((booking, i) => (
-            <div key={i} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 20,
-              padding: '24px',
+            <div key={i} className="booking-row" style={{
               borderBottom: i < auth.bookings.length - 1 ? '1px solid #F2F2F7' : 'none'
             }}>
               <div style={{
@@ -236,8 +255,8 @@ const AuthApprovalPage = () => {
               }}>
                 {(booking.services?.some(service => service.serviceable_type?.includes('Flight'))) ? <Plane size={24} /> : <Package size={24} />}
               </div>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
+              <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
+                <p style={{ fontWeight: 800, fontSize: 16, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {booking.booking_reference || 'Booking Authorization'}
                 </p>
                 <div style={{ display: 'flex', gap: 16 }}>
@@ -251,7 +270,7 @@ const AuthApprovalPage = () => {
                   )}
                 </div>
               </div>
-              <div style={{ textAlign: 'right', fontWeight: 900, fontSize: 18, color: '#06B68A' }}>
+              <div className="booking-amount" style={{ fontWeight: 900, fontSize: 18, color: '#06B68A' }}>
                 {new Intl.NumberFormat('en-US', {
                   style: 'currency',
                   currency: booking.currency || 'USD'
@@ -262,13 +281,9 @@ const AuthApprovalPage = () => {
         </div>
 
         {/* Total Summary Bar */}
-        <div style={{
+        <div className="total-bar" style={{
           background: '#06B68A',
           borderRadius: '24px',
-          padding: '28px 32px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
           marginBottom: 40,
           boxShadow: '0 12px 24px rgba(6, 182, 138, 0.2)'
         }}>
@@ -330,7 +345,7 @@ const AuthApprovalPage = () => {
             <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>Card Allocation For This Charge</h3>
             <div style={{ display: 'grid', gap: 12 }}>
               {cardAllocations.map((allocation, index) => (
-                <div key={index} style={{ padding: '16px', borderRadius: '18px', background: '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                <div key={index} className="card-allocation-row" style={{ padding: '16px', borderRadius: '18px', background: '#F9FAFB', border: '1px solid #E5E7EB' }}>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 800 }}>{allocation.holder_name || 'Card Holder'}</div>
                     <div style={{ fontSize: 13, color: '#8e8e93', marginTop: 4 }}>{allocation.card_label || 'Card on file'}</div>
@@ -402,10 +417,9 @@ const AuthApprovalPage = () => {
             </p>
           </div>
         ) : (
-          <div style={{
+          <div className="consent-box" style={{
             background: 'white',
             borderRadius: '40px',
-            padding: 40,
             boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
             border: '1px solid rgba(0,0,0,0.05)'
           }}>
@@ -526,8 +540,9 @@ const AuthApprovalPage = () => {
                </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="action-buttons">
               <button
+                className="reject-btn"
                 onClick={handleReject}
                 disabled={approving || rejecting}
                 style={{
@@ -548,7 +563,7 @@ const AuthApprovalPage = () => {
               <button
                 onClick={handleApprove}
                 disabled={approving || rejecting}
-                className="pill-button"
+                className="pill-button approve-btn"
                 style={{
                   width: '100%',
                   padding: '20px',

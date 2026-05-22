@@ -424,25 +424,52 @@ const ClientProfile = () => {
 
                       return (
                         <div key={i} style={{ 
-                          fontSize: '10px', 
-                          background: palette.bg, 
-                          padding: '4px 8px', 
-                          borderRadius: '100px', 
-                          border: `1px solid ${palette.border}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          whiteSpace: 'nowrap'
+                          display: 'flex', 
+                          borderRadius: '6px', 
+                          overflow: 'hidden', 
+                          border: `1px solid ${palette.border}`, 
+                          background: 'rgba(255,255,255,0.02)',
+                          alignItems: 'stretch'
                         }}>
-                          <Icon size={10} style={{ color: palette.color, flexShrink: 0 }} />
-                          <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                            {name}
-                          </span>
-                          {code && (
-                            <span style={{ color: '#06B68A', fontWeight: 800, fontFamily: 'monospace', textTransform: 'uppercase' }}>
-                              ({code})
+                          <div style={{ 
+                            padding: '4px 6px', 
+                            background: palette.bg, 
+                            borderRight: `1px solid ${palette.border}`, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center' 
+                          }}>
+                            <Icon size={12} style={{ color: palette.color, flexShrink: 0 }} />
+                          </div>
+                          <div style={{ 
+                            padding: '4px 8px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-main)' }}>
+                              {name}
                             </span>
-                          )}
+                            {code && (
+                              <span style={{ 
+                                fontSize: '10px', 
+                                color: '#06B68A', 
+                                fontFamily: 'monospace', 
+                                fontWeight: 800, 
+                                padding: '2px 6px', 
+                                background: 'rgba(6, 182, 138, 0.1)', 
+                                borderRadius: '4px',
+                                letterSpacing: '0.5px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <span style={{ opacity: 0.7, fontSize: '9px', fontWeight: 600 }}>CONF:</span>
+                                {code}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
