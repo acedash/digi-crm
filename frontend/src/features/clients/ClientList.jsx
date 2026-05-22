@@ -199,10 +199,12 @@ const ClientList = ({ isEmbedded = false }) => {
       const tableColumn = ["ID", "Name", "Email", "Phone", "Address", "Latest Booking", "Date", "Spend", "Created By"];
       const tableRows = clients.map(client => {
         const booking = client.latestBooking || client.latest_booking;
-        const bookingStr = booking ? `${booking.booking_reference}\n${(booking.services || []).map(s => {
+        const bookingStr = booking ? `${(booking.services || []).map(s => {
           const type = s.serviceable_type?.split('\\').pop() || 'Service';
           const name = s.serviceable?.name || s.serviceable?.airline_code || type;
-          return `${type}: ${name}`;
+          const detailsJson = typeof s.details_json === 'string' ? JSON.parse(s.details_json) : (s.details_json || {});
+          const code = detailsJson.confirmation_code || s.serviceable?.confirmation_code || s.serviceable?.pnr || s.serviceable?.booking_confirmation || '';
+          return `${type}: ${name}${code ? ' (REF: ' + code + ')' : ''}`;
         }).join(', ')}` : 'No Bookings';
 
         const dateStr = booking 
@@ -255,7 +257,8 @@ const ClientList = ({ isEmbedded = false }) => {
         'Booking Details': booking ? (booking.services || []).map(s => {
           const type = s.serviceable_type?.split('\\').pop() || 'Service';
           const name = s.serviceable?.name || s.serviceable?.airline_code || type;
-          const code = s.serviceable?.pnr || s.serviceable?.booking_confirmation || '';
+          const detailsJson = typeof s.details_json === 'string' ? JSON.parse(s.details_json) : (s.details_json || {});
+          const code = detailsJson.confirmation_code || s.serviceable?.confirmation_code || s.serviceable?.pnr || s.serviceable?.booking_confirmation || '';
           return `${type}: ${name}${code ? ' (REF: ' + code + ')' : ''}`;
         }).join(' | ') : 'No Bookings',
         'Travelers': client.passengers_count || 0,
@@ -383,25 +386,10 @@ const ClientList = ({ isEmbedded = false }) => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Booking ID Tag */}
-          <div style={{ 
-            fontSize: '10px', 
-            fontWeight: 800, 
-            color: 'var(--text-main)', 
-            background: 'var(--bg-input)', 
-            padding: '2px 8px', 
-            borderRadius: '4px', 
-            width: 'fit-content',
-            border: '1px solid var(--border-color)',
-            letterSpacing: '0.5px'
-          }}>
-            {bookingRef}
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
             {services.length === 0 ? (
               <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Empty Booking</span>
-            ) : services.slice(0, 3).map((srv, idx) => {
+            ) : services.map((srv, idx) => {
                const typeRaw = srv.serviceable_type || '';
                const type = typeRaw.split('\\').pop() || 'Service';
                const data = srv.serviceable || {};
@@ -410,78 +398,46 @@ const ClientList = ({ isEmbedded = false }) => {
                
                // Smart description extraction
                let name = 'Service';
-               let subText = '';
                
                if (type === 'Flight') {
-                 const carrier = data.airline_code || '';
-                 const fn = data.flight_number || '';
-                 name = carrier ? `${carrier}${fn}` : 'Flight';
-                 if (data.departure_city && data.arrival_city) {
-                   subText = `${data.departure_city} → ${data.arrival_city}`;
-                 }
+                 name = data.airline_code || 'Flight';
                } else if (type === 'Hotel') {
                  name = data.name || 'Hotel';
-                 subText = data.city || '';
                } else if (type === 'Car' || type === 'CarRental' || type === 'Car Rental') {
                  name = data.company || 'Car Rental';
-                 subText = data.car_type || data.pickup_city || '';
                } else if (type === 'Cruise') {
                  name = data.cruise_name || 'Cruise';
-                 subText = data.operator || '';
                } else {
                  name = data.name || 'Service';
                }
                
-               const code = data.pnr || data.booking_confirmation || '';
+               const detailsJson = typeof srv.details_json === 'string' ? JSON.parse(srv.details_json) : (srv.details_json || {});
+               const code = detailsJson.confirmation_code || data.confirmation_code || data.pnr || data.booking_confirmation || '';
 
                return (
                  <div key={idx} style={{ 
-                   fontSize: '11px', 
+                   fontSize: '10px', 
                    background: palette.bg, 
-                   padding: '6px 10px', 
-                   borderRadius: '8px', 
+                   padding: '4px 8px', 
+                   borderRadius: '100px', 
                    border: `1px solid ${palette.border}`,
                    display: 'flex',
-                   flexDirection: 'column',
-                   gap: '3px'
+                   alignItems: 'center',
+                   gap: '4px',
+                   whiteSpace: 'nowrap'
                  }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                        <Icon size={12} style={{ color: palette.color, flexShrink: 0 }} />
-                        <span style={{ fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {name}
-                        </span>
-                      </div>
-                      <span style={{ 
-                        fontSize: '8px', 
-                        color: palette.color, 
-                        fontWeight: 800, 
-                        textTransform: 'uppercase', 
-                        letterSpacing: '0.5px',
-                        background: palette.border,
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        flexShrink: 0
-                      }}>
-                        {type}
-                      </span>
-                    </div>
-                   
-                   {subText && (
-                     <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500, paddingLeft: '18px' }}>
-                       {subText}
-                     </div>
-                   )}
-
+                   <Icon size={10} style={{ color: palette.color, flexShrink: 0 }} />
+                   <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                     {name}
+                   </span>
                    {code && (
-                     <div style={{ fontSize: '9px', color: '#06B68A', fontWeight: 800, fontFamily: 'monospace', paddingLeft: '18px', textTransform: 'uppercase' }}>
-                       REF: {code}
-                     </div>
+                     <span style={{ color: '#06B68A', fontWeight: 800, fontFamily: 'monospace', textTransform: 'uppercase' }}>
+                       ({code})
+                     </span>
                    )}
                  </div>
                );
             })}
-            {services.length > 3 && <span style={{ fontSize: '10px', color: 'var(--text-muted)', paddingLeft: '4px' }}>+{services.length - 3} more services</span>}
           </div>
         </div>
     );

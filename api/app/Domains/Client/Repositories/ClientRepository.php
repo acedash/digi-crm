@@ -45,7 +45,7 @@ class ClientRepository extends BaseRepository
                     $query->select(['bookings.id', 'bookings.client_id', 'bookings.booking_reference', 'bookings.status', 'bookings.total_amount', 'bookings.currency', 'bookings.created_at']);
                 },
                 'latestBooking.services' => function ($query) {
-                    $query->select(['booking_services.id', 'booking_services.booking_id', 'booking_services.serviceable_id', 'booking_services.serviceable_type', 'booking_services.status']);
+                    $query->select(['booking_services.id', 'booking_services.booking_id', 'booking_services.serviceable_id', 'booking_services.serviceable_type', 'booking_services.status', 'booking_services.details_json']);
                 },
                 'latestBooking.services.serviceable',
                 'latestBooking.paymentAuthorizations' => function ($query) {
@@ -166,7 +166,7 @@ class ClientRepository extends BaseRepository
                           ->latest('created_at')
                           ->limit(20)
                           ->with([
-                              'services:id,booking_id,serviceable_type,serviceable_id',
+                              'services:id,booking_id,serviceable_type,serviceable_id,details_json',
                               'services.serviceable',
                               'paymentAuthorizations',
                           ]);

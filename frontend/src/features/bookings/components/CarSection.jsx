@@ -46,9 +46,10 @@ const CarSection = ({ vehicle, setVehicle, isEditMode = false, showChangeTrackin
       />
       {vehicle.active && (
         <div style={{ padding: '24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <Input label="Car Company" required placeholder="e.g. Hertz" value={vehicle.company || ''} onChange={e => setVehicle({ ...vehicle, company: e.target.value })} />
             <Input label="Car Model" required placeholder="e.g. Toyota Camry" value={vehicle.model || ''} onChange={e => setVehicle({ ...vehicle, model: e.target.value })} />
+            <Input label="Confirmation Code" placeholder="e.g. XY9876Z" value={vehicle.confirmation_code || ''} onChange={e => setVehicle({ ...vehicle, confirmation_code: e.target.value })} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>

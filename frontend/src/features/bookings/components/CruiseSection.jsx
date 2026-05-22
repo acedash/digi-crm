@@ -46,7 +46,7 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
       />
       {cruise.active && (
         <div style={{ padding: '24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>Cruise Line</label>
                 <input 
@@ -63,6 +63,7 @@ const CruiseSection = ({ cruise, setCruise, isEditMode = false, showChangeTracki
               </div>
             <Input label="Ship Name" required placeholder="e.g. Icon of the Seas" value={cruise.ship || ''} onChange={e => setCruise({ ...cruise, ship: e.target.value })} />
             <Input label="Departure Port" placeholder="e.g. Miami, Florida" value={cruise.departure_port || ''} onChange={e => setCruise({ ...cruise, departure_port: e.target.value })} />
+            <Input label="Confirmation Code" placeholder="e.g. XY9876Z" value={cruise.confirmation_code || ''} onChange={e => setCruise({ ...cruise, confirmation_code: e.target.value })} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>

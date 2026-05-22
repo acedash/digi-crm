@@ -36,7 +36,7 @@ const FlightSection = ({
       />
       {flight.active && (
         <div style={{ padding: '24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px', alignItems: 'start' }}>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-muted)' }}>
                 Trip Type
@@ -70,6 +70,12 @@ const FlightSection = ({
               placeholder="e.g. ABC123"
               value={flight.pnr || ''}
               onChange={(e) => setFlight({ ...flight, pnr: e.target.value })}
+            />
+            <Input
+              label="Confirmation Code"
+              placeholder="e.g. XY9876Z"
+              value={flight.confirmation_code || ''}
+              onChange={(e) => setFlight({ ...flight, confirmation_code: e.target.value })}
             />
           </div>
 

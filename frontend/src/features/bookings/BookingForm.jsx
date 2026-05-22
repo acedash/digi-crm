@@ -127,7 +127,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     additional_charge: '',
     cost: 0,
     markup: 0,
-    sell: 0
+    sell: 0,
+    confirmation_code: ''
   });
   const [hotel, setHotel] = useState({ 
     active: false, 
@@ -151,7 +152,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     additional_charge: '', 
     cost: 0, 
     markup: 0, 
-    sell: 0 
+    sell: 0,
+    confirmation_code: ''
   });
   const [vehicle, setVehicle] = useState({ 
     active: false, 
@@ -176,7 +178,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     additional_charge: '', 
     cost: 0, 
     markup: 0, 
-    sell: 0 
+    sell: 0,
+    confirmation_code: ''
   });
   const [cruise, setCruise] = useState({ 
     active: false, 
@@ -204,7 +207,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
     additional_charge: '', 
     cost: 0, 
     markup: 0, 
-    sell: 0 
+    sell: 0,
+    confirmation_code: ''
   });
   
   const [toast, setToast] = useState({ message: '', type: 'error' });
@@ -443,6 +447,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
                 additional_charge: s.details_json?.additional_charge ?? '',
+                confirmation_code: s.details_json?.confirmation_code ?? '',
                 cost,
                 markup,
                 sell
@@ -478,6 +483,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
                 additional_charge: s.details_json?.additional_charge ?? '',
+                confirmation_code: s.details_json?.confirmation_code ?? '',
                 cost,
                 markup,
                 sell
@@ -505,6 +511,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
                 additional_charge: s.details_json?.additional_charge ?? '',
+                confirmation_code: s.details_json?.confirmation_code ?? '',
                 cost,
                 markup,
                 sell
@@ -544,6 +551,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
                 change_type: s.details_json?.change_type ?? '',
                 change_summary: s.details_json?.change_summary ?? '',
                 additional_charge: s.details_json?.additional_charge ?? '',
+                confirmation_code: s.details_json?.confirmation_code ?? '',
                 cost,
                 markup,
                 sell
@@ -916,7 +924,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
             remarks: flight.remarks,
             change_type: flight.change_type,
             change_summary: flight.change_summary,
-            additional_charge: flight.additional_charge
+            additional_charge: flight.additional_charge,
+            confirmation_code: flight.confirmation_code
           },
           cost_price: flight.cost,
           markup: flight.markup,
@@ -946,6 +955,7 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
             change_type: hotel.change_type,
             change_summary: hotel.change_summary,
             additional_charge: hotel.additional_charge,
+            confirmation_code: hotel.confirmation_code,
             adult_count: hotel.adult_count,
             child_count: hotel.child_count,
             children_ages: hotel.children_ages,
@@ -979,7 +989,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
             remarks: vehicle.remarks,
             change_type: vehicle.change_type,
             change_summary: vehicle.change_summary,
-            additional_charge: vehicle.additional_charge
+            additional_charge: vehicle.additional_charge,
+            confirmation_code: vehicle.confirmation_code
           },
           cost_price: vehicle.cost,
           markup: vehicle.markup,
@@ -1016,7 +1027,8 @@ const BookingForm = ({ bookingId, onSuccess, onCancel }) => {
             remarks: cruise.remarks,
             change_type: cruise.change_type,
             change_summary: cruise.change_summary,
-            additional_charge: cruise.additional_charge
+            additional_charge: cruise.additional_charge,
+            confirmation_code: cruise.confirmation_code
           },
           cost_price: cruise.cost,
           markup: cruise.markup,

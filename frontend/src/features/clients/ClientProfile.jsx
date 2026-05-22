@@ -34,6 +34,22 @@ import Card from '../../components/ui/Card';
 import { getStatusStyle } from '../../utils/statusStyles';
 import Toast from '../../components/ui/Toast';
 
+const getServicePalette = (type) => {
+  switch(type) {
+    case 'Flight':
+      return { icon: Plane, color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.04)', border: 'rgba(96, 165, 250, 0.15)' };
+    case 'Hotel':
+      return { icon: Hotel, color: '#f472b6', bg: 'rgba(244, 114, 182, 0.04)', border: 'rgba(244, 114, 182, 0.15)' };
+    case 'Car':
+    case 'CarRental':
+    case 'Car Rental':
+      return { icon: Car, color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.04)', border: 'rgba(251, 191, 36, 0.15)' };
+    case 'Cruise':
+      return { icon: Ship, color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.04)', border: 'rgba(167, 139, 250, 0.15)' };
+    default:
+      return { icon: Briefcase, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', border: 'rgba(16, 185, 129, 0.15)' };
+  }
+};
 
 const ClientProfile = () => {
   const { id } = useParams();
@@ -380,21 +396,53 @@ const ClientProfile = () => {
                 
                 <div>
                   <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Inclusions</p>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    {booking.services?.map((s, i) => {
-                      const type = s.serviceable_type.split('\\').pop();
-                      const name = s.serviceable?.name || s.serviceable?.company || s.serviceable?.cruise_name || s.serviceable?.airline || type;
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                    {booking.services?.length === 0 ? (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Empty Booking</span>
+                    ) : booking.services?.map((s, i) => {
+                      const typeRaw = s.serviceable_type || '';
+                      const type = typeRaw.split('\\').pop() || 'Service';
+                      const data = s.serviceable || {};
+                      const palette = getServicePalette(type);
+                      const Icon = palette.icon;
+                      
+                      let name = 'Service';
+                      if (type === 'Flight') {
+                        name = data.airline_code || 'Flight';
+                      } else if (type === 'Hotel') {
+                        name = data.name || 'Hotel';
+                      } else if (type === 'Car' || type === 'CarRental' || type === 'Car Rental') {
+                        name = data.company || 'Car Rental';
+                      } else if (type === 'Cruise') {
+                        name = data.cruise_name || 'Cruise';
+                      } else {
+                        name = data.name || 'Service';
+                      }
+                      
+                      const detailsJson = typeof s.details_json === 'string' ? JSON.parse(s.details_json) : (s.details_json || {});
+                      const code = detailsJson.confirmation_code || data.confirmation_code || data.pnr || data.booking_confirmation || '';
+
                       return (
-                        <div key={i} title={name} style={{ 
-                          width: '38px', height: '38px', borderRadius: '12px', 
-                          background: 'rgba(255,255,255,0.03)', display: 'flex', 
-                          alignItems: 'center', justifyContent: 'center', 
-                          color: 'hsl(var(--primary))', border: '1px solid rgba(255,255,255,0.05)',
-                          transition: '0.2s'
+                        <div key={i} style={{ 
+                          fontSize: '10px', 
+                          background: palette.bg, 
+                          padding: '4px 8px', 
+                          borderRadius: '100px', 
+                          border: `1px solid ${palette.border}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          whiteSpace: 'nowrap'
                         }}>
-                           {type.includes('Flight') ? <Plane size={18} /> : 
-                            type.includes('Hotel') ? <Hotel size={18} /> : 
-                            type.includes('Car') ? <Car size={18} /> : <Ship size={18} />}
+                          <Icon size={10} style={{ color: palette.color, flexShrink: 0 }} />
+                          <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                            {name}
+                          </span>
+                          {code && (
+                            <span style={{ color: '#06B68A', fontWeight: 800, fontFamily: 'monospace', textTransform: 'uppercase' }}>
+                              ({code})
+                            </span>
+                          )}
                         </div>
                       );
                     })}

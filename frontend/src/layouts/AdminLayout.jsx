@@ -16,7 +16,8 @@ import {
   Shield,
   Contact,
   Menu,
-  X
+  X,
+  Bell
 } from 'lucide-react';
 import { useAuthStore } from '../features/auth/useAuthStore';
 import authService from '../features/auth/authService';
@@ -27,6 +28,7 @@ import StatusToggle from '../features/users/StatusToggle';
 import sensitiveAuditService from '../services/sensitiveAuditService';
 import Walkthrough from '../components/ui/Walkthrough';
 import { useWalkthroughStore } from '../store/walkthroughStore';
+import { useNotificationStore } from '../store/notificationStore';
 
 const AdminLayout = () => {
   const { user, logout } = useAuthStore();
@@ -35,7 +37,10 @@ const AdminLayout = () => {
   const location = useLocation();
   const [shieldActive, setShieldActive] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotificationStore();
+  const unreadCount = notifications.filter(n => !n.read).length;
   const lastShortcutLogRef = useRef(0);
 
   useEffect(() => {
@@ -403,6 +408,90 @@ const AdminLayout = () => {
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '20px' }}>
+            <div style={{ position: 'relative' }}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowNotifications(!showNotifications)}
+                icon={Bell}
+                style={{ borderRadius: '100px', width: '36px', height: '36px', padding: 0 }}
+              />
+              {unreadCount > 0 && (
+                <div style={{
+                  position: 'absolute', top: '-2px', right: '-2px', background: '#ef4444', color: '#fff',
+                  fontSize: '10px', fontWeight: 800, width: '16px', height: '16px', borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  {unreadCount}
+                </div>
+              )}
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    style={{
+                      position: 'absolute', top: 'calc(100% + 8px)', right: '-40px', width: '320px',
+                      background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                      borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', zIndex: 100,
+                      overflow: 'hidden', display: 'flex', flexDirection: 'column'
+                    }}
+                  >
+                    <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-input)' }}>
+                      <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>Notifications</h3>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {unreadCount > 0 && (
+                          <button onClick={markAllAsRead} style={{ fontSize: '12px', color: 'hsl(var(--primary))', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                            Mark all read
+                          </button>
+                        )}
+                        <button onClick={clearNotifications} style={{ fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+                      {notifications.length === 0 ? (
+                        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                          <Bell size={24} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
+                          No new notifications
+                        </div>
+                      ) : (
+                        notifications.map(n => (
+                          <div 
+                            key={n.id} 
+                            onClick={() => {
+                              markAsRead(n.id);
+                              if (n.link) navigate(n.link);
+                              setShowNotifications(false);
+                            }}
+                            style={{ 
+                              padding: '16px', borderBottom: '1px solid var(--border-color)', 
+                              background: n.read ? 'transparent' : 'rgba(6, 182, 138, 0.05)', 
+                              cursor: 'pointer', transition: '0.2s', display: 'flex', gap: '12px'
+                            }}
+                            className="hover-brighten"
+                          >
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: n.read ? 'transparent' : '#06B68A', marginTop: '6px', flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>{n.title}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{n.message}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.7, marginTop: '6px' }}>
+                                {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <Button 
               variant="ghost" 
               size="sm" 

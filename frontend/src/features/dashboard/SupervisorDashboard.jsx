@@ -49,12 +49,14 @@ import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Toast from '../../components/ui/Toast';
 import { useWalkthroughStore } from '../../store/walkthroughStore';
+import { useNotificationStore } from '../../store/notificationStore';
 import AgentReportSlideOver from './components/AgentReportSlideOver';
 
 const SupervisorDashboard = () => {
   const MotionDiv = motion.div;
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const addNotification = useNotificationStore(state => state.addNotification);
   const [period, setPeriod] = useState('monthly');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [stats, setStats] = useState(null);
@@ -184,6 +186,13 @@ const SupervisorDashboard = () => {
           setToast({ message: msg, type: charge.charge_status === 'Charged/Captured' ? 'success' : 'error' });
 
           console.log('%c!!! SUP NOTIFICATION TRIGGERED !!!', 'color: white; background: red; font-size: 20px', msg);
+          
+          addNotification({
+            title: 'Payment Status Update',
+            message: msg,
+            type: charge.charge_status === 'Charged/Captured' ? 'success' : 'error'
+          });
+
           try {
             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
             audio.play().catch(() => { });

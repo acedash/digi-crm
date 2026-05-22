@@ -105,6 +105,7 @@ const HotelSection = ({ hotel, setHotel, isEditMode = false, showChangeTracking 
               </div>
             )}
             <Input label="Booking Confirmation" placeholder="e.g. ABC123XYZ" value={hotel.booking_confirmation || ''} onChange={e => setHotel({ ...hotel, booking_confirmation: e.target.value })} />
+            <Input label="Confirmation Code" placeholder="e.g. XY9876Z" value={hotel.confirmation_code || ''} onChange={e => setHotel({ ...hotel, confirmation_code: e.target.value })} />
           </div>
 
           {hotel.child_count > 0 && (
