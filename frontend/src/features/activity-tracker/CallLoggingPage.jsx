@@ -39,6 +39,7 @@ const CallLoggingPage = () => {
     call_type: ['Flight'],
     airline_inquiry: {},
     customer_outcome_map: {},
+    custom_outcome_map: {},
     notes: '',
     callback_required: false,
     callback_datetime: ''
@@ -54,36 +55,36 @@ const CallLoggingPage = () => {
       'Baggage Add-on', 'Excess Baggage Query', 'Refund Request', 'Refund Follow-up',
       'Reschedule Request', 'Fare Difference Query', 'Ticket Confirmation / Reissue',
       'Check-in Assistance', 'Missed Flight / No Show', 'Flight Status Inquiry',
-      'Visa / Travel Document Query'
+      'Visa / Travel Document Query', 'Other'
     ],
     'Hotel': [
       'Hotel Booking', 'Hotel Cancellation', 'Hotel Modification', 'Date Change',
       'Room Upgrade', 'Room Type Change', 'Early Check-in Request', 'Late Check-out Request',
       'Refund Request', 'Refund Follow-up', 'Booking Confirmation', 'Special Request',
-      'Hotel Complaint', 'Hotel Availability Inquiry'
+      'Hotel Complaint', 'Hotel Availability Inquiry', 'Other'
     ],
     'Cruise': [
       'Cruise Booking', 'Cruise Changes', 'Cruise Cancellation', 'Cruise Packages',
       'Cruise Upgrade', 'Cabin Upgrade', 'Date Change', 'Passenger Modification',
       'Refund Request', 'Shore Excursion Query', 'Dining Package Query',
-      'Cruise Documentation Query', 'Cruise Complaint'
+      'Cruise Documentation Query', 'Cruise Complaint', 'Other'
     ],
     'Car Rental': [
       'Car Rental Booking', 'Car Rental Changes', 'Car Rental Cancellation',
       'Vehicle Upgrade', 'Pickup / Drop Change', 'Driver Details Update',
-      'Extension Request', 'Refund Request', 'Insurance Query', 'Availability Inquiry'
+      'Extension Request', 'Refund Request', 'Insurance Query', 'Availability Inquiry', 'Other'
     ],
     'General / Support': [
       'General Inquiry', 'Pricing Inquiry', 'Quote Request', 'Payment Issue',
       'Payment Confirmation', 'Failed Payment', 'Refund Status', 'Callback Request',
       'Follow-up Call', 'Complaint / Escalation', 'Supervisor Request',
       'Booking Verification', 'Existing Booking Query', 'Promo / Discount Inquiry',
-      'Membership / Loyalty Query'
+      'Membership / Loyalty Query', 'Other'
     ],
     'Call Outcome / Disposition': [
       'Wrong Number', 'Blank Call', 'Spam', 'Missed Call', 'Call Disconnected',
       'Customer Unreachable', 'No Response', 'Duplicate Call', 'Language Barrier',
-      'Invalid Query', 'Test Call'
+      'Invalid Query', 'Test Call', 'Other'
     ]
   };
 
@@ -223,14 +224,17 @@ const CallLoggingPage = () => {
     try {
       const outcomeParts = [];
       formData.call_type.forEach(type => {
-        const outcome = formData.customer_outcome_map?.[type];
+        let outcome = formData.customer_outcome_map?.[type];
+        if (outcome === 'Other' && formData.custom_outcome_map?.[type]) {
+          outcome = formData.custom_outcome_map[type];
+        }
         if (outcome) {
           outcomeParts.push(`${type}: ${outcome}`);
         }
       });
       const customerOutcomeString = outcomeParts.join(' | ') || 'Inquiry only';
 
-      const { customer_outcome_map, ...submitData } = formData;
+      const { customer_outcome_map, custom_outcome_map, ...submitData } = formData;
 
       await callLogService.logCall({
         ...submitData,
@@ -247,13 +251,15 @@ const CallLoggingPage = () => {
         call_type: ['Flight'],
         airline_inquiry: {},
         customer_outcome_map: {},
+        custom_outcome_map: {},
         notes: '',
         callback_required: false,
         callback_datetime: ''
       });
       fetchLogs();
-    } catch {
-      setToast({ message: 'Failed to log call', type: 'error' });
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || 'Failed to log call';
+      setToast({ message: errorMsg, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -880,10 +886,39 @@ const CallLoggingPage = () => {
                         customer_outcome_map: newMap
                       });
                     }}
-                    style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none' }}
+                    style={{
+                      width: '100%', padding: '12px', borderRadius: '12px',
+                      background: 'var(--bg-input)', border: '1px solid var(--border-color)',
+                      color: 'var(--text-main)', outline: 'none'
+                    }}
                   >
                     {outcomesForType.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
+                  
+                  {selectedOutcome === 'Other' && (
+                    <div style={{ marginTop: '8px' }}>
+                      <input 
+                        type="text"
+                        placeholder="Please specify outcome..."
+                        value={formData.custom_outcome_map?.[type] || ''}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            custom_outcome_map: {
+                              ...formData.custom_outcome_map,
+                              [type]: e.target.value
+                            }
+                          });
+                        }}
+                        style={{
+                          width: '100%', padding: '12px', borderRadius: '12px',
+                          background: 'var(--bg-input)', border: '1px solid var(--border-color)',
+                          color: 'var(--text-main)', outline: 'none'
+                        }}
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
